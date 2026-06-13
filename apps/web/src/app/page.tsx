@@ -1046,7 +1046,7 @@ export default function Home() {
   };
 
   // Create Task Action
-  const handleCreateTask = (e: React.FormEvent) => {
+  const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createTaskForm.title || !createTaskForm.description) return;
 
@@ -1075,6 +1075,30 @@ export default function Home() {
     const budget = payoutValue * slotsValue;
     const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
     const total = budget + fee;
+
+    const isAdminCreating = wagmiAddress?.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase();
+    if (isAdminCreating) {
+      try {
+        setPendingTxData({ newTask });
+        await saveNewTask(newTask);
+        setPendingTxData(null);
+        setActiveTransaction({
+          status: "success",
+          title: newTask.title,
+          amount: `${total.toFixed(2)} cUSD`,
+          txHash: undefined,
+          onClose: () => {
+            setActiveTransaction(null);
+          }
+        });
+      } catch (err: any) {
+        console.error("Admin task creation failed:", err);
+        alert("Failed to create task: " + (err.message || err));
+        setPendingTxData(null);
+        setActiveTransaction(null);
+      }
+      return;
+    }
 
     setPendingTxData({ newTask });
     setActiveTransaction({
@@ -3738,20 +3762,60 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={async () => {
-                      // Transition state to sending
-                      setActiveTransaction((prev) => prev ? { ...prev, status: "releasing-escrow" } : null);
-                      
-                      // Simulate release latency
-                      setTimeout(() => {
-                        if (pendingTxData?.subId && pendingTxData?.taskId) {
-                          saveApproveSubmission(pendingTxData.subId, pendingTxData.taskId);
+                      try {
+                        // Transition state to sending
+                        setActiveTransaction((prev) => prev ? { ...prev, status: "releasing-escrow" } : null);
+
+                        const isAdminApproving = wagmiAddress?.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase();
+                        if (isAdminApproving) {
+                          const sub = creatorSubmissions.find(s => s.id === pendingTxData?.subId);
+                          const workerWallet = sub?.workerAddress;
+                          if (!workerWallet) {
+                            throw new Error("Worker wallet address not found.");
+                          }
+
+                          const tk = tasks.find((t) => t.id === pendingTxData?.taskId);
+                          const payoutVal = tk ? parseFloat(tk.amount.replace(/[^\d.]/g, "")) : 0.05;
+                          const amountWei = parseEther(payoutVal.toFixed(18));
+                          const cusdAddress = getCusdAddress(chainId);
+
+                          // Real on-chain transfer: admin wallet -> worker wallet
+                          const txHash = await writeContractAsync({
+                            address: cusdAddress,
+                            abi: ERC20_ABI,
+                            functionName: "transfer",
+                            args: [workerWallet as `0x${string}`, amountWei],
+                            type: "legacy",
+                          });
+
+                          if (pendingTxData?.subId && pendingTxData?.taskId) {
+                            await saveApproveSubmission(pendingTxData.subId, pendingTxData.taskId);
+                          }
+
+                          setActiveTransaction((prev) => prev ? { 
+                            ...prev, 
+                            status: "success", 
+                            txHash 
+                          } : null);
+                        } else {
+                          // Simulate release latency for normal users
+                          setTimeout(async () => {
+                            if (pendingTxData?.subId && pendingTxData?.taskId) {
+                              await saveApproveSubmission(pendingTxData.subId, pendingTxData.taskId);
+                            }
+                            setActiveTransaction((prev) => prev ? { 
+                              ...prev, 
+                              status: "success",
+                              txHash: `0x${Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('')}`
+                            } : null);
+                          }, 2000);
                         }
-                        setActiveTransaction((prev) => prev ? { 
-                          ...prev, 
-                          status: "success",
-                          txHash: `0x${Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('')}`
-                        } : null);
-                      }, 2000);
+                      } catch (err: any) {
+                        console.error("Payout failed:", err);
+                        alert("Transaction failed or rejected: " + (err.message || err));
+                        setActiveTransaction(null);
+                        setPendingTxData(null);
+                      }
                     }}
                     className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
                   >
