@@ -45,6 +45,9 @@ export const metadata: Metadata = {
     shortcut: '/icon.png',
     apple: '/icon.png',
   },
+  other: {
+    'talentapp:project_verification': '7d6b9b5add3e75246b442d6d5c5dce8cb112e3b53f8330f5b04be83d6e68f4f199896ff6f98b6359e721fa7288c2adbc998fec2c5a9ec87d4f17d149af8cc0ea',
+  },
 };
 
 export default function RootLayout({
