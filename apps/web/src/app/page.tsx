@@ -42,7 +42,9 @@ import {
   SlidersHorizontal,
   ChevronRight,
   UserCheck,
-  RotateCw
+  RotateCw,
+  Undo2,
+  RefreshCw
 } from "lucide-react";
 
 // Platform Type definition
@@ -65,6 +67,8 @@ interface Task {
   isUserCreated?: boolean;
   proofType?: "screenshot" | "text" | "both" | "screen-recording";
   createdByWallet?: string;
+  status?: string;
+  expiresAt?: string;
 }
 
 interface TaskTemplate {
@@ -382,7 +386,7 @@ const ACTION_PROOF_PRESETS: Record<string, string[]> = {
   web_dashboard: ["Screenshot of created dashboard workspace", "Short usability text review"]
 };
 
-const PLATFORM_ESCROW_WALLET = "0x9335E6F2eDA0d96E0B88c104d39a221DF001e475";
+const PLATFORM_ESCROW_WALLET = process.env.NEXT_PUBLIC_ADMIN_WALLET || "0x9335E6F2eDA0d96E0B88c104d39a221DF001e475";
 const PLATFORM_FEE_PERCENTAGE = 2; // 2% platform fee
 
 const CUSD_ADDRESSES: Record<number, `0x${string}`> = {
@@ -413,9 +417,14 @@ interface CreatorSubmission {
   taskId: string;
   workerAddress: string;
   proofLink?: string;
+  proofText?: string;
   proofImageName?: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "disputed" | "rejected-final";
   date: string;
+  rejectionCategory?: string;
+  rejectionReason?: string;
+  disputeReason?: string;
+  disputedAt?: string;
 }
 
 // User's own submissions
@@ -424,10 +433,15 @@ interface Submission {
   taskTitle: string;
   platform: Platform;
   amount: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "disputed" | "rejected-final";
   date: string;
   proofLink?: string;
   proofImageName?: string;
+  proofText?: string;
+  rejectionCategory?: string;
+  rejectionReason?: string;
+  disputeReason?: string;
+  disputedAt?: string;
 }
 
 // Custom SVG Icons for X (Twitter) and TikTok to make the UI look premium
@@ -468,8 +482,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"home" | "history" | "profile" | "about">("home");
 
   // Profile Sub-Screen for Creator Dashboard
-  // "profile-main" | "created-tasks" | "manage-submissions"
-  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions">("profile-main");
+  // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes"
+  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes">("profile-main");
 
   // Selected task for Details and Submission
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -499,6 +513,7 @@ export default function Home() {
     feesCollected: 0.09,
     lockedEscrow: 1.50,
   });
+  const [totalUsersCount, setTotalUsersCount] = useState<number>(0);
 
   // Deriving User's own Submissions History from the global submissions database
   const history = useMemo(() => {
@@ -516,13 +531,17 @@ export default function Home() {
           date: sub.date.split("T")[0],
           proofLink: sub.proofLink,
           proofImageName: sub.proofImageName,
+          rejectionCategory: sub.rejectionCategory,
+          rejectionReason: sub.rejectionReason,
+          disputeReason: sub.disputeReason,
+          disputedAt: sub.disputedAt
         };
       });
   }, [creatorSubmissions, tasks, wagmiAddress]);
 
   // Web3 Transaction Overlay state
   interface ActiveTransaction {
-    status: "confirm-deposit" | "sending-escrow" | "confirm-release" | "releasing-escrow" | "success";
+    status: "confirm-deposit" | "sending-escrow" | "confirm-release" | "releasing-escrow" | "confirm-refund" | "refunding-escrow" | "confirm-reopen" | "reopening-campaign" | "success";
     title: string;
     amount: string;
     step?: number;
@@ -576,6 +595,18 @@ export default function Home() {
   const [slotsValue, setSlotsValue] = useState<number>(50);
   const [payoutInput, setPayoutInput] = useState<string>("0.05");
   const [slotsInput, setSlotsInput] = useState<string>("50");
+  const [expiryHours, setExpiryHours] = useState<number>(24);
+  const [rejectingSubId, setRejectingSubId] = useState<string | null>(null);
+  const [rejectingTaskId, setRejectingTaskId] = useState<string | null>(null);
+  const [rejectionCategory, setRejectionCategory] = useState<string>("invalid screenshot");
+  const [rejectionReasonInput, setRejectionReasonInput] = useState<string>("");
+
+  const [disputingSubId, setDisputingSubId] = useState<string | null>(null);
+  const [disputeReasonInput, setDisputeReasonInput] = useState<string>("");
+
+  // Media Viewer Modal state
+  const [mediaViewerUrl, setMediaViewerUrl] = useState<string | null>(null);
+  const [mediaViewerType, setMediaViewerType] = useState<"image" | "video">("image");
   const [createTaskForm, setCreateTaskForm] = useState({
     title: "",
     platform: "x" as Platform, // Default to X
@@ -706,145 +737,48 @@ export default function Home() {
 
   // Synchronize tasks, submissions, and admin stats from Firestore (with automatic seeding if empty)
   useEffect(() => {
+    // Ensure admin_wallet is synced in admin/stats
+    const statsRef = doc(db, "admin", "stats");
+    setDoc(statsRef, {
+      admin_wallet: PLATFORM_ESCROW_WALLET.toLowerCase()
+    }, { merge: true }).catch((err) => console.error("Error setting admin wallet:", err));
+
     const unsubscribeTasks = onSnapshot(collection(db, "tasks"), async (snapshot) => {
-      if (snapshot.empty) {
-        // Seed initial tasks if empty
-        const initialTasks = [
-          {
-            platform: "x",
-            title: "Follow @Celo on X",
-            reward_amount: "0.02 cUSD",
-            description: "Join the official Celo community on X to stay updated with ecosystem announcements.",
-            task_type: "Social Follow",
-            slots_remaining: 42,
-            total_slots: 100,
-            instructions: [
-              "Click the link to open the profile page on X.",
-              "Click the 'Follow' button to follow @Celo.",
-              "Take a screenshot showing that you are following @Celo."
-            ],
-            proof_requirements: "Screenshot of the profile page showing the 'Following' status.",
-            task_link: "https://x.com/Celo",
-            proof_type: "both",
-            status: "active",
-            created_by_wallet: "system",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-          {
-            platform: "instagram",
-            title: "Like & Comment on Celo Video",
-            reward_amount: "0.05 cUSD",
-            description: "Engage with the latest video on Instagram showing MiniPay stablecoin pocket swaps.",
-            task_type: "Social Engagement",
-            slots_remaining: 18,
-            total_slots: 50,
-            instructions: [
-              "Open the provided Instagram link.",
-              "Like the video showcase.",
-              "Leave a constructive comment about MiniPay stablecoins.",
-              "Take a screenshot showing your liked video and comment."
-            ],
-            proof_requirements: "Screenshot containing both your comment and the liked video icon.",
-            task_link: "https://instagram.com",
-            proof_type: "screenshot",
-            status: "active",
-            created_by_wallet: "system",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-          {
-            platform: "survey",
-            title: "MiniPay User Experience Survey",
-            reward_amount: "0.30 cUSD",
-            description: "Provide feedback on your experience using MiniPay pockets for everyday transactions.",
-            task_type: "Survey / Feedback",
-            slots_remaining: 8,
-            total_slots: 25,
-            instructions: [
-              "Click the survey link.",
-              "Answer all 10 multiple-choice questions honestly.",
-              "Input your Celo wallet address in the final survey field.",
-              "Take a screenshot of the survey completion confirmation page."
-            ],
-            proof_requirements: "Screenshot of the final survey completion page stating 'Thank you for your feedback'.",
-            task_link: "https://docs.google.com/forms",
-            proof_type: "both",
-            status: "active",
-            created_by_wallet: "system",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        ];
-
-        for (let i = 0; i < initialTasks.length; i++) {
-          const tId = `task-${i + 1}`;
-          await setDoc(doc(db, "tasks", tId), initialTasks[i]);
-        }
-
-        // Also seed initial platform stats and some mock creator submissions if empty
-        await setDoc(doc(db, "admin", "stats"), {
-          feesCollected: 0.09,
-          lockedEscrow: 1.50
+      // Ensure admin stats document exists even if tasks are empty
+      const adminStatsRef = doc(db, "admin", "stats");
+      const adminStatsSnap = await getDoc(adminStatsRef);
+      if (!adminStatsSnap.exists()) {
+        await setDoc(adminStatsRef, {
+          feesCollected: 0.00,
+          lockedEscrow: 0.00,
+          admin_wallet: PLATFORM_ESCROW_WALLET.toLowerCase()
         });
-
-        // Seed some mock submissions
-        const initialSubs = [
-          {
-            task_id: "task-1",
-            wallet_address: "0x3A21...7Bc9",
-            proof_url: "task_complete_1.jpg",
-            proof_type: "screenshot",
-            status: "pending",
-            submitted_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString()
-          },
-          {
-            task_id: "task-1",
-            wallet_address: "0x892a...FE10",
-            proof_url: "https://facebook.com/posts/1029",
-            proof_type: "text",
-            status: "approved",
-            submitted_at: new Date(Date.now() - 30 * 3600 * 1000).toISOString(),
-            reviewed_at: new Date(Date.now() - 29 * 3600 * 1000).toISOString(),
-            reviewer_wallet: "0x9335E6F2eDA0d96E0B88c104d39a221DF001e475"
-          },
-          {
-            task_id: "task-1",
-            wallet_address: "0x56bc...C345",
-            proof_url: "profile_follow_screenshot.png",
-            proof_type: "screenshot",
-            status: "pending",
-            submitted_at: new Date(Date.now() - 25 * 3600 * 1000).toISOString() // will auto-approve on mount
-          }
-        ];
-
-        for (let i = 0; i < initialSubs.length; i++) {
-          await setDoc(doc(db, "submissions", `csub-${i + 1}`), initialSubs[i]);
-        }
-      } else {
-        const loadedTasks: Task[] = [];
-        snapshot.forEach((d) => {
-          const data = d.data();
-          loadedTasks.push({
-            id: d.id,
-            platform: data.platform,
-            title: data.title,
-            amount: data.reward_amount,
-            description: data.description,
-            type: data.task_type,
-            slotsRemaining: data.slots_remaining,
-            slotsTotal: data.total_slots,
-            instructions: data.instructions || [],
-            proofRequirements: data.proof_requirements,
-            link: data.task_link,
-            expiryHours: 24,
-            isUserCreated: data.created_by_wallet !== "system",
-            proofType: data.proof_type,
-            createdByWallet: data.created_by_wallet,
-          });
-        });
-        setTasks(loadedTasks);
       }
+
+      const loadedTasks: Task[] = [];
+      snapshot.forEach((d) => {
+        const data = d.data();
+        loadedTasks.push({
+          id: d.id,
+          platform: data.platform,
+          title: data.title,
+          amount: data.reward_amount,
+          description: data.description,
+          type: data.task_type,
+          slotsRemaining: data.slots_remaining,
+          slotsTotal: data.total_slots,
+          instructions: data.instructions || [],
+          proofRequirements: data.proof_requirements,
+          link: data.task_link,
+          expiryHours: data.expiry_hours || 24,
+          isUserCreated: !!(wagmiAddress && data.created_by_wallet && data.created_by_wallet.toLowerCase() === wagmiAddress.toLowerCase()),
+          proofType: data.proof_type,
+          createdByWallet: data.created_by_wallet,
+          status: data.status || "active",
+          expiresAt: data.expires_at || null,
+        });
+      });
+      setTasks(loadedTasks);
     });
 
     const unsubscribeSubs = onSnapshot(collection(db, "submissions"), (snapshot) => {
@@ -856,9 +790,14 @@ export default function Home() {
           taskId: data.task_id,
           workerAddress: data.wallet_address,
           proofLink: data.proof_url || "",
-          proofImageName: data.proof_type === "screenshot" || data.proof_type === "both" ? "proof_file" : undefined,
+          proofText: data.proof_text || "",
+          proofImageName: data.proof_url ? (data.proof_type === "screen-recording" ? "screen_recording.webm" : "proof_screenshot.png") : undefined,
           status: data.status,
           date: data.submitted_at,
+          rejectionCategory: data.rejection_category || "",
+          rejectionReason: data.rejection_reason || "",
+          disputeReason: data.dispute_reason || "",
+          disputedAt: data.disputed_at || "",
         });
       });
       setCreatorSubmissions(subs);
@@ -874,10 +813,15 @@ export default function Home() {
       }
     });
 
+    const unsubscribeUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+      setTotalUsersCount(snapshot.size);
+    });
+
     return () => {
       unsubscribeTasks();
       unsubscribeSubs();
       unsubscribeAdmin();
+      unsubscribeUsers();
     };
   }, []);
 
@@ -905,7 +849,9 @@ export default function Home() {
               status: "approved",
               reviewed_at: new Date().toISOString(),
               reviewer_wallet: "system-auto-approval",
-              transaction_hash: "0x_auto_approved"
+              transaction_hash: "0x_auto_approved",
+              proof_url: "",
+              proof_text: ""
             });
 
             if (tk) {
@@ -970,9 +916,30 @@ export default function Home() {
   const filteredTasks = useMemo(() => {
     let result = tasks;
 
-    // Filter out user's own tasks from feed
+    // Filter out completed, expired, or refunded tasks
+    result = result.filter((t) => {
+      const isCompleted = t.slotsRemaining <= 0;
+      const isExpired = t.expiresAt && new Date(t.expiresAt).getTime() < Date.now();
+      const isRefunded = t.status === "refunded";
+      if (isCompleted || isExpired || isRefunded || t.status === "expired") return false;
+      return true;
+    });
+
+    // Filter out user's own tasks from feed, and tasks they have already submitted proof for
     if (wagmiAddress) {
-      result = result.filter((t) => t.createdByWallet?.toLowerCase() !== wagmiAddress.toLowerCase());
+      const addressLower = wagmiAddress.toLowerCase();
+      result = result.filter((t) => {
+        // Exclude own tasks
+        if (t.createdByWallet?.toLowerCase() === addressLower) return false;
+        
+        // Exclude tasks already completed/submitted by the worker (unless they were rejected and can be resubmitted)
+        const hasSubmittedActive = creatorSubmissions.some(
+          (sub) => sub.taskId === t.id && sub.workerAddress?.toLowerCase() === addressLower && sub.status !== "rejected"
+        );
+        if (hasSubmittedActive) return false;
+
+        return true;
+      });
     }
     
     // Filter
@@ -998,7 +965,7 @@ export default function Home() {
           return 0;
       }
     });
-  }, [tasks, activeFilter, sortBy]);
+  }, [tasks, activeFilter, sortBy, wagmiAddress, creatorSubmissions]);
 
   // Function to resolve platform icons (includes Facebook & LinkedIn)
   const getPlatformIcon = (platform: Platform, className = "w-5 h-5") => {
@@ -1100,7 +1067,7 @@ export default function Home() {
       instructions: instructionsArray.length > 0 ? instructionsArray : ["Open the link.", "Complete requirements.", "Upload screenshot."],
       proofRequirements: createTaskForm.proofRequirements || "Submit screenshot showing completion.",
       link: createTaskForm.link || "https://celo.org",
-      expiryHours: 24,
+      expiryHours: expiryHours,
       isUserCreated: true,
       proofType: createTaskForm.proofType
     };
@@ -1135,7 +1102,8 @@ export default function Home() {
       task_link: newTask.link,
       status: "active",
       created_by_wallet: wagmiAddress?.toLowerCase() || "unknown",
-      expires_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+      expires_at: new Date(Date.now() + (newTask.expiryHours || 24) * 3600 * 1000).toISOString(),
+      expiry_hours: newTask.expiryHours || 24,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       total_budget: parseFloat(newTask.amount.replace(/[^\d.]/g, "")) * newTask.slotsTotal,
@@ -1207,30 +1175,43 @@ export default function Home() {
       return;
     }
 
+    const existingSubmission = creatorSubmissions.find(
+      (sub) => sub.taskId === selectedTask.id && sub.workerAddress?.toLowerCase() === wagmiAddress.toLowerCase()
+    );
+    if (existingSubmission && existingSubmission.status !== "rejected") {
+      alert("You have already submitted proof for this task.");
+      return;
+    }
+
     try {
       setIsSubmittingProof(true);
-      let uploadedUrl = proofForm.proofLink || "";
+      let fileUrl = "";
 
       if (proofForm.screenshot) {
         const fileRef = ref(storage, `proofs/screenshots/sub-${Date.now()}-${proofForm.screenshot.name}`);
         const uploadResult = await uploadBytes(fileRef, proofForm.screenshot);
-        uploadedUrl = await getDownloadURL(uploadResult.ref);
+        fileUrl = await getDownloadURL(uploadResult.ref);
       } 
       else if (proofForm.screenRecording) {
         const fileRef = ref(storage, `proofs/recordings/sub-${Date.now()}-${proofForm.screenRecording.name}`);
         const uploadResult = await uploadBytes(fileRef, proofForm.screenRecording);
-        uploadedUrl = await getDownloadURL(uploadResult.ref);
+        fileUrl = await getDownloadURL(uploadResult.ref);
       }
 
-      const submissionId = `sub-${Date.now()}`;
+      const submissionId = existingSubmission ? existingSubmission.id : `sub-${Date.now()}`;
       const submissionData = {
         task_id: selectedTask.id,
         wallet_address: wagmiAddress.toLowerCase(),
-        proof_url: uploadedUrl,
+        proof_url: fileUrl,
+        proof_text: proofForm.proofLink || "",
         proof_type: selectedTask.proofType || "screenshot",
         status: "pending",
         submitted_at: new Date().toISOString(),
-        transaction_hash: ""
+        transaction_hash: "",
+        rejection_category: "",
+        rejection_reason: "",
+        dispute_reason: "",
+        disputed_at: ""
       };
 
       await setDoc(doc(db, "submissions", submissionId), submissionData);
@@ -1282,7 +1263,9 @@ export default function Home() {
         status: "approved",
         reviewed_at: new Date().toISOString(),
         reviewer_wallet: wagmiAddress?.toLowerCase() || "unknown",
-        transaction_hash: activeTransaction?.txHash || "0x"
+        transaction_hash: activeTransaction?.txHash || "0x",
+        proof_url: "",
+        proof_text: ""
       });
 
       if (tk) {
@@ -1325,17 +1308,262 @@ export default function Home() {
     }
   };
 
+  // Calculate if rejection rate cap is reached (Max 40% rejection rate for a task)
+  const isRejectionCapReached = (taskId: string): boolean => {
+    const taskSubs = creatorSubmissions.filter(s => s.taskId === taskId);
+    const approvedCount = taskSubs.filter(s => s.status === "approved").length;
+    const rejectedCount = taskSubs.filter(s => s.status === "rejected" || s.status === "rejected-final" || s.status === "disputed").length;
+    const totalReviewed = approvedCount + rejectedCount;
+    
+    // We only enforce the 40% cap after at least 3 reviewed submissions
+    if (totalReviewed >= 3) {
+      const proposedRejectionRate = ((rejectedCount + 1) / (totalReviewed + 1)) * 100;
+      if (proposedRejectionRate > 40) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const triggerRejectDialog = (subId: string, taskId: string) => {
+    if (isRejectionCapReached(taskId)) {
+      alert("Rejection rate limit reached (Max 40% for this task). You must approve this submission.");
+      return;
+    }
+    setRejectingSubId(subId);
+    setRejectingTaskId(taskId);
+    setRejectionCategory("invalid screenshot");
+    setRejectionReasonInput("");
+  };
+
   // Creator Action: Reject Worker Submission
-  const handleRejectSubmission = async (subId: string) => {
+  const handleRejectSubmission = async (subId: string, category: string, reason: string) => {
     try {
       const subRef = doc(db, "submissions", subId);
       await updateDoc(subRef, {
         status: "rejected",
+        rejection_category: category,
+        rejection_reason: reason,
         reviewed_at: new Date().toISOString(),
         reviewer_wallet: wagmiAddress?.toLowerCase() || "unknown"
       });
+      setRejectingSubId(null);
+      setRejectingTaskId(null);
     } catch (err) {
       console.error("Firestore reject submission failed:", err);
+    }
+  };
+
+  // Worker Action: Dispute Rejection
+  const handleDisputeRejection = async (subId: string, reason: string) => {
+    try {
+      const subRef = doc(db, "submissions", subId);
+      await updateDoc(subRef, {
+        status: "disputed",
+        dispute_reason: reason,
+        disputed_at: new Date().toISOString()
+      });
+      setDisputingSubId(null);
+      setDisputeReasonInput("");
+      alert("Your dispute has been logged successfully. The platform administrator will verify the details.");
+    } catch (err) {
+      console.error("Firestore dispute submission failed:", err);
+    }
+  };
+
+  // Admin Action: Uphold Rejection
+  const handleAdminApproveRejection = async (subId: string) => {
+    try {
+      const subRef = doc(db, "submissions", subId);
+      await updateDoc(subRef, {
+        status: "rejected-final",
+        reviewed_at: new Date().toISOString(),
+        reviewer_wallet: wagmiAddress?.toLowerCase() || "unknown"
+      });
+      alert("Rejection upheld. The dispute has been finalized.");
+    } catch (err) {
+      console.error("Firestore admin reject dispute failed:", err);
+    }
+  };
+
+  // Admin Action: Pay Worker (Reuses the existing release transaction modal)
+  const handleAdminPayWorker = (subId: string, taskId: string) => {
+    const tk = tasks.find((t) => t.id === taskId);
+    if (!tk) return;
+    const payoutVal = parseFloat(tk.amount.replace(/[^\d.]/g, "")) || 0.05;
+
+    setPendingTxData({ subId, taskId });
+    setActiveTransaction({
+      status: "confirm-release",
+      title: "Resolve Dispute: Payout Worker",
+      amount: `${payoutVal.toFixed(2)} cUSD`,
+      onClose: () => {
+        setActiveTransaction(null);
+        setPendingTxData(null);
+      }
+    });
+  };
+
+  // Creator Action: Claim Escrow Refund for Expired Task
+  const handleClaimRefund = async (taskId: string) => {
+    const tk = tasks.find((t) => t.id === taskId);
+    if (!tk) return;
+    const payoutVal = parseFloat(tk.amount.replace(/[^\d.]/g, "")) || 0.05;
+    const refundVal = tk.slotsRemaining * payoutVal;
+    
+    setPendingTxData({ taskId });
+    setActiveTransaction({
+      status: "confirm-refund",
+      title: "Claim Escrow Refund",
+      amount: `${refundVal.toFixed(2)} cUSD`,
+      onClose: () => {
+        setActiveTransaction(null);
+        setPendingTxData(null);
+      }
+    });
+  };
+
+  const executeRefund = async (taskId: string) => {
+    try {
+      const tk = tasks.find((t) => t.id === taskId);
+      if (!tk) return;
+      const payoutVal = parseFloat(tk.amount.replace(/[^\d.]/g, "")) || 0.05;
+      const refundVal = tk.slotsRemaining * payoutVal;
+
+      const taskRef = doc(db, "tasks", taskId);
+      const statsRef = doc(db, "admin", "stats");
+
+      // Set state to refunding
+      setActiveTransaction((prev) => prev ? { ...prev, status: "refunding-escrow" } : null);
+
+      // Simulate a small delay for blockchain experience
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Update task status to "refunded"
+      await updateDoc(taskRef, {
+        status: "refunded",
+        updated_at: new Date().toISOString()
+      });
+
+      // Update admin stats
+      if (refundVal > 0) {
+        await runTransaction(db, async (transaction) => {
+          const sfDoc = await transaction.get(statsRef);
+          const currentEscrow = sfDoc.exists() ? sfDoc.data().lockedEscrow || 0 : 0;
+          transaction.set(statsRef, {
+            lockedEscrow: Math.max(0, parseFloat((currentEscrow - refundVal).toFixed(2)))
+          }, { merge: true });
+        });
+      }
+
+      // Transition to success
+      setActiveTransaction((prev) => prev ? { 
+        ...prev, 
+        status: "success", 
+        txHash: `0x${Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('')}`
+      } : null);
+
+    } catch (err: any) {
+      console.error("Firestore refund failed:", err);
+      alert("Refund failed: " + (err.message || err));
+      setActiveTransaction(null);
+      setPendingTxData(null);
+    }
+  };
+
+  // Creator Action: Reopen Campaign
+  const handleReopenTask = async (taskId: string) => {
+    const tk = tasks.find((t) => t.id === taskId);
+    if (!tk) return;
+
+    const payoutVal = parseFloat(tk.amount.replace(/[^\d.]/g, "")) || 0.05;
+    const budget = payoutVal * tk.slotsTotal;
+    const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
+    const total = budget + fee;
+
+    setPendingTxData({ taskId });
+    setActiveTransaction({
+      status: "confirm-reopen",
+      title: "Reopen Campaign",
+      amount: `${total.toFixed(2)} cUSD`,
+      onClose: () => {
+        setActiveTransaction(null);
+        setPendingTxData(null);
+      }
+    });
+  };
+
+  const executeReopen = async (taskId: string) => {
+    try {
+      const tk = tasks.find((t) => t.id === taskId);
+      if (!tk) return;
+
+      const payoutVal = parseFloat(tk.amount.replace(/[^\d.]/g, "")) || 0.05;
+      const budget = payoutVal * tk.slotsTotal;
+      const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
+      const total = budget + fee;
+
+      // Transition to sending state
+      setActiveTransaction((prev) => prev ? { ...prev, status: "reopening-campaign" } : null);
+
+      // 1. Write the blockchain transaction (same token transfer as task creation)
+      const amountWei = parseEther(total.toFixed(18));
+      const cusdAddress = getCusdAddress(chainId);
+      const txHash = await writeContractAsync({
+        address: cusdAddress,
+        abi: ERC20_ABI,
+        functionName: "transfer",
+        args: [PLATFORM_ESCROW_WALLET as `0x${string}`, amountWei],
+        type: "legacy",
+      });
+
+      // 2. Update the task doc in Firestore
+      const taskRef = doc(db, "tasks", taskId);
+      const updatedExpiry = new Date(Date.now() + (tk.expiryHours || 24) * 3600 * 1000).toISOString();
+      await updateDoc(taskRef, {
+        status: "active",
+        slots_remaining: tk.slotsTotal,
+        expires_at: updatedExpiry,
+        updated_at: new Date().toISOString(),
+        transaction_hash: txHash
+      });
+
+      // 3. Create a payment record
+      await setDoc(doc(db, "payments", `pay-${taskId}-reopen-${Date.now()}`), {
+        task_id: taskId,
+        wallet_address: wagmiAddress?.toLowerCase() || "unknown",
+        amount: budget,
+        currency: "cUSD",
+        transaction_hash: txHash,
+        payment_status: "paid",
+        created_at: new Date().toISOString()
+      });
+
+      // 4. Update admin stats
+      const statsRef = doc(db, "admin", "stats");
+      await runTransaction(db, async (transaction) => {
+        const sfDoc = await transaction.get(statsRef);
+        const currentFees = sfDoc.exists() ? sfDoc.data().feesCollected || 0 : 0;
+        const currentEscrow = sfDoc.exists() ? sfDoc.data().lockedEscrow || 0 : 0;
+        
+        transaction.set(statsRef, {
+          feesCollected: parseFloat((currentFees + fee).toFixed(2)),
+          lockedEscrow: parseFloat((currentEscrow + budget).toFixed(2))
+        }, { merge: true });
+      });
+
+      // Transition to success
+      setActiveTransaction((prev) => prev ? { 
+        ...prev, 
+        status: "success", 
+        txHash
+      } : null);
+
+    } catch (err: any) {
+      console.error("Campaign reopening deposit failed:", err);
+      alert("Transaction failed or rejected: " + (err.message || err));
+      setActiveTransaction(null);
+      setPendingTxData(null);
     }
   };
 
@@ -1566,16 +1794,24 @@ export default function Home() {
                 {/* TASK LIST */}
                 <div className="space-y-4">
                   {filteredTasks.length > 0 ? (
-                    filteredTasks.map((task) => (
+                    filteredTasks.map((task) => {
+                      const isMyTask = !!(wagmiAddress && task.createdByWallet?.toLowerCase() === wagmiAddress.toLowerCase());
+                      return (
                       <div
                         key={task.id}
                         onClick={() => handleAuthAction(() => {
-                          setSelectedTask(task);
-                          setScreen("task-details");
+                          if (isMyTask) {
+                            setSelectedCreatedTask(task);
+                            setActiveTab("profile");
+                            setProfileSubScreen("manage-submissions");
+                          } else {
+                            setSelectedTask(task);
+                            setScreen("task-details");
+                          }
                         })}
                         className="bg-white p-5 rounded-2xl border border-slate-100/80 shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300 group cursor-pointer relative overflow-hidden"
                       >
-                        {task.isUserCreated && (
+                        {isMyTask && (
                           <span className="absolute top-0 right-0 px-2 py-0.5 bg-blue-500 text-white text-[8px] font-bold uppercase rounded-bl-lg tracking-wider">
                             My Task
                           </span>
@@ -1622,21 +1858,39 @@ export default function Home() {
                               Expires in {task.expiryHours}h
                             </span>
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAuthAction(() => {
-                                setSelectedTask(task);
-                                setScreen("task-details");
-                              });
-                            }}
-                            className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all"
-                          >
-                            View Task
-                          </button>
+                          {isMyTask ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAuthAction(() => {
+                                  setSelectedCreatedTask(task);
+                                  setActiveTab("profile");
+                                  setProfileSubScreen("manage-submissions");
+                                });
+                              }}
+                              className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 active:scale-95 transition-all flex items-center gap-1.5"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              Submissions
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAuthAction(() => {
+                                  setSelectedTask(task);
+                                  setScreen("task-details");
+                                });
+                              }}
+                              className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all"
+                            >
+                              View Task
+                            </button>
+                          )}
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
                       <p className="text-slate-400 text-sm font-medium">No tasks found for "{activeFilter}"</p>
@@ -1681,50 +1935,99 @@ export default function Home() {
                           color: "bg-red-50 text-red-700 border-red-100/50",
                           icon: <XCircle className="w-3.5 h-3.5 text-red-600" />,
                           label: "Rejected"
+                        },
+                        disputed: {
+                          color: "bg-orange-50 text-orange-700 border-orange-100/50",
+                          icon: <AlertCircle className="w-3.5 h-3.5 text-orange-600" />,
+                          label: "Disputed"
+                        },
+                        "rejected-final": {
+                          color: "bg-slate-100 text-slate-700 border-slate-200",
+                          icon: <XCircle className="w-3.5 h-3.5 text-slate-500" />,
+                          label: "Rejection Upheld"
                         }
-                      }[item.status];
+                      }[item.status] || {
+                        color: "bg-slate-50 text-slate-600 border-slate-100",
+                        icon: <Info className="w-3.5 h-3.5" />,
+                        label: "Unknown"
+                      };
 
                       return (
                         <div
                           key={item.id}
-                          className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between gap-4"
+                          className="flex flex-col gap-2 w-full bg-white p-4 rounded-xl border border-slate-100 shadow-sm animate-fade-in"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-slate-50 rounded-lg">
-                              {getPlatformIcon(item.platform, "w-4 h-4")}
+                          <div className="flex items-center justify-between gap-4 w-full">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-slate-50 rounded-lg">
+                                {getPlatformIcon(item.platform, "w-4 h-4")}
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-bold text-slate-900 line-clamp-1">
+                                  {item.taskTitle}
+                                </h4>
+                                <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                                  Submitted: {item.date}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <h4 className="text-xs font-bold text-slate-900 line-clamp-1">
-                                {item.taskTitle}
-                              </h4>
-                              <p className="text-[10px] text-slate-400 font-semibold mt-1">
-                                Submitted: {item.date}
-                              </p>
-                            </div>
-                          </div>
 
-                          <div className="text-right flex-shrink-0 flex flex-col items-end gap-0.5">
-                            <span className="text-xs font-extrabold text-slate-800">
-                              {formatCurrency(item.amount)}
-                            </span>
-                            {(() => {
-                              const val = parseFloat(item.amount.replace(/[^\d.]/g, ""));
-                              if (!isNaN(val)) {
-                                return (
-                                  <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                    {currencyPreference === "NGN" ? `${val.toFixed(2)} cUSD` : `~₦${Math.round(val * 1500)}`}
-                                  </span>
-                                );
-                              }
-                              return null;
-                            })()}
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold border ${statusConfig.color}`}
-                            >
-                              {statusConfig.icon}
-                              {statusConfig.label}
-                            </span>
+                            <div className="text-right flex-shrink-0 flex flex-col items-end gap-0.5">
+                              <span className="text-xs font-extrabold text-slate-800">
+                                {formatCurrency(item.amount)}
+                              </span>
+                              {(() => {
+                                const val = parseFloat(item.amount.replace(/[^\d.]/g, ""));
+                                if (!isNaN(val)) {
+                                  return (
+                                    <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
+                                      {currencyPreference === "NGN" ? `${val.toFixed(2)} cUSD` : `~₦${Math.round(val * 1500)}`}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
+                              <span
+                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold border ${statusConfig.color}`}
+                              >
+                                {statusConfig.icon}
+                                {statusConfig.label}
+                              </span>
+                            </div>
                           </div>
+                          
+                          {/* Rejection Details & Dispute Button */}
+                          {item.status === "rejected" && (
+                            <div className="mt-1 pt-2.5 border-t border-slate-50 flex items-center justify-between gap-3 flex-wrap">
+                              <div className="text-[10px] text-slate-500 font-medium">
+                                <span className="font-extrabold text-red-600 uppercase text-[9px] block">Rejection Reason:</span>
+                                <span className="font-bold text-slate-700 capitalize">{item.rejectionCategory}</span> - {item.rejectionReason}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setDisputingSubId(item.id);
+                                  setDisputeReasonInput("");
+                                }}
+                                className="px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-bold hover:bg-slate-800 transition-all shadow-sm active:scale-95"
+                              >
+                                Dispute Rejection
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Upheld/Disputed Status Extra details */}
+                          {item.status === "disputed" && item.disputeReason && (
+                            <div className="mt-1 pt-2.5 border-t border-slate-50 text-[10px] text-slate-500 font-medium">
+                              <span className="font-extrabold text-orange-600 uppercase text-[9px] block">Your Dispute Argument:</span>
+                              "{item.disputeReason}"
+                            </div>
+                          )}
+                          {item.status === "rejected-final" && (
+                            <div className="mt-1 pt-2.5 border-t border-slate-50 text-[10px] text-slate-500 font-medium">
+                              <span className="font-extrabold text-slate-500 uppercase text-[9px] block">Admin Resolution:</span>
+                              Rejection upheld. Dispute closed.
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1908,6 +2211,58 @@ export default function Home() {
                                   </span>
                                 </div>
                               </div>
+
+                              <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-50 text-center bg-slate-50 rounded-xl p-3">
+                                <div>
+                                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">
+                                    Total Users
+                                  </span>
+                                  <span className="text-slate-800 font-black text-xs block mt-0.5">
+                                    {totalUsersCount}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">
+                                    Tasks Created
+                                  </span>
+                                  <span className="text-slate-800 font-black text-xs block mt-0.5">
+                                    {tasks.length}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">
+                                    Tasks Completed
+                                  </span>
+                                  <span className="text-slate-800 font-black text-xs block mt-0.5">
+                                    {tasks.filter(t => t.slotsRemaining <= 0 || t.status === "completed").length}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Disputes management button */}
+                              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="relative">
+                                    <AlertCircle className="w-4.5 h-4.5 text-orange-500" />
+                                    {creatorSubmissions.filter(s => s.status === "disputed").length > 0 && (
+                                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center text-[7px] font-bold text-white">
+                                        {creatorSubmissions.filter(s => s.status === "disputed").length}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-xs font-bold text-slate-800">
+                                    Pending Disputes ({creatorSubmissions.filter(s => s.status === "disputed").length})
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setProfileSubScreen("admin-disputes")}
+                                  className="px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                                >
+                                  Manage
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         )}
@@ -1931,24 +2286,24 @@ export default function Home() {
                         </div>
 
                         <div className="space-y-4">
-                          {/* Standard Mock Task launched by User, plus any user-created task */}
-                          {[
-                            {
-                              id: "mock-user-1",
-                              title: "Share Taskly Launch Post on Facebook",
-                              amount: "1.50 cUSD",
-                              platform: "facebook" as Platform,
-                              slotsRemaining: 27,
-                              slotsTotal: 30,
-                              isUserCreated: true
-                            },
-                            ...tasks.filter(t => t.createdByWallet?.toLowerCase() === wagmiAddress?.toLowerCase())
-                          ].map((t) => {
+                          {/* User-created tasks */}
+                          {tasks.filter(t => t.createdByWallet?.toLowerCase() === wagmiAddress?.toLowerCase()).map((t) => {
                             const pendingSubmissions = getPendingCount(t.id);
+                            
+                            // Determine status dynamically
+                            let taskStatus = t.status || "active";
+                            if (taskStatus !== "refunded") {
+                              if (t.slotsRemaining === 0) {
+                                taskStatus = "completed";
+                              } else if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
+                                taskStatus = "expired";
+                              }
+                            }
+
                             return (
                               <div
                                 key={t.id}
-                                className="bg-white p-4 border border-slate-100 shadow-sm rounded-2xl space-y-4"
+                                className="bg-white p-4 border border-slate-100 shadow-sm rounded-2xl space-y-4 animate-fade-in"
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="p-2 bg-slate-50 rounded-lg">
@@ -1956,35 +2311,71 @@ export default function Home() {
                                   </div>
                                   <div className="flex-grow">
                                     <h3 className="text-xs font-bold text-slate-900 line-clamp-1">{t.title}</h3>
-                                    <div className="flex items-center gap-3 mt-1.5">
-                                      <span className="text-[10px] text-slate-400 font-semibold">
+                                    <div className="flex items-center gap-3 mt-1.5 font-medium text-[10px] text-slate-400">
+                                      <span>
                                         Slots: {t.slotsRemaining} / {t.slotsTotal}
                                       </span>
-                                      <span className="text-[10px] text-slate-400 font-semibold">
+                                      <span>
                                         Payout: {formatCurrency(t.amount)}
                                       </span>
+                                      {t.expiresAt && (
+                                        <span className="flex items-center gap-1">
+                                          <Clock className="w-3 h-3" />
+                                          {new Date(t.expiresAt).toLocaleDateString()}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
-                                  {pendingSubmissions > 0 && (
+                                  {pendingSubmissions > 0 && taskStatus === "active" && (
                                     <span className="px-2 py-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full">
                                       {pendingSubmissions} new
                                     </span>
                                   )}
                                 </div>
-                                <div className="border-t border-slate-50 pt-3 flex items-center justify-between">
-                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                    campaign active
+                                <div className="border-t border-slate-50 pt-3 flex items-center justify-between flex-wrap gap-2">
+                                  <span className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                                    taskStatus === "active"
+                                      ? "bg-blue-50 text-blue-700 border-blue-100/50"
+                                      : taskStatus === "completed"
+                                      ? "bg-emerald-50 text-emerald-700 border-emerald-100/50"
+                                      : taskStatus === "expired"
+                                      ? "bg-rose-50 text-rose-700 border-rose-100/50"
+                                      : "bg-slate-50 text-slate-600 border-slate-100"
+                                  }`}>
+                                    campaign {taskStatus}
                                   </span>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedCreatedTask(t as Task);
-                                      setProfileSubScreen("manage-submissions");
-                                    }}
-                                    className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all flex items-center gap-1.5"
-                                  >
-                                    <UserCheck className="w-3.5 h-3.5" />
-                                    Review Proofs
-                                  </button>
+                                  <div className="flex gap-2">
+                                    {taskStatus === "active" && (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedCreatedTask(t as Task);
+                                          setProfileSubScreen("manage-submissions");
+                                        }}
+                                        className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all flex items-center gap-1.5"
+                                      >
+                                        <UserCheck className="w-3.5 h-3.5" />
+                                        Review Proofs
+                                      </button>
+                                    )}
+                                    {taskStatus === "expired" && t.slotsRemaining > 0 && (
+                                      <button
+                                        onClick={() => handleClaimRefund(t.id)}
+                                        className="px-4 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold hover:bg-rose-700 active:scale-95 transition-all flex items-center gap-1.5"
+                                      >
+                                        <Undo2 className="w-3.5 h-3.5" />
+                                        Refund Escrow
+                                      </button>
+                                    )}
+                                    {(taskStatus === "completed" || taskStatus === "refunded" || taskStatus === "expired") && (
+                                      <button
+                                        onClick={() => handleReopenTask(t.id)}
+                                        className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 active:scale-95 transition-all flex items-center gap-1.5"
+                                      >
+                                        <RefreshCw className="w-3.5 h-3.5" />
+                                        Reopen Campaign
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -2015,99 +2406,250 @@ export default function Home() {
 
                         <div className="space-y-4">
                           {activeCreatorSubmissions.length > 0 ? (
-                            activeCreatorSubmissions.map((sub) => (
-                              <div
-                                key={sub.id}
-                                className="bg-white p-4 border border-slate-100 shadow-sm rounded-xl space-y-3.5"
-                              >
-                                <div className="flex justify-between items-center">
-                                  <span className="text-[10px] text-slate-400 font-bold font-mono">
-                                    Worker: {formatAddress(sub.workerAddress)}
-                                  </span>
-                                  <span className="text-[10px] text-slate-400 font-semibold">
-                                    {sub.date}
-                                  </span>
-                                </div>
+                            activeCreatorSubmissions.map((sub) => {
+                              const isAutoApproving = (() => {
+                                const subTime = new Date(sub.date).getTime();
+                                return (Date.now() - subTime) / (1000 * 60 * 60) >= 24;
+                              })();
+                              const isRejectDisabled = isRejectionCapReached(selectedCreatedTask.id);
 
-                                {/* Proof Display details */}
-                                <div className="bg-slate-50/50 border border-slate-100 p-3 rounded-lg space-y-1.5">
-                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-                                    Submitted Proof
-                                  </span>
-                                  {sub.proofImageName && (
-                                    <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
-                                      <FileText className="w-3.5 h-3.5 text-slate-400" />
-                                      <span>{sub.proofImageName}</span>
-                                    </div>
-                                  )}
-                                  {sub.proofLink && (
-                                    <div>
-                                      {sub.proofLink.startsWith("http") ? (
-                                        <a
-                                          href={sub.proofLink}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1"
+                              return (
+                                <div
+                                  key={sub.id}
+                                  className="bg-white p-4 border border-slate-100 shadow-sm rounded-xl space-y-3.5"
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[10px] text-slate-400 font-bold font-mono">
+                                      Worker: {formatAddress(sub.workerAddress)}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-semibold">
+                                      {sub.date}
+                                    </span>
+                                  </div>
+
+                                  {/* Proof Display details */}
+                                  <div className="bg-slate-50/50 border border-slate-100 p-3 rounded-lg space-y-3">
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                                      Submitted Proof
+                                    </span>
+                                    
+                                    {/* File Proof */}
+                                    {sub.proofLink && sub.proofLink.startsWith("http") && (
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const isVideo = sub.proofLink?.includes(".webm") || sub.proofLink?.includes(".mp4") || sub.proofImageName?.endsWith(".webm");
+                                            setMediaViewerType(isVideo ? "video" : "image");
+                                            setMediaViewerUrl(sub.proofLink || null);
+                                          }}
+                                          className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1.5 bg-blue-50/50 px-3 py-1.5 rounded-lg border border-blue-100/50 active:scale-95 transition-all"
                                         >
-                                          {sub.proofLink}
-                                          <ExternalLink className="w-3 h-3" />
-                                        </a>
-                                      ) : (
-                                        <div className="text-xs text-slate-700 font-bold bg-white border border-slate-200/60 px-3 py-2 rounded-xl inline-block mt-0.5 shadow-sm font-mono">
-                                          {sub.proofLink}
+                                          <FileText className="w-3.5 h-3.5 text-blue-500" />
+                                          <span>View Proof</span>
+                                        </button>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Text Proof display (with backward compatibility) */}
+                                    {(sub.proofText || (sub.proofLink && !sub.proofLink.startsWith("http"))) && (
+                                      <div className="space-y-1">
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">
+                                          Text Proof:
+                                        </span>
+                                        <div className="text-xs text-slate-700 font-semibold bg-white border border-slate-200/60 px-3.5 py-2 rounded-xl inline-block shadow-sm font-mono select-all">
+                                          {sub.proofText || sub.proofLink}
                                         </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Status and Action Buttons */}
-                                <div className="flex justify-between items-center border-t border-slate-50 pt-3">
-                                  <div>
-                                    {sub.status !== "pending" ? (
-                                      <span
-                                        className={`px-2 py-0.5 rounded-full text-[9px] font-bold border capitalize ${
-                                          sub.status === "approved"
-                                            ? "bg-emerald-50 text-emerald-700 border-emerald-100/50"
-                                            : "bg-red-50 text-red-700 border-red-100/50"
-                                        }`}
-                                      >
-                                        {sub.status}
-                                      </span>
-                                    ) : (
-                                      <div className="flex flex-col gap-1 items-start">
-                                        <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                          Requires Action
-                                        </span>
-                                        <span className="text-[9px] text-slate-400 font-bold block font-sans">
-                                          {getRemainingTimeText(sub.date)}
-                                        </span>
                                       </div>
                                     )}
                                   </div>
 
-                                  {sub.status === "pending" && (
-                                    <div className="flex gap-2">
-                                      <button
-                                        onClick={() => handleRejectSubmission(sub.id)}
-                                        className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-bold transition-all"
-                                      >
-                                        Reject
-                                      </button>
-                                      <button
-                                        onClick={() => handleApproveSubmission(sub.id, selectedCreatedTask.id)}
-                                        className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
-                                      >
-                                        Approve & Pay
-                                      </button>
+                                  {/* Status and Action Buttons */}
+                                  <div className="flex justify-between items-center border-t border-slate-50 pt-3">
+                                    <div>
+                                      {sub.status !== "pending" ? (
+                                        <div className="flex flex-col gap-1 items-start">
+                                          <span
+                                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold border capitalize ${
+                                              sub.status === "approved"
+                                                ? "bg-emerald-50 text-emerald-700 border-emerald-100/50"
+                                                : sub.status === "disputed"
+                                                ? "bg-orange-50 text-orange-700 border-orange-100/50"
+                                                : "bg-red-50 text-red-700 border-red-100/50"
+                                            }`}
+                                          >
+                                            {sub.status}
+                                          </span>
+                                          {sub.status === "rejected" && sub.rejectionCategory && (
+                                            <span className="text-[9px] text-slate-400 font-semibold font-sans mt-0.5 block max-w-[200px] truncate">
+                                              Reason: {sub.rejectionCategory}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-col gap-1 items-start">
+                                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                            Requires Action
+                                          </span>
+                                          <span className="text-[9px] text-slate-400 font-bold block font-sans">
+                                            {getRemainingTimeText(sub.date)}
+                                          </span>
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
+
+                                    {sub.status === "pending" && (
+                                      <div className="flex gap-2">
+                                        {isAutoApproving ? (
+                                          <span className="text-[10px] text-slate-400 font-bold uppercase animate-pulse">
+                                            Processing Auto-Payout...
+                                          </span>
+                                        ) : (
+                                          <>
+                                            <button
+                                              onClick={() => triggerRejectDialog(sub.id, selectedCreatedTask.id)}
+                                              disabled={isRejectDisabled}
+                                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                                                isRejectDisabled
+                                                  ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                                  : "bg-red-50 hover:bg-red-100 text-red-700"
+                                              }`}
+                                              title={isRejectDisabled ? "Rejection limit reached (Max 40% rejection rate)" : ""}
+                                            >
+                                              Reject
+                                            </button>
+                                            <button
+                                              onClick={() => handleApproveSubmission(sub.id, selectedCreatedTask.id)}
+                                              className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                                            >
+                                              Approve & Pay
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))
+                              );
+                            })
                           ) : (
                             <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
                               <p className="text-slate-400 text-xs font-semibold">No submissions received yet for this task</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PROFILE: DISPUTES MANAGEMENT DASHBOARD FOR ADMINISTRATOR */}
+                    {profileSubScreen === "admin-disputes" && (
+                      <div className="space-y-6 animate-fade-in">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setProfileSubScreen("profile-main")}
+                            className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                          >
+                            <ArrowLeft className="w-5 h-5 text-slate-800" />
+                          </button>
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900">
+                              Disputes Panel
+                            </h2>
+                            <span className="text-xs text-slate-400 font-semibold block">
+                              Moderate disputed submission rejections
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {creatorSubmissions.filter((sub) => sub.status === "disputed").length > 0 ? (
+                            creatorSubmissions
+                              .filter((sub) => sub.status === "disputed")
+                              .map((sub) => {
+                                const t = tasks.find((tk) => tk.id === sub.taskId);
+                                return (
+                                  <div
+                                    key={sub.id}
+                                    className="bg-white p-4 border border-slate-100 shadow-sm rounded-xl space-y-4 animate-fade-in"
+                                  >
+                                    <div className="flex justify-between items-center text-[10px] text-slate-400 font-semibold">
+                                      <span className="font-mono">Worker: {formatAddress(sub.workerAddress)}</span>
+                                      <span>Task ID: {sub.taskId}</span>
+                                    </div>
+                                    
+                                    <div>
+                                      <h4 className="text-xs font-bold text-slate-900 line-clamp-1">
+                                        Task: {t ? t.title : "Celo Task"}
+                                      </h4>
+                                      <div className="flex gap-2 text-[10px] text-slate-400 mt-1 font-semibold">
+                                        <span>Payout: {t ? formatCurrency(t.amount) : "0.05 cUSD"}</span>
+                                        <span>Creator: {t && t.createdByWallet ? formatAddress(t.createdByWallet) : "unknown"}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Proof details */}
+                                    <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg space-y-2.5 text-xs text-slate-700">
+                                      <div>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Worker's Proof:</span>
+                                        {sub.proofLink && sub.proofLink.startsWith("http") && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const isVideo = sub.proofLink?.includes(".webm") || sub.proofLink?.includes(".mp4") || sub.proofImageName?.endsWith(".webm");
+                                              setMediaViewerType(isVideo ? "video" : "image");
+                                              setMediaViewerUrl(sub.proofLink || null);
+                                            }}
+                                            className="text-blue-600 font-bold hover:underline flex items-center gap-1 bg-blue-50/50 px-2.5 py-1.5 rounded border border-blue-100/30 inline-flex mb-1 active:scale-95 transition-all"
+                                          >
+                                            <FileText className="w-3.5 h-3.5 text-blue-500" />
+                                            <span>View Proof</span>
+                                          </button>
+                                        )}
+                                        {sub.proofText && (
+                                          <div className="font-mono bg-white border border-slate-200/50 p-2 rounded text-[11px] select-all max-w-full overflow-x-auto">
+                                            {sub.proofText}
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      <div className="border-t border-slate-100 pt-2 grid grid-cols-2 gap-3">
+                                        <div>
+                                          <span className="text-[9px] text-red-600 font-extrabold uppercase tracking-wider block mb-0.5">Creator Rejection:</span>
+                                          <p className="font-bold text-slate-800 capitalize">{sub.rejectionCategory}</p>
+                                          <p className="text-[10px] text-slate-500 mt-0.5">{sub.rejectionReason}</p>
+                                        </div>
+                                        <div className="border-l border-slate-100 pl-3 font-sans">
+                                          <span className="text-[9px] text-orange-600 font-extrabold uppercase tracking-wider block mb-0.5">Worker Argument:</span>
+                                          <p className="text-[10px] text-slate-600 italic font-semibold">"{sub.disputeReason}"</p>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Resolution Actions */}
+                                    <div className="flex gap-2 justify-end pt-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAdminApproveRejection(sub.id)}
+                                        className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all"
+                                      >
+                                        Uphold Rejection
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAdminPayWorker(sub.id, sub.taskId)}
+                                        className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-1"
+                                      >
+                                        <Check className="w-3.5 h-3.5" />
+                                        Release Payout
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                          ) : (
+                            <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
+                              <p className="text-slate-400 text-xs font-semibold">No pending disputes currently</p>
                             </div>
                           )}
                         </div>
@@ -2717,6 +3259,22 @@ export default function Home() {
                 </select>
               </div>
 
+              {/* Campaign Expiry Selector */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Campaign Expiry Duration
+                </label>
+                <select
+                  value={expiryHours}
+                  onChange={(e) => setExpiryHours(Number(e.target.value))}
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-slate-400 transition-colors"
+                >
+                  <option value={24}>24 Hours</option>
+                  <option value={72}>3 Days</option>
+                  <option value={168}>7 Days</option>
+                </select>
+              </div>
+
               {/* Task Description */}
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -2913,6 +3471,122 @@ export default function Home() {
           <div className="w-full max-w-md bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 space-y-6 text-center animate-scale-up">
             
             {/* Modal states */}
+            {activeTransaction.status === "confirm-refund" && (
+              <div className="space-y-5 animate-fade-in">
+                <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                  <Undo2 className="w-7 h-7 text-rose-600 animate-pulse" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-black text-slate-900">Claim Escrow Refund</h3>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans px-2">
+                    Claiming the remaining escrow budget back to your wallet address.
+                  </p>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-semibold text-slate-600 space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Refund Amount:</span>
+                    <span className="text-rose-600 font-black text-sm">{activeTransaction.amount}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-slate-200/50 pt-2.5">
+                    <span className="text-slate-400">Escrow Source:</span>
+                    <span className="text-slate-800 font-mono text-[9px]">{formatAddress(PLATFORM_ESCROW_WALLET)}</span>
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeTransaction.onClose) activeTransaction.onClose();
+                    }}
+                    className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (pendingTxData?.taskId) {
+                        executeRefund(pendingTxData.taskId);
+                      }
+                    }}
+                    className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+                  >
+                    Claim Refund
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTransaction.status === "refunding-escrow" && (
+              <div className="py-8 space-y-6 animate-fade-in">
+                <div className="w-12 h-12 border-4 border-slate-100 border-t-rose-600 rounded-full animate-spin mx-auto"></div>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-bold text-slate-950">Refunding Escrow Funds</h3>
+                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider animate-pulse">
+                    Transferring back to advertiser...
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {activeTransaction.status === "confirm-reopen" && (
+              <div className="space-y-5 animate-fade-in">
+                <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                  <RefreshCw className="w-7 h-7 text-emerald-600 animate-pulse" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-black text-slate-900">Reopen Campaign</h3>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans px-2">
+                    Replenishing campaign slots requires a new escrow deposit.
+                  </p>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-semibold text-slate-600 space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Total Deposit Cost:</span>
+                    <span className="text-emerald-600 font-black text-sm">{activeTransaction.amount}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-slate-200/50 pt-2.5">
+                    <span className="text-slate-400">Escrow Destination:</span>
+                    <span className="text-slate-800 font-mono text-[9px]">{formatAddress(PLATFORM_ESCROW_WALLET)}</span>
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeTransaction.onClose) activeTransaction.onClose();
+                    }}
+                    className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (pendingTxData?.taskId) {
+                        executeReopen(pendingTxData.taskId);
+                      }
+                    }}
+                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+                  >
+                    Deposit & Reopen
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTransaction.status === "reopening-campaign" && (
+              <div className="py-8 space-y-6 animate-fade-in">
+                <div className="w-12 h-12 border-4 border-slate-100 border-t-emerald-600 rounded-full animate-spin mx-auto"></div>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-bold text-slate-950">Depositing to Escrow</h3>
+                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider animate-pulse">
+                    Broadcasting reopening transaction...
+                  </p>
+                </div>
+              </div>
+            )}
+
             {activeTransaction.status === "confirm-deposit" && (
               <div className="space-y-5">
                 <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
@@ -3142,7 +3816,171 @@ export default function Home() {
           </div>
         </div>
       )}
-      
+
+      {rejectingSubId && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 space-y-6 animate-scale-up">
+            <div className="space-y-2">
+              <h3 className="text-lg font-black text-slate-900">Reject Submission</h3>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans">
+                Please select a reason category and provide a brief explanation for rejecting this submission.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Rejection Category</label>
+                <select
+                  value={rejectionCategory}
+                  onChange={(e) => setRejectionCategory(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 transition-all"
+                >
+                  <option value="invalid screenshot">Invalid screenshot</option>
+                  <option value="incomplete task">Incomplete task</option>
+                  <option value="duplicate submission">Duplicate submission</option>
+                  <option value="wrong account">Wrong account</option>
+                  <option value="spam / fraud">Spam / Fraud</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Short Explanation</label>
+                <textarea
+                  value={rejectionReasonInput}
+                  onChange={(e) => setRejectionReasonInput(e.target.value)}
+                  placeholder="e.g. The screenshot uploaded does not show the requested follow status."
+                  rows={3}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 transition-all resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectingSubId(null);
+                  setRejectingTaskId(null);
+                }}
+                className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!rejectionReasonInput.trim()}
+                onClick={() => {
+                  if (rejectingSubId) {
+                    handleRejectSubmission(rejectingSubId, rejectionCategory, rejectionReasonInput);
+                  }
+                }}
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+              >
+                Reject Submission
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {disputingSubId && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 space-y-6 animate-scale-up">
+            <div className="space-y-2">
+              <h3 className="text-lg font-black text-slate-900">Dispute Rejection</h3>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans">
+                Explain why you believe this rejection is incorrect. The platform administrator will review your appeal.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Your Argument / Proof details</label>
+              <textarea
+                value={disputeReasonInput}
+                onChange={(e) => setDisputeReasonInput(e.target.value)}
+                placeholder="e.g. My username is visible in the top corner of the screenshot. I did follow the user."
+                rows={4}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 transition-all resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDisputingSubId(null);
+                  setDisputeReasonInput("");
+                }}
+                className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!disputeReasonInput.trim()}
+                onClick={() => {
+                  if (disputingSubId) {
+                    handleDisputeRejection(disputingSubId, disputeReasonInput);
+                  }
+                }}
+                className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+              >
+                Submit Dispute
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MEDIA VIEWER MODAL ===== */}
+      {mediaViewerUrl && (
+        <div
+          className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-fade-in"
+          onClick={() => setMediaViewerUrl(null)}
+        >
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={() => setMediaViewerUrl(null)}
+            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all active:scale-95"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* Label */}
+          <p className="text-white/50 text-[10px] font-bold uppercase tracking-widest mb-3">
+            {mediaViewerType === "video" ? "Screen Recording" : "Proof Screenshot"}
+          </p>
+
+          {/* Media */}
+          <div
+            className="w-full max-w-sm bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {mediaViewerType === "video" ? (
+              <video
+                src={mediaViewerUrl}
+                controls
+                autoPlay
+                playsInline
+                className="w-full max-h-[70vh] object-contain"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={mediaViewerUrl}
+                alt="Proof screenshot"
+                className="w-full max-h-[70vh] object-contain"
+              />
+            )}
+          </div>
+
+          <p className="text-white/30 text-[10px] font-semibold mt-4">Tap outside to close</p>
+        </div>
+      )}
+
     </div>
   );
 }
+

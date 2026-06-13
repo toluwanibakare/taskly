@@ -19,11 +19,20 @@ service cloud.firestore {
                     && request.resource.data.transaction_hash != null)
                     || request.resource.data.created_by_wallet == 'system';
       allow update: if 
-                    // Prevent editing completed or expired tasks
-                    resource.data.status != 'completed' 
-                    && resource.data.status != 'expired'
-                    // Prevent overwriting the transaction hash
-                    && (!('transaction_hash' in resource.data) || request.resource.data.transaction_hash == resource.data.transaction_hash)
+                    // Prevent editing completed, expired, or refunded tasks unless reopening or refunding
+                    (
+                      (resource.data.status != 'completed' && resource.data.status != 'expired' && resource.data.status != 'refunded')
+                      ||
+                      (request.resource.data.status == 'refunded' && resource.data.status == 'expired')
+                      ||
+                      (request.resource.data.status == 'active' && (resource.data.status == 'completed' || resource.data.status == 'expired' || resource.data.status == 'refunded'))
+                    )
+                    // Prevent overwriting the transaction hash unless reopening the task
+                    && (
+                      !('transaction_hash' in resource.data) || 
+                      request.resource.data.transaction_hash == resource.data.transaction_hash || 
+                      (request.resource.data.status == 'active' && (resource.data.status == 'completed' || resource.data.status == 'expired' || resource.data.status == 'refunded'))
+                    )
                     // Wallet address must always exist
                     && request.resource.data.created_by_wallet != null;
     }
@@ -36,11 +45,16 @@ service cloud.firestore {
       allow update: if
                     // Prevent changing the worker wallet address
                     request.resource.data.wallet_address == resource.data.wallet_address
-                    // Users can only edit their own submissions unless they are the task creator reviewing it
+                    // Users can only edit their own submissions unless they are the task creator reviewing it or the admin resolving disputes
                     && (
-                      // Case A: Worker updating their own submission
-                      (request.resource.data.status == resource.data.status 
-                       && request.resource.data.wallet_address == resource.data.wallet_address)
+                      // Case A: Worker updating their own submission (status must remain same, OR transition from rejected to disputed / pending for resubmission)
+                      (
+                        request.resource.data.wallet_address == resource.data.wallet_address
+                        && (
+                          request.resource.data.status == resource.data.status
+                          || (resource.data.status == 'rejected' && (request.resource.data.status == 'disputed' || request.resource.data.status == 'pending'))
+                        )
+                      )
                       ||
                       // Case B: Task Creator reviewing/approving/rejecting
                       (
@@ -51,6 +65,12 @@ service cloud.firestore {
                       // Case C: Allow system auto-approvals
                       (
                         request.resource.data.reviewer_wallet == 'system-auto-approval'
+                      )
+                      ||
+                      // Case D: Allow platform admin to resolve disputes
+                      (
+                        request.resource.data.reviewer_wallet == get(/databases/$(database)/documents/admin/stats).data.admin_wallet
+                        && resource.data.status == 'disputed'
                       )
                     );
     }
