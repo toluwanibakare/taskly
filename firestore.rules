@@ -1,0 +1,80 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Users collection rules
+    match /users/{walletAddress} {
+      allow read: if true;
+      allow create: if request.resource.data.wallet_address != null 
+                    && request.resource.data.wallet_address == walletAddress;
+      allow update: if request.resource.data.wallet_address == resource.data.wallet_address
+                    && walletAddress == resource.id;
+    }
+
+    // 2. Tasks collection rules
+    match /tasks/{taskId} {
+      allow read: if true;
+      allow create: if (request.resource.data.created_by_wallet != null
+                    && request.resource.data.transaction_hash != null)
+                    || request.resource.data.created_by_wallet == 'system';
+      allow update: if 
+                    // Prevent editing completed or expired tasks
+                    resource.data.status != 'completed' 
+                    && resource.data.status != 'expired'
+                    // Prevent overwriting the transaction hash
+                    && (!('transaction_hash' in resource.data) || request.resource.data.transaction_hash == resource.data.transaction_hash)
+                    // Wallet address must always exist
+                    && request.resource.data.created_by_wallet != null;
+    }
+
+    // 3. Submissions collection rules
+    match /submissions/{submissionId} {
+      allow read: if true;
+      allow create: if request.resource.data.wallet_address != null
+                    && request.resource.data.task_id != null;
+      allow update: if
+                    // Prevent changing the worker wallet address
+                    request.resource.data.wallet_address == resource.data.wallet_address
+                    // Users can only edit their own submissions unless they are the task creator reviewing it
+                    && (
+                      // Case A: Worker updating their own submission
+                      (request.resource.data.status == resource.data.status 
+                       && request.resource.data.wallet_address == resource.data.wallet_address)
+                      ||
+                      // Case B: Task Creator reviewing/approving/rejecting
+                      (
+                        // Verify reviewer wallet matches the task's created_by_wallet
+                        request.resource.data.reviewer_wallet == get(/databases/$(database)/documents/tasks/$(resource.data.task_id)).data.created_by_wallet
+                      )
+                      ||
+                      // Case C: Allow system auto-approvals
+                      (
+                        request.resource.data.reviewer_wallet == 'system-auto-approval'
+                      )
+                    );
+    }
+
+    // 4. Admin collection rules
+    match /admin/{adminId} {
+      allow read, write: if true;
+    }
+
+    // 5. Payments collection rules
+    match /payments/{paymentId} {
+      allow read: if true;
+      allow create: if request.resource.data.wallet_address != null
+                    && request.resource.data.task_id != null
+                    && request.resource.data.transaction_hash != null;
+      allow update: if false; // Payments are historical immutable ledger records
+    }
+
+    // 6. Disputes collection rules
+    match /disputes/{disputeId} {
+      allow read: if true;
+      allow create: if request.resource.data.wallet_address != null
+                    && request.resource.data.task_id != null;
+      allow update: if true; // Allowed for moderation
+    }
+  }
+}

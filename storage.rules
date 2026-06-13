@@ -1,0 +1,29 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /proofs {
+      match /screenshots/{allPaths=**} {
+        allow read: if true;
+        allow write: if request.resource.size < 10 * 1024 * 1024
+                     && (request.resource.contentType.matches('image/png')
+                         || request.resource.contentType.matches('image/jpeg')
+                         || request.resource.contentType.matches('image/jpg'));
+      }
+      match /videos/{allPaths=**} {
+        allow read: if true;
+        allow write: if request.resource.size < 50 * 1024 * 1024
+                     && (request.resource.contentType.matches('video/mp4')
+                         || request.resource.contentType.matches('video/webm'));
+      }
+      match /recordings/{allPaths=**} {
+        allow read: if true;
+        allow write: if request.resource.size < 50 * 1024 * 1024
+                     && (request.resource.contentType.matches('video/mp4')
+                         || request.resource.contentType.matches('video/webm')
+                         || request.resource.contentType.matches('audio/mpeg')
+                         || request.resource.contentType.matches('audio/webm'));
+      }
+    }
+  }
+}
