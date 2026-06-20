@@ -3856,7 +3856,7 @@ export default function Home() {
                         const cusdAddress = getCusdAddress(chainId);
                         const escrowContractAddress = getEscrowAddress(chainId);
 
-                        let txHash;
+                        let txHash: `0x${string}` | undefined;
                         if (escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000") {
                           // Step 1: Approve the Escrow Contract to spend cUSD/USDm
                           await writeContractAsync({
@@ -3986,7 +3986,7 @@ export default function Home() {
                           throw new Error("Worker wallet address not found.");
                         }
 
-                        let txHash;
+                        let txHash: `0x${string}` | undefined;
                         if (escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000") {
                           // Call payoutWorker on the smart contract
                           const bytes32TaskId = formatTaskIdToBytes32(pendingTxData?.taskId || "");
