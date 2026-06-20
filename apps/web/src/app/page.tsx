@@ -13,6 +13,7 @@ import {
   setDoc, 
   getDoc, 
   updateDoc, 
+  deleteDoc,
   onSnapshot, 
   query, 
   runTransaction
@@ -41,6 +42,7 @@ import {
   Wallet,
   Facebook,
   Linkedin,
+  Github,
   SlidersHorizontal,
   ChevronRight,
   UserCheck,
@@ -50,7 +52,7 @@ import {
 } from "lucide-react";
 
 // Platform Type definition
-type Platform = "instagram" | "x" | "youtube" | "tiktok" | "survey" | "testing" | "facebook" | "linkedin";
+type Platform = "instagram" | "x" | "youtube" | "tiktok" | "survey" | "testing" | "facebook" | "linkedin" | "github";
 
 // Task structure definition
 interface Task {
@@ -294,6 +296,39 @@ const TEMPLATE_PRESETS: Record<string, TaskTemplate> = {
     proofRequirements: "Screenshot of the created workspace dashboard + a short text feedback on usability.",
     proofType: "both",
     link: "https://beta.dashboard.io/"
+  },
+  github_star: {
+    title: "Star a GitHub Repository",
+    platform: "github",
+    type: "Developer Support",
+    payout: 0.05,
+    description: "Star our official open-source repository on GitHub to show support for the development team.",
+    instructions: "Click the repository link to open it on GitHub.\nLog in to your GitHub account.\nClick the 'Star' button at the top right of the repository page.\nTake a screenshot showing that the repository is starred.",
+    proofRequirements: "Screenshot showing the repository as 'Starred' with your GitHub username visible.",
+    proofType: "both",
+    link: "https://github.com/"
+  },
+  github_fork: {
+    title: "Fork a GitHub Repository",
+    platform: "github",
+    type: "Developer Support",
+    payout: 0.06,
+    description: "Fork our repository to your GitHub account and help build our developer network.",
+    instructions: "Open the repository link on GitHub.\nLog in to your GitHub account.\nClick the 'Fork' button at the top right.\nConfirm the fork creation.\nTake a screenshot of the forked repository under your profile.",
+    proofRequirements: "Screenshot of the forked repository under your account + link to your fork.",
+    proofType: "both",
+    link: "https://github.com/"
+  },
+  github_follow: {
+    title: "Follow Developer Account on GitHub",
+    platform: "github",
+    type: "Developer Support",
+    payout: 0.04,
+    description: "Follow our lead developer profile on GitHub to stay updated with code updates and releases.",
+    instructions: "Open the developer's GitHub profile link.\nLog in to your GitHub account.\nClick the 'Follow' button under the profile avatar.\nTake a screenshot showing the 'Unfollow' button (indicating you follow).",
+    proofRequirements: "Screenshot showing you are following the GitHub profile + your GitHub handle.",
+    proofType: "both",
+    link: "https://github.com/"
   }
 };
 
@@ -345,6 +380,11 @@ const PLATFORM_ACTIONS: Record<Platform, PlatformAction[]> = {
   testing: [
     { value: "android_signup", label: "Android App Download & Signup", basePrice: 0.30 },
     { value: "web_dashboard", label: "Web Dashboard Usability Test", basePrice: 0.25 }
+  ],
+  github: [
+    { value: "github_star", label: "Star Repository", basePrice: 0.03 },
+    { value: "github_fork", label: "Fork Repository", basePrice: 0.04 },
+    { value: "github_follow", label: "Follow Profile", basePrice: 0.02 }
   ]
 };
 
@@ -365,7 +405,10 @@ const ACTION_INSTRUCTIONS: Record<string, string[]> = {
   google_form: ["Click the survey link.", "Complete all required questionnaire fields honestly."],
   product_market: ["Click the market survey link.", "Fill out the 15 saving-habits questions."],
   android_signup: ["Click Play Store link to download/install the APK.", "Register an account using your email address."],
-  web_dashboard: ["Open the web dashboard link.", "Register and create a new workspace to test UI layouts."]
+  web_dashboard: ["Open the web dashboard link.", "Register and create a new workspace to test UI layouts."],
+  github_star: ["Open the repository link.", "Click the Star button at the top right."],
+  github_fork: ["Open the repository link.", "Click the Fork button at the top right.", "Create the fork under your account."],
+  github_follow: ["Open the GitHub profile link.", "Click the Follow button under the user avatar."]
 };
 
 const ACTION_PROOF_PRESETS: Record<string, string[]> = {
@@ -385,7 +428,10 @@ const ACTION_PROOF_PRESETS: Record<string, string[]> = {
   google_form: ["Screenshot of Google Form thank you/completion screen", "Survey completion code"],
   product_market: ["Screenshot of survey confirmation screen", "Registered survey email"],
   android_signup: ["Screenshot of in-app dashboard showing login profile", "Signup email address"],
-  web_dashboard: ["Screenshot of created dashboard workspace", "Short usability text review"]
+  web_dashboard: ["Screenshot of created dashboard workspace", "Short usability text review"],
+  github_star: ["Screenshot showing the repository as Starred", "Your GitHub username"],
+  github_fork: ["Screenshot of the forked repository in your profile", "Link to your forked repository", "Your GitHub username"],
+  github_follow: ["Screenshot showing the 'Unfollow' button on the profile", "Your GitHub username"]
 };
 
 const PLATFORM_ESCROW_WALLET = process.env.NEXT_PUBLIC_ADMIN_WALLET || "0x9335E6F2eDA0d96E0B88c104d39a221DF001e475";
@@ -495,7 +541,7 @@ export default function Home() {
 
   // Profile Sub-Screen for Creator Dashboard
   // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes"
-  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes">("profile-main");
+  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns">("profile-main");
 
   // Selected task for Details and Submission
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -922,7 +968,7 @@ export default function Home() {
   }, [history]);
 
   // Filter chips list (includes new Facebook & LinkedIn platforms)
-  const filterChips = ["All", "Instagram", "X", "YouTube", "TikTok", "Facebook", "LinkedIn", "Survey", "Testing"];
+  const filterChips = ["All", "Instagram", "X", "YouTube", "TikTok", "Facebook", "LinkedIn", "GitHub", "Survey", "Testing"];
 
   // Filtered & Sorted tasks logic
   const filteredTasks = useMemo(() => {
@@ -998,6 +1044,8 @@ export default function Home() {
         return <Facebook className={`${className} text-blue-600`} />;
       case "linkedin":
         return <Linkedin className={`${className} text-[#0a66c2]`} />;
+      case "github":
+        return <Github className={`${className} text-slate-900`} />;
       default:
         return <FileText className={`${className} text-slate-500`} />;
     }
@@ -1441,6 +1489,20 @@ export default function Home() {
         setPendingTxData(null);
       }
     });
+  };
+
+  // Admin Action: Delete Campaign
+  const handleDeleteCampaign = async (taskId: string) => {
+    if (!window.confirm("Are you sure you want to delete this campaign? This action is permanent and cannot be undone.")) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, "tasks", taskId));
+      alert("Campaign deleted successfully from Firestore.");
+    } catch (err: any) {
+      console.error("Delete campaign failed:", err);
+      alert("Failed to delete campaign: " + err.message);
+    }
   };
 
   // Creator Action: Claim Escrow Refund for Expired Task
@@ -2302,6 +2364,24 @@ export default function Home() {
                                   <ChevronRight className="w-3.5 h-3.5" />
                                 </button>
                               </div>
+
+                              {/* Campaigns management button */}
+                              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <ClipboardList className="w-4.5 h-4.5 text-blue-500" />
+                                  <span className="text-xs font-bold text-slate-800">
+                                    All Platform Campaigns ({tasks.length})
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setProfileSubScreen("admin-campaigns")}
+                                  className="px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                                >
+                                  Manage
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         )}
@@ -2689,6 +2769,95 @@ export default function Home() {
                           ) : (
                             <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
                               <p className="text-slate-400 text-xs font-semibold">No pending disputes currently</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PROFILE: CAMPAIGNS MANAGEMENT DASHBOARD FOR ADMINISTRATOR */}
+                    {profileSubScreen === "admin-campaigns" && (
+                      <div className="space-y-6 animate-fade-in">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setProfileSubScreen("profile-main")}
+                            className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                          >
+                            <ArrowLeft className="w-5 h-5 text-slate-800" />
+                          </button>
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900 font-sans">
+                              All Platform Campaigns
+                            </h2>
+                            <span className="text-xs text-slate-400 font-semibold block">
+                              Moderate or delete any campaign created on Taskly
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {tasks.length > 0 ? (
+                            tasks.map((t) => {
+                              // Determine status dynamically
+                              let taskStatus = t.status || "active";
+                              if (taskStatus !== "refunded") {
+                                if (t.slotsRemaining === 0) {
+                                  taskStatus = "completed";
+                                } else if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
+                                  taskStatus = "expired";
+                                }
+                              }
+
+                              return (
+                                <div
+                                  key={t.id}
+                                  className="bg-white p-4 border border-slate-100 shadow-sm rounded-2xl space-y-4 animate-fade-in"
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="p-2 bg-slate-50 rounded-lg">
+                                      {getPlatformIcon(t.platform, "w-4.5 h-4.5")}
+                                    </div>
+                                    <div className="flex-grow">
+                                      <h3 className="text-xs font-bold text-slate-900 line-clamp-1">{t.title}</h3>
+                                      <div className="space-y-1 mt-1.5 font-semibold text-[10px] text-slate-400">
+                                        <div className="flex items-center gap-3">
+                                          <span>Slots: {t.slotsRemaining} / {t.slotsTotal}</span>
+                                          <span>Payout: {formatCurrency(t.amount)}</span>
+                                        </div>
+                                        <div className="text-[9px] text-slate-400 font-mono select-all truncate max-w-[240px]">
+                                          Creator: {t.createdByWallet}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="border-t border-slate-50 pt-3 flex items-center justify-between flex-wrap gap-2">
+                                    <span className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                                      taskStatus === "active"
+                                        ? "bg-blue-50 text-blue-700 border-blue-100/50"
+                                        : taskStatus === "completed"
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-100/50"
+                                        : taskStatus === "expired"
+                                        ? "bg-amber-50 text-amber-700 border-amber-100/50"
+                                        : "bg-rose-50 text-rose-700 border-rose-100/50"
+                                    }`}>
+                                      {taskStatus}
+                                    </span>
+                                    
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteCampaign(t.id)}
+                                      className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100/50 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-1"
+                                    >
+                                      Delete Campaign
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
+                              <p className="text-slate-400 text-xs font-semibold">No campaigns active on the platform</p>
                             </div>
                           )}
                         </div>
@@ -3108,6 +3277,7 @@ export default function Home() {
                   <option value="tiktok">TikTok</option>
                   <option value="facebook">Facebook</option>
                   <option value="linkedin">LinkedIn</option>
+                  <option value="github">GitHub</option>
                   <option value="survey">Survey</option>
                   <option value="testing">Testing</option>
                 </select>
