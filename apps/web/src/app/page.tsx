@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useAccount, useConnect, useWriteContract, useChainId } from "wagmi";
+import { useAccount, useConnect, useWriteContract, useChainId, useDisconnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseEther } from "viem";
 import { getEscrowAddress, formatTaskIdToBytes32 } from "../hooks/useEscrow";
@@ -12,6 +12,7 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  getDocs,
   updateDoc, 
   deleteDoc,
   onSnapshot, 
@@ -48,7 +49,8 @@ import {
   UserCheck,
   RotateCw,
   Undo2,
-  RefreshCw
+  RefreshCw,
+  LogOut
 } from "lucide-react";
 
 // Platform Type definition
@@ -525,6 +527,7 @@ const TasklyLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
 
 export default function Home() {
   const { address: wagmiAddress, isConnected } = useAccount();
+  const { disconnect } = useDisconnect();
   const { connectAsync, connectors } = useConnect();
   const connectModal = useConnectModal();
   const openConnectModal = connectModal ? connectModal.openConnectModal : undefined;
@@ -1505,6 +1508,27 @@ export default function Home() {
     }
   };
 
+  // Admin Action: Reset Database
+  const handleResetDatabase = async () => {
+    if (!window.confirm("WARNING: Are you sure you want to delete all users, campaigns, submissions, payments, and disputes? This is a complete database reset and cannot be undone.")) {
+      return;
+    }
+    try {
+      const collectionsToClear = ["users", "tasks", "submissions", "payments", "disputes"];
+      for (const colName of collectionsToClear) {
+        const colRef = collection(db, colName);
+        const snapshot = await getDocs(colRef);
+        const deletePromises = snapshot.docs.map(d => deleteDoc(doc(db, colName, d.id)));
+        await Promise.all(deletePromises);
+      }
+      alert("Database has been reset successfully! All users, campaigns, submissions, and disputes have been cleared.");
+      window.location.reload();
+    } catch (err: any) {
+      console.error("Reset database failed:", err);
+      alert("Failed to reset database: " + err.message);
+    }
+  };
+
   // Creator Action: Claim Escrow Refund for Expired Task
   const handleClaimRefund = async (taskId: string) => {
     const tk = tasks.find((t) => t.id === taskId);
@@ -2187,11 +2211,21 @@ export default function Home() {
                             </span>
                             <Wallet className="w-5 h-5 text-emerald-400" />
                           </div>
-                          <div>
-                            <span className="text-[11px] text-slate-500 font-medium block">Address</span>
-                            <span className="text-sm font-bold block mt-0.5 font-mono select-all">
-                              {formatAddress(displayAddress)}
-                            </span>
+                          <div className="flex justify-between items-end">
+                            <div>
+                              <span className="text-[11px] text-slate-500 font-medium block">Address</span>
+                              <span className="text-sm font-bold block mt-0.5 font-mono select-all">
+                                {formatAddress(displayAddress)}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => disconnect()}
+                              className="px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-300 border border-rose-500/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                            >
+                              <LogOut className="w-3.5 h-3.5" />
+                              Logout
+                            </button>
                           </div>
                         </div>
 
@@ -2380,6 +2414,20 @@ export default function Home() {
                                 >
                                   Manage
                                   <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                              
+                              {/* Database Purge / Reset Button */}
+                              <div className="pt-3.5 border-t border-slate-100/80 flex items-center justify-between">
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                  System Actions
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={handleResetDatabase}
+                                  className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-1"
+                                >
+                                  Reset Platform Data
                                 </button>
                               </div>
                             </div>

@@ -5,7 +5,7 @@ service cloud.firestore {
 
     // 1. Users collection rules
     match /users/{walletAddress} {
-      allow read: if true;
+      allow read, delete: if true;
       allow create: if request.resource.data.wallet_address != null 
                     && request.resource.data.wallet_address == walletAddress;
       allow update: if request.resource.data.wallet_address == resource.data.wallet_address
@@ -14,7 +14,7 @@ service cloud.firestore {
 
     // 2. Tasks collection rules
     match /tasks/{taskId} {
-      allow read: if true;
+      allow read, delete: if true;
       allow create: if (request.resource.data.created_by_wallet != null
                     && request.resource.data.transaction_hash != null)
                     || request.resource.data.created_by_wallet == 'system';
