@@ -8,10 +8,16 @@
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network celoSepolia"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.1.2",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@types/chai": "^4.3.5",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.8.0",
+    "chai": "^4.3.7",
     "dotenv": "^16.3.1",
     "hardhat": "^2.19.4",
-    "typescript": "^5.2.2",
-    "@types/node": "^20.8.0"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.2.2"
   }
 }

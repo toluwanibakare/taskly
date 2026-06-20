@@ -1,6 +1,8 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
-import { time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import hre from "hardhat";
+const { ethers } = hre;
+import { time } from "@nomicfoundation/hardhat-network-helpers";
+import "@nomicfoundation/hardhat-chai-matchers";
 
 describe("TasklyEscrow", function () {
   let escrow: any;
@@ -35,11 +37,15 @@ describe("TasklyEscrow", function () {
   });
 
   describe("createCampaign", function () {
-    it("should lock tokens and create campaign", async function () {
-      const totalBudget = rewardPerSlot * BigInt(totalSlots);
+    it("should lock tokens, send fee to owner, and create campaign", async function () {
+      const budget = rewardPerSlot * BigInt(totalSlots);
+      const fee = (budget * 2n) / 100n;
+      const total = budget + fee;
       
-      // Advertiser approves escrow contract
-      await token.connect(advertiser).approve(await escrow.getAddress(), totalBudget);
+      // Advertiser approves escrow contract for budget + fee
+      await token.connect(advertiser).approve(await escrow.getAddress(), total);
+
+      const initialOwnerBalance = await token.balanceOf(owner.address);
 
       // Create campaign
       await expect(escrow.connect(advertiser).createCampaign(taskId, rewardPerSlot, totalSlots, duration))
@@ -51,14 +57,20 @@ describe("TasklyEscrow", function () {
       expect(campaign.slotsRemaining).to.equal(totalSlots);
       expect(campaign.refunded).to.be.false;
 
-      expect(await token.balanceOf(await escrow.getAddress())).to.equal(totalBudget);
+      // Contract should hold exactly the budget (fee was sent out)
+      expect(await token.balanceOf(await escrow.getAddress())).to.equal(budget);
+
+      // Owner should have received the fee immediately
+      expect(await token.balanceOf(owner.address)).to.equal(initialOwnerBalance + fee);
     });
   });
 
   describe("payoutWorker", function () {
     beforeEach(async function () {
-      const totalBudget = rewardPerSlot * BigInt(totalSlots);
-      await token.connect(advertiser).approve(await escrow.getAddress(), totalBudget);
+      const budget = rewardPerSlot * BigInt(totalSlots);
+      const fee = (budget * 2n) / 100n;
+      const total = budget + fee;
+      await token.connect(advertiser).approve(await escrow.getAddress(), total);
       await escrow.connect(advertiser).createCampaign(taskId, rewardPerSlot, totalSlots, duration);
     });
 
@@ -93,8 +105,10 @@ describe("TasklyEscrow", function () {
 
   describe("refundCampaign", function () {
     beforeEach(async function () {
-      const totalBudget = rewardPerSlot * BigInt(totalSlots);
-      await token.connect(advertiser).approve(await escrow.getAddress(), totalBudget);
+      const budget = rewardPerSlot * BigInt(totalSlots);
+      const fee = (budget * 2n) / 100n;
+      const total = budget + fee;
+      await token.connect(advertiser).approve(await escrow.getAddress(), total);
       await escrow.connect(advertiser).createCampaign(taskId, rewardPerSlot, totalSlots, duration);
     });
 

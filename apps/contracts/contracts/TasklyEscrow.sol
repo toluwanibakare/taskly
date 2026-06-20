@@ -10,6 +10,7 @@ interface IERC20 {
 contract TasklyEscrow {
     address public owner;
     IERC20 public stableToken; // Mento Dollar (USDm) or other ERC20 stablecoin
+    uint256 public constant feePercentage = 2; // 2% platform fee
 
     struct Campaign {
         address advertiser;
@@ -42,6 +43,12 @@ contract TasklyEscrow {
         uint256 refundAmount
     );
 
+    event FeeCollected(
+        bytes32 indexed taskId,
+        address indexed advertiser,
+        uint256 feeAmount
+    );
+
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this");
         _;
@@ -64,12 +71,20 @@ contract TasklyEscrow {
         require(totalSlots > 0, "Slots must be greater than zero");
         require(duration > 0, "Duration must be greater than zero");
 
-        uint256 totalBudget = rewardPerSlot * totalSlots;
+        uint256 budget = rewardPerSlot * totalSlots;
+        uint256 fee = (budget * feePercentage) / 100;
+        uint256 total = budget + fee;
         
-        // Transfer USDm to contract
+        // Transfer USDm (total = budget + fee) to contract
         require(
-            stableToken.transferFrom(msg.sender, address(this), totalBudget),
+            stableToken.transferFrom(msg.sender, address(this), total),
             "Escrow deposit failed"
+        );
+
+        // Immediately transfer fee to platform owner (admin)
+        require(
+            stableToken.transfer(owner, fee),
+            "Fee transfer failed"
         );
 
         campaigns[taskId] = Campaign({
@@ -81,6 +96,7 @@ contract TasklyEscrow {
         });
 
         emit CampaignCreated(taskId, msg.sender, rewardPerSlot, totalSlots, block.timestamp + duration);
+        emit FeeCollected(taskId, msg.sender, fee);
     }
 
     function payoutWorker(bytes32 taskId, address worker) external {
