@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useAccount, useConnect, useWriteContract, useChainId } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseEther } from "viem";
+import { getEscrowAddress, formatTaskIdToBytes32 } from "../hooks/useEscrow";
+import { ESCROW_ABI } from "../lib/escrowAbi";
 import { db, storage } from "../lib/firebase";
 import { 
   collection, 
@@ -406,6 +408,16 @@ const ERC20_ABI = [
     inputs: [
       { name: "recipient", type: "address" },
       { name: "amount", type: "uint256" }
+    ],
+    outputs: [{ name: "", type: "bool" }]
+  },
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "value", type: "uint256" }
     ],
     outputs: [{ name: "", type: "bool" }]
   }
@@ -1076,8 +1088,11 @@ export default function Home() {
     const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
     const total = budget + fee;
 
+    const escrowContractAddress = getEscrowAddress(chainId);
+    const hasContract = escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000";
     const isAdminCreating = wagmiAddress?.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase();
-    if (isAdminCreating) {
+    
+    if (isAdminCreating && !hasContract) {
       try {
         setPendingTxData({ newTask });
         await saveNewTask(newTask);
@@ -3669,14 +3684,42 @@ export default function Home() {
                         const amountWei = parseEther(total.toFixed(18));
 
                         const cusdAddress = getCusdAddress(chainId);
+                        const escrowContractAddress = getEscrowAddress(chainId);
 
-                        const txHash = await writeContractAsync({
-                          address: cusdAddress,
-                          abi: ERC20_ABI,
-                          functionName: "transfer",
-                          args: [PLATFORM_ESCROW_WALLET as `0x${string}`, amountWei],
-                          type: "legacy",
-                        });
+                        let txHash;
+                        if (escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000") {
+                          // Step 1: Approve the Escrow Contract to spend cUSD/USDm
+                          await writeContractAsync({
+                            address: cusdAddress,
+                            abi: ERC20_ABI,
+                            // function name matches approve(address spender, uint256 value)
+                            functionName: "approve",
+                            args: [escrowContractAddress, amountWei],
+                            type: "legacy",
+                          });
+
+                          // Step 2: Call createCampaign on the escrow smart contract
+                          const rewardWei = parseEther(payoutValue.toString());
+                          const bytes32TaskId = formatTaskIdToBytes32(pendingTxData?.newTask?.id || "");
+                          const durationSeconds = BigInt((pendingTxData?.newTask?.expiryHours || 24) * 3600);
+
+                          txHash = await writeContractAsync({
+                            address: escrowContractAddress,
+                            abi: ESCROW_ABI,
+                            functionName: "createCampaign",
+                            args: [bytes32TaskId, rewardWei, BigInt(slotsValue), durationSeconds],
+                            type: "legacy",
+                          });
+                        } else {
+                          // Fallback to legacy transfer
+                          txHash = await writeContractAsync({
+                            address: cusdAddress,
+                            abi: ERC20_ABI,
+                            functionName: "transfer",
+                            args: [PLATFORM_ESCROW_WALLET as `0x${string}`, amountWei],
+                            type: "legacy",
+                          });
+                        }
 
                         // Create and save task
                         if (pendingTxData?.newTask) {
@@ -3766,49 +3809,73 @@ export default function Home() {
                         // Transition state to sending
                         setActiveTransaction((prev) => prev ? { ...prev, status: "releasing-escrow" } : null);
 
-                        const isAdminApproving = wagmiAddress?.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase();
-                        if (isAdminApproving) {
-                          const sub = creatorSubmissions.find(s => s.id === pendingTxData?.subId);
-                          const workerWallet = sub?.workerAddress;
-                          if (!workerWallet) {
-                            throw new Error("Worker wallet address not found.");
-                          }
+                        const escrowContractAddress = getEscrowAddress(chainId);
+                        const sub = creatorSubmissions.find(s => s.id === pendingTxData?.subId);
+                        const workerWallet = sub?.workerAddress;
+                        if (!workerWallet) {
+                          throw new Error("Worker wallet address not found.");
+                        }
 
-                          const tk = tasks.find((t) => t.id === pendingTxData?.taskId);
-                          const payoutVal = tk ? parseFloat(tk.amount.replace(/[^\d.]/g, "")) : 0.05;
-                          const amountWei = parseEther(payoutVal.toFixed(18));
-                          const cusdAddress = getCusdAddress(chainId);
-
-                          // Real on-chain transfer: admin wallet -> worker wallet
-                          const txHash = await writeContractAsync({
-                            address: cusdAddress,
-                            abi: ERC20_ABI,
-                            functionName: "transfer",
-                            args: [workerWallet as `0x${string}`, amountWei],
+                        let txHash;
+                        if (escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000") {
+                          // Call payoutWorker on the smart contract
+                          const bytes32TaskId = formatTaskIdToBytes32(pendingTxData?.taskId || "");
+                          txHash = await writeContractAsync({
+                            address: escrowContractAddress,
+                            abi: ESCROW_ABI,
+                            functionName: "payoutWorker",
+                            args: [bytes32TaskId, workerWallet as `0x${string}`],
                             type: "legacy",
                           });
-
+                          
                           if (pendingTxData?.subId && pendingTxData?.taskId) {
                             await saveApproveSubmission(pendingTxData.subId, pendingTxData.taskId);
                           }
-
                           setActiveTransaction((prev) => prev ? { 
                             ...prev, 
                             status: "success", 
                             txHash 
                           } : null);
                         } else {
-                          // Simulate release latency for normal users
-                          setTimeout(async () => {
+                          // Fallback to legacy behavior
+                          const isAdminApproving = wagmiAddress?.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase();
+                          if (isAdminApproving) {
+                            const tk = tasks.find((t) => t.id === pendingTxData?.taskId);
+                            const payoutVal = tk ? parseFloat(tk.amount.replace(/[^\d.]/g, "")) : 0.05;
+                            const amountWei = parseEther(payoutVal.toFixed(18));
+                            const cusdAddress = getCusdAddress(chainId);
+
+                            // Real on-chain transfer: admin wallet -> worker wallet
+                            txHash = await writeContractAsync({
+                              address: cusdAddress,
+                              abi: ERC20_ABI,
+                              functionName: "transfer",
+                              args: [workerWallet as `0x${string}`, amountWei],
+                              type: "legacy",
+                            });
+
                             if (pendingTxData?.subId && pendingTxData?.taskId) {
                               await saveApproveSubmission(pendingTxData.subId, pendingTxData.taskId);
                             }
+
                             setActiveTransaction((prev) => prev ? { 
                               ...prev, 
-                              status: "success",
-                              txHash: `0x${Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('')}`
+                              status: "success", 
+                              txHash 
                             } : null);
-                          }, 2000);
+                          } else {
+                            // Simulate release latency for normal users
+                            setTimeout(async () => {
+                              if (pendingTxData?.subId && pendingTxData?.taskId) {
+                                  await saveApproveSubmission(pendingTxData.subId, pendingTxData.taskId);
+                              }
+                              setActiveTransaction((prev) => prev ? { 
+                                ...prev, 
+                                status: "success",
+                                txHash: `0x${Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('')}`
+                              } : null);
+                            }, 2000);
+                          }
                         }
                       } catch (err: any) {
                         console.error("Payout failed:", err);
