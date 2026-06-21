@@ -531,6 +531,7 @@ export default function Home() {
   const [manualAddress, setManualAddress] = useState<string>("");
   const [manualAddressInput, setManualAddressInput] = useState<string>("");
   const [manualAddressError, setManualAddressError] = useState<string>("");
+  const [paymentMethod, setPaymentMethod] = useState<"wallet" | "naira">("wallet");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -4215,6 +4216,45 @@ export default function Home() {
                   </p>
                 </div>
                 
+                {/* Payment Method Selector */}
+                <div className="space-y-1.5 text-left px-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                    Choose Payment Method
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100/50 border border-slate-100 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("wallet")}
+                      disabled={!isConnected}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold text-center transition-all ${
+                        paymentMethod === "wallet" && isConnected
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : !isConnected
+                          ? "bg-slate-100/30 text-slate-300 cursor-not-allowed"
+                          : "text-slate-600 hover:bg-slate-100/30 active:scale-95"
+                      }`}
+                    >
+                      Web3 Wallet (cUSD)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("naira")}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold text-center transition-all ${
+                        paymentMethod === "naira" || !isConnected
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100/30 active:scale-95"
+                      }`}
+                    >
+                      Naira Transfer (NGN)
+                    </button>
+                  </div>
+                  {!isConnected && (
+                    <span className="text-[9px] text-amber-600 font-semibold block mt-0.5">
+                      No Web3 wallet injected in browser. Locked to Naira transfer.
+                    </span>
+                  )}
+                </div>
+                
                 {/* Cost Breakdown */}
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-semibold text-slate-600 space-y-2.5">
                   <div className="flex justify-between items-center">
@@ -4256,8 +4296,8 @@ export default function Home() {
                         const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
                         const total = budget + fee;
 
-                        if (!isConnected) {
-                          // User is connected manually without Web3 browser provider
+                        if (!isConnected || paymentMethod === "naira") {
+                          // Naira manual transfer selected or forced (no injected browser wallet)
                           if (pendingTxData?.newTask) {
                             const pendingTask = {
                               ...pendingTxData.newTask,
