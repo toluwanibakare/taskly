@@ -532,6 +532,11 @@ export default function Home() {
   const [manualAddressInput, setManualAddressInput] = useState<string>("");
   const [manualAddressError, setManualAddressError] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "naira">("wallet");
+  const isMiniPayApp = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const win = window as any;
+    return !!(win.ethereum && win.ethereum.isMiniPay);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -2403,14 +2408,16 @@ export default function Home() {
                                 {formatAddress(displayAddress)}
                               </span>
                             </div>
-                            <button
-                              type="button"
-                              onClick={handleLogout}
-                              className="px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-300 border border-rose-500/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
-                            >
-                              <LogOut className="w-3.5 h-3.5" />
-                              Logout
-                            </button>
+                            {!isMiniPayApp && (
+                              <button
+                                type="button"
+                                onClick={handleLogout}
+                                className="px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-300 border border-rose-500/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                              >
+                                <LogOut className="w-3.5 h-3.5" />
+                                Logout
+                              </button>
+                            )}
                           </div>
                         </div>
 
