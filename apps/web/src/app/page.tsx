@@ -528,6 +528,27 @@ const TasklyLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
 export default function Home() {
   const { address: wagmiAddress, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
+  const [manualAddress, setManualAddress] = useState<string>("");
+  const [manualAddressInput, setManualAddressInput] = useState<string>("");
+  const [manualAddressError, setManualAddressError] = useState<string>("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("taskly_manual_address");
+      if (saved) {
+        setManualAddress(saved);
+        setManualAddressInput(saved);
+      }
+    }
+  }, []);
+
+  const activeAddress = useMemo(() => {
+    return (wagmiAddress || manualAddress || "").toLowerCase();
+  }, [wagmiAddress, manualAddress]);
+
+  const isUserConnected = useMemo(() => {
+    return isConnected || !!manualAddress;
+  }, [isConnected, manualAddress]);
   const { connectAsync, connectors } = useConnect();
   const connectModal = useConnectModal();
   const openConnectModal = connectModal ? connectModal.openConnectModal : undefined;
@@ -578,9 +599,9 @@ export default function Home() {
 
   // Deriving User's own Submissions History from the global submissions database
   const history = useMemo(() => {
-    if (!wagmiAddress) return [];
+    if (!activeAddress) return [];
     return creatorSubmissions
-      .filter((sub) => sub.workerAddress.toLowerCase() === wagmiAddress.toLowerCase())
+      .filter((sub) => sub.workerAddress.toLowerCase() === activeAddress)
       .map((sub) => {
         const t = tasks.find((tk) => tk.id === sub.taskId);
         return {
@@ -598,7 +619,7 @@ export default function Home() {
           disputedAt: sub.disputedAt
         };
       });
-  }, [creatorSubmissions, tasks, wagmiAddress]);
+  }, [creatorSubmissions, tasks, activeAddress]);
 
   // Web3 Transaction Overlay state
   interface ActiveTransaction {
@@ -782,14 +803,14 @@ export default function Home() {
     }
   }, [screen, isConnected, connectors, connectAsync]);
 
-  // Load or create user document on wallet connect
+  // Load or create user document on connection (WAGMI or Manual)
   useEffect(() => {
-    if (isConnected && wagmiAddress) {
-      const userDocRef = doc(db, "users", wagmiAddress.toLowerCase());
+    if (activeAddress) {
+      const userDocRef = doc(db, "users", activeAddress);
       getDoc(userDocRef).then((docSnap) => {
         if (!docSnap.exists()) {
           setDoc(userDocRef, {
-            wallet_address: wagmiAddress.toLowerCase(),
+            wallet_address: activeAddress,
             total_earnings: 0,
             tasks_completed: 0,
             total_submissions: 0,
@@ -799,7 +820,7 @@ export default function Home() {
         }
       }).catch((err) => console.error("Error getting user doc:", err));
     }
-  }, [isConnected, wagmiAddress]);
+  }, [activeAddress]);
 
   // Synchronize tasks, submissions, and admin stats from Firestore (with automatic seeding if empty)
   useEffect(() => {
@@ -837,7 +858,7 @@ export default function Home() {
           proofRequirements: data.proof_requirements,
           link: data.task_link,
           expiryHours: data.expiry_hours || 24,
-          isUserCreated: !!(wagmiAddress && data.created_by_wallet && data.created_by_wallet.toLowerCase() === wagmiAddress.toLowerCase()),
+          isUserCreated: !!(activeAddress && data.created_by_wallet && data.created_by_wallet.toLowerCase() === activeAddress),
           proofType: data.proof_type,
           createdByWallet: data.created_by_wallet,
           status: data.status || "active",
@@ -893,11 +914,11 @@ export default function Home() {
 
   // Real-time listener for current user document to track balance
   useEffect(() => {
-    if (!wagmiAddress) {
+    if (!activeAddress) {
       setDbUserBalance(0);
       return;
     }
-    const userDocRef = doc(db, "users", wagmiAddress.toLowerCase());
+    const userDocRef = doc(db, "users", activeAddress);
     const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) {
         setDbUserBalance(docSnap.data().balance || 0);
@@ -906,11 +927,11 @@ export default function Home() {
       }
     });
     return () => unsubscribeUser();
-  }, [wagmiAddress]);
+  }, [activeAddress]);
 
   // Load withdrawals (Admin only)
   useEffect(() => {
-    const isAdmin = wagmiAddress?.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase();
+    const isAdmin = activeAddress === PLATFORM_ESCROW_WALLET.toLowerCase();
     if (!isAdmin) {
       setWithdrawals([]);
       return;
@@ -923,7 +944,7 @@ export default function Home() {
       setWithdrawals(loaded);
     });
     return () => unsubscribeWithdrawals();
-  }, [wagmiAddress]);
+  }, [activeAddress]);
 
   // Auto-approval scan on database update (writing updates to Firestore)
   useEffect(() => {
@@ -1018,18 +1039,19 @@ export default function Home() {
   const filteredTasks = useMemo(() => {
     let result = tasks;
 
-    // Filter out completed, expired, or refunded tasks
+    // Filter out completed, expired, refunded, or pending payment tasks
     result = result.filter((t) => {
       const isCompleted = t.slotsRemaining <= 0;
       const isExpired = t.expiresAt && new Date(t.expiresAt).getTime() < Date.now();
       const isRefunded = t.status === "refunded";
-      if (isCompleted || isExpired || isRefunded || t.status === "expired") return false;
+      const isPending = t.status === "pending_payment";
+      if (isCompleted || isExpired || isRefunded || isPending || t.status === "expired") return false;
       return true;
     });
 
     // Filter out user's own tasks from feed, and tasks they have already submitted proof for
-    if (wagmiAddress) {
-      const addressLower = wagmiAddress.toLowerCase();
+    if (activeAddress) {
+      const addressLower = activeAddress;
       result = result.filter((t) => {
         // Exclude own tasks
         if (t.createdByWallet?.toLowerCase() === addressLower) return false;
@@ -1115,7 +1137,7 @@ export default function Home() {
 
   // Helper to run action only if authenticated/connected
   const handleAuthAction = async (action: () => void) => {
-    if (isConnected) {
+    if (isUserConnected) {
       action();
       return;
     }
@@ -1231,14 +1253,14 @@ export default function Home() {
       slots_remaining: newTask.slotsRemaining,
       proof_type: newTask.proofType || "screenshot",
       task_link: newTask.link,
-      status: "active",
-      created_by_wallet: wagmiAddress?.toLowerCase() || "unknown",
+      status: newTask.status || "active",
+      created_by_wallet: activeAddress || "unknown",
       expires_at: new Date(Date.now() + (newTask.expiryHours || 24) * 3600 * 1000).toISOString(),
       expiry_hours: newTask.expiryHours || 24,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       total_budget: parseFloat(newTask.amount.replace(/[^\d.]/g, "")) * newTask.slotsTotal,
-      transaction_hash: activeTransaction?.txHash || "0x",
+      transaction_hash: activeTransaction?.txHash || (newTask as any).transactionHash || "0x",
       payout_currency: "cUSD"
     };
 
@@ -1247,11 +1269,11 @@ export default function Home() {
 
       await setDoc(doc(db, "payments", `pay-${newTask.id}-${Date.now()}`), {
         task_id: newTask.id,
-        wallet_address: wagmiAddress?.toLowerCase() || "unknown",
+        wallet_address: activeAddress || "unknown",
         amount: taskData.total_budget,
         currency: "cUSD",
-        transaction_hash: activeTransaction?.txHash || "0x",
-        payment_status: "paid",
+        transaction_hash: activeTransaction?.txHash || (newTask as any).transactionHash || "0x",
+        payment_status: taskData.status === "pending_payment" ? "pending" : "paid",
         created_at: new Date().toISOString()
       });
 
@@ -1804,21 +1826,39 @@ export default function Home() {
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
   };
 
+  const handleLogout = () => {
+    if (manualAddress) {
+      setManualAddress("");
+      localStorage.removeItem("taskly_manual_address");
+    }
+    if (isConnected) {
+      try {
+        disconnect();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    // Refresh to clear cache
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
+  };
+
   const displayAddress = useMemo(() => {
-    return wagmiAddress || "0x8F5c42E9D479E3129031023a1a9eCe9FbcE0E912";
-  }, [wagmiAddress]);
+    return activeAddress || "0x8F5c42E9D479E3129031023a1a9eCe9FbcE0E912";
+  }, [activeAddress]);
 
   const renderConnectPrompt = (title: string, subtitle: string) => {
     const win = typeof window !== "undefined" ? (window as any) : null;
     const isMinipay = !!(win && win.ethereum && win.ethereum.isMiniPay);
 
     return (
-      <div className="flex flex-col items-center justify-center text-center py-12 px-6 bg-white border border-slate-100 rounded-2xl shadow-sm space-y-6 animate-fade-in mt-4">
-        <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center shadow-sm">
-          <Wallet className="w-8 h-8 text-blue-600 animate-pulse" />
+      <div className="flex flex-col items-center justify-center text-center py-10 px-5 bg-white border border-slate-100 rounded-2xl shadow-sm space-y-5 animate-fade-in mt-4">
+        <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center shadow-sm">
+          <Wallet className="w-7 h-7 text-blue-600 animate-pulse" />
         </div>
-        <div className="space-y-2 max-w-[280px]">
-          <h3 className="text-lg font-bold text-slate-950">
+        <div className="space-y-1.5 max-w-[280px]">
+          <h3 className="text-base font-bold text-slate-950">
             {title}
           </h3>
           <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans">
@@ -1826,13 +1866,62 @@ export default function Home() {
           </p>
         </div>
         {!isMinipay && (
-          <button
-            type="button"
-            onClick={() => handleAuthAction(() => {})}
-            className="w-full max-w-[220px] py-3 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-xl text-xs font-bold hover:from-blue-700 hover:to-emerald-600 active:scale-95 transition-all shadow-md"
-          >
-            Connect Wallet
-          </button>
+          <div className="w-full max-w-[280px] pt-4 border-t border-slate-100 flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => handleAuthAction(() => {})}
+              className="w-full py-3 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-xl text-xs font-bold hover:from-blue-700 hover:to-emerald-600 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
+            >
+              <Wallet className="w-4 h-4" />
+              Connect Web3 Wallet
+            </button>
+            
+            <div className="flex items-center my-1.5">
+              <div className="flex-grow border-t border-slate-200/60"></div>
+              <span className="px-2 text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">or paste address</span>
+              <div className="flex-grow border-t border-slate-200/60"></div>
+            </div>
+
+            <div className="space-y-1 text-left">
+              <label htmlFor="manual-wallet-input" className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                Celo Wallet Address
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="manual-wallet-input"
+                  type="text"
+                  placeholder="0x..."
+                  value={manualAddressInput}
+                  onChange={(e) => {
+                    setManualAddressInput(e.target.value);
+                    setManualAddressError("");
+                  }}
+                  className="flex-grow px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const addr = manualAddressInput.trim();
+                    if (!addr.startsWith("0x") || addr.length !== 42) {
+                      setManualAddressError("Invalid EVM wallet address");
+                      return;
+                    }
+                    setManualAddress(addr);
+                    localStorage.setItem("taskly_manual_address", addr);
+                  }}
+                  className="px-3.5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all active:scale-95"
+                >
+                  Access
+                </button>
+              </div>
+              {manualAddressError && (
+                <span className="text-[10px] text-rose-500 font-semibold block">{manualAddressError}</span>
+              )}
+              <span className="text-[9px] text-slate-400 font-medium leading-relaxed block mt-1">
+                Enter your Celo address from Valora, MetaMask, Trust Wallet or exchange to view balance, submit tasks, and request payouts.
+              </span>
+            </div>
+          </div>
         )}
         {isMinipay && (
           <div className="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-wider">
@@ -1840,7 +1929,7 @@ export default function Home() {
             Connecting MiniPay...
           </div>
         )}
-        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block pt-2">
           Secured by Celo & MiniPay
         </span>
       </div>
@@ -2015,7 +2104,7 @@ export default function Home() {
                 <div className="space-y-4">
                   {filteredTasks.length > 0 ? (
                     filteredTasks.map((task) => {
-                      const isMyTask = !!(wagmiAddress && task.createdByWallet?.toLowerCase() === wagmiAddress.toLowerCase());
+                      const isMyTask = !!(activeAddress && task.createdByWallet?.toLowerCase() === activeAddress);
                       return (
                       <div
                         key={task.id}
@@ -2132,7 +2221,7 @@ export default function Home() {
                   </p>
                 </div>
 
-                {!isConnected ? (
+                {!isUserConnected ? (
                   renderConnectPrompt(
                     "Access Task History",
                     "Connect your wallet to view your submitted proofs, tracking statuses, and earned rewards."
@@ -2259,7 +2348,7 @@ export default function Home() {
             {/* TAB: PROFILE & CREATOR DASHBOARD NESTED ROUTER */}
             {activeTab === "profile" && (
               <div className="space-y-6">
-                {!isConnected ? (
+                {!isUserConnected ? (
                   <div className="space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
@@ -2315,7 +2404,7 @@ export default function Home() {
                             </div>
                             <button
                               type="button"
-                              onClick={() => disconnect()}
+                              onClick={handleLogout}
                               className="px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-300 border border-rose-500/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
                             >
                               <LogOut className="w-3.5 h-3.5" />
@@ -3025,18 +3114,41 @@ export default function Home() {
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-100/50"
                                         : taskStatus === "expired"
                                         ? "bg-amber-50 text-amber-700 border-amber-100/50"
+                                        : taskStatus === "pending_payment"
+                                        ? "bg-purple-50 text-purple-700 border-purple-100/50"
                                         : "bg-rose-50 text-rose-700 border-rose-100/50"
                                     }`}>
                                       {taskStatus}
                                     </span>
                                     
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteCampaign(t.id)}
-                                      className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100/50 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-1"
-                                    >
-                                      Delete Campaign
-                                    </button>
+                                    <div className="flex gap-2">
+                                      {t.status === "pending_payment" && (
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            if (window.confirm("Confirm you have received the Naira or manual payment for this campaign? This will activate the campaign for earners.")) {
+                                              try {
+                                                await updateDoc(doc(db, "tasks", t.id), { status: "active" });
+                                                alert("Campaign activated successfully!");
+                                              } catch (err: any) {
+                                                alert("Activation failed: " + err.message);
+                                              }
+                                            }
+                                          }}
+                                          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-1"
+                                        >
+                                          Activate Campaign
+                                        </button>
+                                      )}
+                                      
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteCampaign(t.id)}
+                                        className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100/50 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-1"
+                                      >
+                                        Delete Campaign
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -3141,17 +3253,48 @@ export default function Home() {
                       About Taskly
                     </h2>
                     <p className="text-slate-500 text-sm font-medium mt-1">
-                      Stablecoin microlabor marketplace
+                      Stablecoin microlabor marketplace on Celo
                     </p>
                   </div>
 
-                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm leading-relaxed space-y-4 text-slate-600 text-sm">
-                    <p>
-                      Taskly is a MiniPay-powered marketplace where users earn by completing verified digital tasks such as social engagement, surveys, and testing tasks.
-                    </p>
-                    <p>
-                      MiniPay uses Custom Fee Abstraction, allowing transaction fees to be paid in stablecoins like USDm rather than gas tokens. Taskly natively inherits this premium user experience, paying you directly into your Opera wallet.
-                    </p>
+                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm leading-relaxed space-y-4 text-slate-600 text-xs">
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">🚀 What is Taskly?</h3>
+                      <p>
+                        Taskly is a next-generation micro-job marketplace powered by the Celo blockchain. It connects creators who need digital actions completed (social follows, app testing, surveys) with earners looking to make stablecoin rewards.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-slate-50">
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">💳 Off-Chain Balance System</h3>
+                      <p>
+                        To save earners from paying blockchain gas fees on every single submission, Taskly accumulates your earnings securely off-chain in a general treasury wallet. Once your balance reaches the minimum threshold of <span className="font-extrabold text-emerald-600">1.00 cUSD</span>, you can submit a withdrawal request. Payouts are aggregated and batch-sent on-chain, keeping transaction fees at zero for earners!
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-slate-50">
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">🦊 No Browser Wallet? No Problem!</h3>
+                      <p>
+                        If you are using mobile browsers like Safari or Chrome that don't have injected Web3 extensions, you can still participate! Simply paste your public Celo wallet address (e.g. from Valora, MetaMask, Trust Wallet, or exchange) to access history, submit tasks, and build your balance. Connect manually and start earning right away.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-slate-50">
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">🇳🇬 Naira (NGN) Funding & Multi-Browser Ramps</h3>
+                      <p>
+                        Creators can fund campaign budgets on any mobile browser using Naira bank transfers via integrated Celo fiat-to-crypto ramps. If you don't have a Web3 browser extension, you can create a campaign in "pending payment" status, transfer Naira/cUSD to the admin's escrow wallet, and the platform admin will activate your campaign immediately.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-slate-50">
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">⚙️ Platform Architecture</h3>
+                      <ul className="list-disc pl-4 space-y-1 mt-1 text-[11px]">
+                        <li>Network: <span className="font-bold">Celo Mainnet</span></li>
+                        <li>Payment Currency: <span className="font-bold">cUSD (Celo Dollar)</span></li>
+                        <li>Minimum Withdrawal: <span className="font-bold text-emerald-600">1.00 cUSD</span></li>
+                        <li>Platform Fee: <span className="font-bold">2.0%</span></li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
 
@@ -3166,7 +3309,7 @@ export default function Home() {
                     Built by TMB
                   </a>
                   <span className="text-[10px] text-slate-300 block mt-0.5 font-semibold">
-                    Version 1.0.0
+                    Version 1.1.0
                   </span>
                 </div>
               </div>
@@ -4109,12 +4252,28 @@ export default function Home() {
                     type="button"
                     onClick={async () => {
                       try {
-                        // Transition state to sending
-                        setActiveTransaction((prev) => prev ? { ...prev, status: "sending-escrow" } : null);
-
                         const budget = payoutValue * slotsValue;
                         const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
                         const total = budget + fee;
+
+                        if (!isConnected) {
+                          // User is connected manually without Web3 browser provider
+                          if (pendingTxData?.newTask) {
+                            const pendingTask = {
+                              ...pendingTxData.newTask,
+                              status: "pending_payment",
+                              transactionHash: "manual-payment"
+                            };
+                            await saveNewTask(pendingTask);
+                          }
+                          setActiveTransaction(null);
+                          setPendingTxData(null);
+                          alert(`Campaign submitted! It is currently 'pending_payment'. To activate, please transfer ₦${Math.round(total * 1500).toLocaleString()} (equivalent to ${total.toFixed(2)} cUSD) to the admin's escrow wallet ${PLATFORM_ESCROW_WALLET} and contact support.`);
+                          return;
+                        }
+
+                        // Transition state to sending
+                        setActiveTransaction((prev) => prev ? { ...prev, status: "sending-escrow" } : null);
                         const amountWei = parseEther(total.toFixed(18));
 
                         const cusdAddress = getCusdAddress(chainId);

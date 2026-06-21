@@ -96,5 +96,10 @@ service cloud.firestore {
                     && request.resource.data.task_id != null;
       allow update: if true; // Allowed for moderation
     }
+
+    // 7. Withdrawals collection rules
+    match /withdrawals/{withdrawalId} {
+      allow read, write, delete: if true;
+    }
   }
 }
