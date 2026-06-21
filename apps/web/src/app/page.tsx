@@ -4436,12 +4436,12 @@ export default function Home() {
                     type="button"
                     onClick={() => {
                       const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
-                      const payUrl = `https://widget.onramper.com/?defaultFiat=NGN&defaultCrypto=cusd&wallet=${PLATFORM_ESCROW_WALLET}&fiatAmount=${Math.round(amountNum * 1500)}`;
+                      const payUrl = `https://pay.fonbnk.com/?network=CELO&asset=CUSD&currency=NGN&amount=${Math.round(amountNum * 1500)}`;
                       window.open(payUrl, "_blank", "width=480,height=650");
                     }}
                     className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs font-bold hover:from-purple-700 hover:to-indigo-700 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
                   >
-                    Launch Naira Payment Portal
+                    Launch Fonbnk Payment Portal
                     <ExternalLink className="w-4 h-4" />
                   </button>
 
