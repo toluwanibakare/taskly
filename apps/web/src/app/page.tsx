@@ -1180,7 +1180,18 @@ export default function Home() {
   // Create Task Action
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createTaskForm.title || !createTaskForm.description) return;
+    
+    let description = createTaskForm.description;
+    const isSimpleTask = createTaskForm.type.toLowerCase().includes("follow") || 
+                         createTaskForm.type.toLowerCase().includes("like") ||
+                         createTaskForm.title.toLowerCase().includes("follow") ||
+                         createTaskForm.title.toLowerCase().includes("like");
+                         
+    if (!description && isSimpleTask) {
+      description = createTaskForm.title;
+    }
+
+    if (!createTaskForm.title || !description) return;
 
     const instructionsArray = createTaskForm.instructionsText
       .split("\n")
@@ -1192,7 +1203,7 @@ export default function Home() {
       platform: createTaskForm.platform,
       title: createTaskForm.title,
       amount: `${payoutValue.toFixed(2)} cUSD`,
-      description: createTaskForm.description,
+      description: description,
       type: createTaskForm.type,
       slotsRemaining: slotsValue,
       slotsTotal: slotsValue,
@@ -3905,7 +3916,12 @@ export default function Home() {
                   Task Description
                 </label>
                 <textarea
-                  required
+                  required={!(
+                    createTaskForm.type.toLowerCase().includes("follow") ||
+                    createTaskForm.type.toLowerCase().includes("like") ||
+                    createTaskForm.title.toLowerCase().includes("follow") ||
+                    createTaskForm.title.toLowerCase().includes("like")
+                  )}
                   rows={2}
                   placeholder="Explain the purpose of this task to workers..."
                   value={createTaskForm.description}
