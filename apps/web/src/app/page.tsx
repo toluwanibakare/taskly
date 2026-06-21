@@ -543,8 +543,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"home" | "history" | "profile" | "about">("home");
 
   // Profile Sub-Screen for Creator Dashboard
-  // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes"
-  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns">("profile-main");
+  // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-withdrawals"
+  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals">("profile-main");
 
   // Selected task for Details and Submission
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -602,7 +602,7 @@ export default function Home() {
 
   // Web3 Transaction Overlay state
   interface ActiveTransaction {
-    status: "confirm-deposit" | "sending-escrow" | "confirm-release" | "releasing-escrow" | "confirm-refund" | "refunding-escrow" | "confirm-reopen" | "reopening-campaign" | "success";
+    status: "confirm-deposit" | "sending-escrow" | "confirm-release" | "releasing-escrow" | "confirm-refund" | "refunding-escrow" | "confirm-reopen" | "reopening-campaign" | "confirm-withdrawal" | "processing-withdrawal" | "success";
     title: string;
     amount: string;
     step?: number;
@@ -615,8 +615,13 @@ export default function Home() {
     newTask?: Task;
     subId?: string;
     taskId?: string;
+    withdrawal?: any;
   }
   const [pendingTxData, setPendingTxData] = useState<PendingTxData | null>(null);
+
+  // Firestore user balance and withdrawals
+  const [dbUserBalance, setDbUserBalance] = useState<number>(0);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
 
   // Format amount based on user currency preference
   const formatCurrency = (amountStr: string) => {
@@ -886,6 +891,40 @@ export default function Home() {
     };
   }, []);
 
+  // Real-time listener for current user document to track balance
+  useEffect(() => {
+    if (!wagmiAddress) {
+      setDbUserBalance(0);
+      return;
+    }
+    const userDocRef = doc(db, "users", wagmiAddress.toLowerCase());
+    const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setDbUserBalance(docSnap.data().balance || 0);
+      } else {
+        setDbUserBalance(0);
+      }
+    });
+    return () => unsubscribeUser();
+  }, [wagmiAddress]);
+
+  // Load withdrawals (Admin only)
+  useEffect(() => {
+    const isAdmin = wagmiAddress?.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase();
+    if (!isAdmin) {
+      setWithdrawals([]);
+      return;
+    }
+    const unsubscribeWithdrawals = onSnapshot(collection(db, "withdrawals"), (snapshot) => {
+      const loaded: any[] = [];
+      snapshot.forEach((d) => {
+        loaded.push(d.data());
+      });
+      setWithdrawals(loaded);
+    });
+    return () => unsubscribeWithdrawals();
+  }, [wagmiAddress]);
+
   // Auto-approval scan on database update (writing updates to Firestore)
   useEffect(() => {
     const scanAutoApproval = async () => {
@@ -936,8 +975,10 @@ export default function Home() {
             await runTransaction(db, async (transaction) => {
               const workerDoc = await transaction.get(workerUserRef);
               const currentEarnings = workerDoc.exists() ? workerDoc.data().total_earnings || 0 : 0;
+              const currentBalance = workerDoc.exists() ? workerDoc.data().balance || 0 : 0;
               const completedCount = workerDoc.exists() ? workerDoc.data().tasks_completed || 0 : 0;
               transaction.set(workerUserRef, {
+                balance: parseFloat((currentBalance + payoutVal).toFixed(2)),
                 total_earnings: parseFloat((currentEarnings + payoutVal).toFixed(2)),
                 tasks_completed: completedCount + 1,
                 updated_at: new Date().toISOString()
@@ -1383,8 +1424,10 @@ export default function Home() {
           await runTransaction(db, async (transaction) => {
             const workerDoc = await transaction.get(workerUserRef);
             const currentEarnings = workerDoc.exists() ? workerDoc.data().total_earnings || 0 : 0;
+            const currentBalance = workerDoc.exists() ? workerDoc.data().balance || 0 : 0;
             const completedCount = workerDoc.exists() ? workerDoc.data().tasks_completed || 0 : 0;
             transaction.set(workerUserRef, {
+              balance: parseFloat((currentBalance + payoutVal).toFixed(2)),
               total_earnings: parseFloat((currentEarnings + payoutVal).toFixed(2)),
               tasks_completed: completedCount + 1,
               updated_at: new Date().toISOString()
@@ -1514,7 +1557,7 @@ export default function Home() {
       return;
     }
     try {
-      const collectionsToClear = ["users", "tasks", "submissions", "payments", "disputes"];
+      const collectionsToClear = ["users", "tasks", "submissions", "payments", "disputes", "withdrawals"];
       for (const colName of collectionsToClear) {
         const colRef = collection(db, colName);
         const snapshot = await getDocs(colRef);
@@ -1527,6 +1570,58 @@ export default function Home() {
       console.error("Reset database failed:", err);
       alert("Failed to reset database: " + err.message);
     }
+  };
+
+  // Worker Action: Request Withdrawal of earned balance
+  const handleRequestWithdrawal = async () => {
+    if (!wagmiAddress) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+    if (dbUserBalance < 1.00) {
+      alert("Minimum withdrawable amount is 1 cUSD.");
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to withdraw ${dbUserBalance.toFixed(2)} cUSD? This will request a payout to your connected wallet address ${wagmiAddress}.`)) {
+      return;
+    }
+
+    try {
+      const amountToWithdraw = dbUserBalance;
+      const userDocRef = doc(db, "users", wagmiAddress.toLowerCase());
+      await updateDoc(userDocRef, {
+        balance: 0,
+        updated_at: new Date().toISOString()
+      });
+
+      const wRef = doc(collection(db, "withdrawals"));
+      await setDoc(wRef, {
+        id: wRef.id,
+        workerAddress: wagmiAddress.toLowerCase(),
+        amount: amountToWithdraw,
+        status: "pending",
+        createdAt: new Date().toISOString()
+      });
+
+      alert(`Withdrawal request of ${amountToWithdraw.toFixed(2)} cUSD submitted successfully! It is pending platform admin payout.`);
+    } catch (err: any) {
+      console.error("Withdrawal request failed:", err);
+      alert("Failed to submit withdrawal request: " + err.message);
+    }
+  };
+
+  // Admin Action: Initiate On-chain Payout for Withdrawal Request
+  const handleProcessWithdrawal = (withdrawal: any) => {
+    setPendingTxData({ withdrawal });
+    setActiveTransaction({
+      status: "confirm-withdrawal",
+      title: "Process Worker Withdrawal",
+      amount: `${withdrawal.amount.toFixed(2)} cUSD`,
+      onClose: () => {
+        setActiveTransaction(null);
+        setPendingTxData(null);
+      }
+    });
   };
 
   // Creator Action: Claim Escrow Refund for Expired Task
@@ -2229,6 +2324,31 @@ export default function Home() {
                           </div>
                         </div>
 
+                        {/* Wallet Balance Card */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                          <div>
+                            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
+                              Withdrawable Balance
+                            </span>
+                            <span className="text-2xl font-black text-slate-950 block mt-1">
+                              {formatCurrency(`${dbUserBalance.toFixed(2)} cUSD`)}
+                            </span>
+                          </div>
+                          
+                          <button
+                            type="button"
+                            onClick={handleRequestWithdrawal}
+                            disabled={dbUserBalance < 1.00}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 ${
+                              dbUserBalance >= 1.00 
+                                ? "bg-slate-900 text-white hover:bg-slate-800" 
+                                : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                            }`}
+                          >
+                            Withdraw Earnings
+                          </button>
+                        </div>
+
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 gap-4">
                           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm text-center space-y-1">
@@ -2410,6 +2530,24 @@ export default function Home() {
                                 <button
                                   type="button"
                                   onClick={() => setProfileSubScreen("admin-campaigns")}
+                                  className="px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                                >
+                                  Manage
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+
+                              {/* Withdrawals management button */}
+                              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Wallet className="w-4.5 h-4.5 text-emerald-500" />
+                                  <span className="text-xs font-bold text-slate-800">
+                                    Pending Withdrawals ({withdrawals.filter(w => w.status === "pending").length})
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setProfileSubScreen("admin-withdrawals")}
                                   className="px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-1 shadow-sm active:scale-95"
                                 >
                                   Manage
@@ -2906,6 +3044,84 @@ export default function Home() {
                           ) : (
                             <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
                               <p className="text-slate-400 text-xs font-semibold">No campaigns active on the platform</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PROFILE: WITHDRAWALS MANAGEMENT DASHBOARD FOR ADMINISTRATOR */}
+                    {profileSubScreen === "admin-withdrawals" && (
+                      <div className="space-y-6 animate-fade-in">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setProfileSubScreen("profile-main")}
+                            className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                          >
+                            <ArrowLeft className="w-5 h-5 text-slate-800" />
+                          </button>
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900 font-sans">
+                              Worker Withdrawals
+                            </h2>
+                            <span className="text-xs text-slate-400 font-semibold block">
+                              Approve and execute worker withdrawal payouts
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {withdrawals.length > 0 ? (
+                            withdrawals.map((w) => {
+                              return (
+                                <div
+                                  key={w.id}
+                                  className="bg-white p-4 border border-slate-100 shadow-sm rounded-2xl space-y-4 animate-fade-in"
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                                      <Wallet className="w-4.5 h-4.5" />
+                                    </div>
+                                    <div className="flex-grow">
+                                      <h3 className="text-xs font-bold text-slate-900 line-clamp-1">
+                                        Withdrawal of {w.amount.toFixed(2)} cUSD
+                                      </h3>
+                                      <div className="space-y-1 mt-1.5 font-semibold text-[10px] text-slate-400">
+                                        <div className="text-[9px] text-slate-400 font-mono select-all truncate max-w-[240px]">
+                                          Worker: {w.workerAddress}
+                                        </div>
+                                        <div className="text-[9px] text-slate-400 font-sans mt-0.5">
+                                          Requested: {new Date(w.createdAt).toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="border-t border-slate-50 pt-3 flex items-center justify-between flex-wrap gap-2">
+                                    <span className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                                      w.status === "pending"
+                                        ? "bg-amber-50 text-amber-700 border-amber-100/50"
+                                        : "bg-emerald-50 text-emerald-700 border-emerald-100/50"
+                                    }`}>
+                                      {w.status}
+                                    </span>
+                                    
+                                    {w.status === "pending" && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleProcessWithdrawal(w)}
+                                        className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-1"
+                                      >
+                                        Process Payout
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
+                              <p className="text-slate-400 text-xs font-semibold">No withdrawals requested currently</p>
                             </div>
                           )}
                         </div>
@@ -3987,9 +4203,9 @@ export default function Home() {
                   <CheckCircle2 className="w-7 h-7 text-emerald-600 animate-pulse" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-lg font-black text-slate-900">Release Escrow Payout</h3>
+                  <h3 className="text-lg font-black text-slate-900">Approve & Payout Worker</h3>
                   <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans px-2">
-                    This will initiate a blockchain transfer releasing funds from the platform escrow to the worker.
+                    This will approve the worker's submission and credit the reward amount to their withdrawable profile balance.
                   </p>
                 </div>
                 
@@ -4027,74 +4243,16 @@ export default function Home() {
                         // Transition state to sending
                         setActiveTransaction((prev) => prev ? { ...prev, status: "releasing-escrow" } : null);
 
-                        const escrowContractAddress = getEscrowAddress(chainId);
-                        const sub = creatorSubmissions.find(s => s.id === pendingTxData?.subId);
-                        const workerWallet = sub?.workerAddress;
-                        if (!workerWallet) {
-                          throw new Error("Worker wallet address not found.");
+                        if (pendingTxData?.subId && pendingTxData?.taskId) {
+                          await saveApproveSubmission(pendingTxData.subId, pendingTxData.taskId);
                         }
 
-                        let txHash: `0x${string}` | undefined;
-                        if (escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000") {
-                          // Call payoutWorker on the smart contract
-                          const bytes32TaskId = formatTaskIdToBytes32(pendingTxData?.taskId || "");
-                          txHash = await writeContractAsync({
-                            address: escrowContractAddress,
-                            abi: ESCROW_ABI,
-                            functionName: "payoutWorker",
-                            args: [bytes32TaskId, workerWallet as `0x${string}`],
-                            type: "legacy",
-                          });
-                          
-                          if (pendingTxData?.subId && pendingTxData?.taskId) {
-                            await saveApproveSubmission(pendingTxData.subId, pendingTxData.taskId);
-                          }
-                          setActiveTransaction((prev) => prev ? { 
-                            ...prev, 
-                            status: "success", 
-                            txHash 
-                          } : null);
-                        } else {
-                          // Fallback to legacy behavior
-                          const isAdminApproving = wagmiAddress?.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase();
-                          if (isAdminApproving) {
-                            const tk = tasks.find((t) => t.id === pendingTxData?.taskId);
-                            const payoutVal = tk ? parseFloat(tk.amount.replace(/[^\d.]/g, "")) : 0.05;
-                            const amountWei = parseEther(payoutVal.toFixed(18));
-                            const cusdAddress = getCusdAddress(chainId);
-
-                            // Real on-chain transfer: admin wallet -> worker wallet
-                            txHash = await writeContractAsync({
-                              address: cusdAddress,
-                              abi: ERC20_ABI,
-                              functionName: "transfer",
-                              args: [workerWallet as `0x${string}`, amountWei],
-                              type: "legacy",
-                            });
-
-                            if (pendingTxData?.subId && pendingTxData?.taskId) {
-                              await saveApproveSubmission(pendingTxData.subId, pendingTxData.taskId);
-                            }
-
-                            setActiveTransaction((prev) => prev ? { 
-                              ...prev, 
-                              status: "success", 
-                              txHash 
-                            } : null);
-                          } else {
-                            // Simulate release latency for normal users
-                            setTimeout(async () => {
-                              if (pendingTxData?.subId && pendingTxData?.taskId) {
-                                  await saveApproveSubmission(pendingTxData.subId, pendingTxData.taskId);
-                              }
-                              setActiveTransaction((prev) => prev ? { 
-                                ...prev, 
-                                status: "success",
-                                txHash: `0x${Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('')}`
-                              } : null);
-                            }, 2000);
-                          }
-                        }
+                        const mockHash = `0x_accumulated_${Array.from({length: 24}, () => Math.floor(Math.random()*16).toString(16)).join('')}` as `0x${string}`;
+                        setActiveTransaction((prev) => prev ? { 
+                          ...prev, 
+                          status: "success", 
+                          txHash: mockHash
+                        } : null);
                       } catch (err: any) {
                         console.error("Payout failed:", err);
                         alert("Transaction failed or rejected: " + (err.message || err));
@@ -4117,6 +4275,106 @@ export default function Home() {
                   <h3 className="text-sm font-bold text-slate-950">Releasing Escrow Payout</h3>
                   <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider animate-pulse">
                     Transferring funds to worker...
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {activeTransaction.status === "confirm-withdrawal" && (
+              <div className="space-y-5">
+                <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                  <Wallet className="w-7 h-7 text-emerald-600 animate-pulse" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-black text-slate-900">Confirm Payout</h3>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans px-2">
+                    This will initiate a blockchain transfer of cUSD from the platform escrow/admin wallet directly to the worker.
+                  </p>
+                </div>
+                
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-semibold text-slate-600 space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Payout Amount:</span>
+                    <span className="text-slate-800 font-black text-emerald-600">{activeTransaction.amount}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-slate-200/50 pt-2.5">
+                    <span className="text-slate-400">Recipient Worker:</span>
+                    <span className="text-slate-800 font-mono text-[9px] truncate max-w-[120px]">
+                      {pendingTxData?.withdrawal?.workerAddress || "0x"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeTransaction.onClose) activeTransaction.onClose();
+                    }}
+                    className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setActiveTransaction((prev) => prev ? { ...prev, status: "processing-withdrawal" } : null);
+
+                        const workerWallet = pendingTxData?.withdrawal?.workerAddress;
+                        const payoutVal = pendingTxData?.withdrawal?.amount || 0;
+                        if (!workerWallet) {
+                          throw new Error("Worker wallet address not found.");
+                        }
+
+                        const amountWei = parseEther(payoutVal.toFixed(18));
+                        const cusdAddress = getCusdAddress(chainId);
+
+                        // On-chain transfer of the accumulated amount to the worker
+                        const txHash = await writeContractAsync({
+                          address: cusdAddress,
+                          abi: ERC20_ABI,
+                          functionName: "transfer",
+                          args: [workerWallet as `0x${string}`, amountWei],
+                          type: "legacy",
+                        });
+
+                        // Update the withdrawal request to completed in Firestore
+                        if (pendingTxData?.withdrawal?.id) {
+                          await updateDoc(doc(db, "withdrawals", pendingTxData.withdrawal.id), {
+                            status: "completed",
+                            txHash,
+                            paidAt: new Date().toISOString()
+                          });
+                        }
+
+                        setActiveTransaction((prev) => prev ? { 
+                          ...prev, 
+                          status: "success", 
+                          txHash 
+                        } : null);
+                      } catch (err: any) {
+                        console.error("Payout failed:", err);
+                        alert("Transaction failed or rejected: " + (err.message || err));
+                        setActiveTransaction(null);
+                        setPendingTxData(null);
+                      }
+                    }}
+                    className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+                  >
+                    Approve & Payout
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTransaction.status === "processing-withdrawal" && (
+              <div className="py-8 space-y-6 animate-fade-in">
+                <div className="w-12 h-12 border-4 border-slate-100 border-t-emerald-500 rounded-full animate-spin mx-auto"></div>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-bold text-slate-950">Processing Worker Withdrawal</h3>
+                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider animate-pulse">
+                    Transferring accumulated cUSD to worker...
                   </p>
                 </div>
               </div>

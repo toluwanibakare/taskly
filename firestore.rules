@@ -39,7 +39,7 @@ service cloud.firestore {
 
     // 3. Submissions collection rules
     match /submissions/{submissionId} {
-      allow read: if true;
+      allow read, delete: if true;
       allow create: if request.resource.data.wallet_address != null
                     && request.resource.data.task_id != null;
       allow update: if
@@ -82,7 +82,7 @@ service cloud.firestore {
 
     // 5. Payments collection rules
     match /payments/{paymentId} {
-      allow read: if true;
+      allow read, delete: if true;
       allow create: if request.resource.data.wallet_address != null
                     && request.resource.data.task_id != null
                     && request.resource.data.transaction_hash != null;
@@ -91,7 +91,7 @@ service cloud.firestore {
 
     // 6. Disputes collection rules
     match /disputes/{disputeId} {
-      allow read: if true;
+      allow read, delete: if true;
       allow create: if request.resource.data.wallet_address != null
                     && request.resource.data.task_id != null;
       allow update: if true; // Allowed for moderation
