@@ -50,7 +50,8 @@ import {
   RotateCw,
   Undo2,
   RefreshCw,
-  LogOut
+  LogOut,
+  TrendingUp
 } from "lucide-react";
 
 // Platform Type definition
@@ -629,7 +630,7 @@ export default function Home() {
 
   // Web3 Transaction Overlay state
   interface ActiveTransaction {
-    status: "confirm-deposit" | "sending-escrow" | "confirm-release" | "releasing-escrow" | "confirm-refund" | "refunding-escrow" | "confirm-reopen" | "reopening-campaign" | "confirm-withdrawal" | "processing-withdrawal" | "success";
+    status: "confirm-deposit" | "naira-checkout" | "sending-escrow" | "confirm-release" | "releasing-escrow" | "confirm-refund" | "refunding-escrow" | "confirm-reopen" | "reopening-campaign" | "confirm-withdrawal" | "processing-withdrawal" | "success";
     title: string;
     amount: string;
     step?: number;
@@ -4329,9 +4330,7 @@ export default function Home() {
                             };
                             await saveNewTask(pendingTask);
                           }
-                          setActiveTransaction(null);
-                          setPendingTxData(null);
-                          alert(`Campaign submitted! It is currently 'pending_payment'. To activate, please transfer ₦${Math.round(total * 1500).toLocaleString()} (equivalent to ${total.toFixed(2)} cUSD) to the admin's escrow wallet ${PLATFORM_ESCROW_WALLET} and contact support.`);
+                          setActiveTransaction((prev) => prev ? { ...prev, status: "naira-checkout" } : null);
                           return;
                         }
 
@@ -4399,6 +4398,63 @@ export default function Home() {
                     className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-xl text-xs font-bold hover:from-blue-700 hover:to-emerald-600 transition-all shadow-md active:scale-95"
                   >
                     Deposit & Launch
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTransaction.status === "naira-checkout" && (
+              <div className="space-y-5 text-center animate-fade-in py-2">
+                <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                  <TrendingUp className="w-7 h-7 text-purple-600 animate-pulse" />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <h3 className="text-lg font-black text-slate-900">Naira ➔ cUSD Payment Portal</h3>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed px-2">
+                    Send local Naira bank transfers to automatically deposit cUSD into the Celo escrow wallet.
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-semibold text-slate-600 space-y-2.5 text-left">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">cUSD Budget to Fund:</span>
+                    <span className="text-slate-800 font-bold">{activeTransaction.amount}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-slate-200/50 pt-2.5">
+                    <span className="text-slate-400">Target Celo Address:</span>
+                    <span className="text-slate-800 font-mono text-[9px] truncate max-w-[150px]">{formatAddress(PLATFORM_ESCROW_WALLET)}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-slate-800/10 pt-2.5 text-slate-950 font-black text-xs">
+                    <span>Approx. Naira Needed:</span>
+                    <span className="text-purple-600 font-extrabold">~₦{Math.round(parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) * 1500).toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
+                      const payUrl = `https://widget.onramper.com/?defaultFiat=NGN&defaultCrypto=cusd&wallet=${PLATFORM_ESCROW_WALLET}&fiatAmount=${Math.round(amountNum * 1500)}`;
+                      window.open(payUrl, "_blank", "width=480,height=650");
+                    }}
+                    className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs font-bold hover:from-purple-700 hover:to-indigo-700 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    Launch Naira Payment Portal
+                    <ExternalLink className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTransaction(null);
+                      setPendingTxData(null);
+                      alert("Thank you! Once the fiat-to-crypto transaction completes and cUSD lands in the escrow wallet, the administrator will review and activate your campaign.");
+                    }}
+                    className="w-full py-3.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-sm"
+                  >
+                    I have Completed the Transfer
                   </button>
                 </div>
               </div>
