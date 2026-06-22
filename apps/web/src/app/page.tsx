@@ -1209,6 +1209,11 @@ export default function Home() {
     const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
     const nairaAmount = Math.round(amountNum * CUSD_TO_NGN_RATE);
 
+    if (nairaAmount < 100) {
+      alert("The minimum payment amount allowed by Korapay is ₦100. Please increase your campaign budget (either add more slots or increase payout per slot) to meet this requirement.");
+      return;
+    }
+
     const korapayKey = process.env.NEXT_PUBLIC_KORAPAY_PUBLIC_KEY || "pk_live_Q8YucBLGXAKq3z23CBLa79Jv95brJLcwxvd9XUDM";
 
     if (typeof window !== "undefined" && (window as any).Korapay) {
@@ -4534,7 +4539,7 @@ export default function Home() {
                   </button>
                   
                   <span className="text-[10px] text-slate-400 font-bold block mt-2 text-center">
-                    🔒 Secured by Korapay
+                    Secured by Korapay
                   </span>
                 </div>
               </div>
