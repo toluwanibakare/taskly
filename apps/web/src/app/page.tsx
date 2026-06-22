@@ -3391,6 +3391,21 @@ export default function Home() {
                       </ul>
                     </div>
                   </div>
+
+                  {/* WhatsApp Community Invitation */}
+                  <div className="bg-emerald-50/50 border border-emerald-100/50 rounded-2xl p-4 text-center space-y-3">
+                    <p className="text-xs font-bold text-emerald-800/90 leading-relaxed">
+                      Join our WhatsApp community for Taskly updates and to learn more!
+                    </p>
+                    <a
+                      href="https://chat.whatsapp.com/Ji6pwJZLeOLI8kmLGfjLwe"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                    >
+                      Join WhatsApp Community
+                    </a>
+                  </div>
                 </div>
 
                 {/* App Credentials at the Bottom */}
