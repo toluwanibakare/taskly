@@ -811,7 +811,7 @@ export default function Home() {
       const win = typeof window !== "undefined" ? (window as any) : null;
       const isMinipay = !!(win && win.ethereum && win.ethereum.isMiniPay);
       if (isMinipay && !isConnected) {
-        const injectedConnector = connectors.find((c) => c.id === "injected");
+        const injectedConnector = connectors.find((c) => c.id === "injected") || connectors[0];
         if (injectedConnector) {
           connectAsync({ connector: injectedConnector }).catch((err) => {
             console.error("Auto-connect failed in MiniPay", err);
@@ -1165,7 +1165,7 @@ export default function Home() {
       const isMinipay = !!(win.ethereum && win.ethereum.isMiniPay);
       
       if (isMinipay) {
-        const injectedConnector = connectors.find((c) => c.id === "injected");
+        const injectedConnector = connectors.find((c) => c.id === "injected") || connectors[0];
         if (injectedConnector) {
           await connectAsync({ connector: injectedConnector });
           setTimeout(() => {
