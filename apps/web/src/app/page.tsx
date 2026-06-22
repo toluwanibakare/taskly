@@ -1201,6 +1201,47 @@ export default function Home() {
     }
   };
 
+  // Launch Korapay Checkout inline modal
+  const payWithKorapay = () => {
+    if (!activeTransaction || !pendingTxData?.newTask) return;
+    const task = pendingTxData.newTask;
+    const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
+    const nairaAmount = Math.round(amountNum * CUSD_TO_NGN_RATE);
+
+    const korapayKey = process.env.NEXT_PUBLIC_KORAPAY_PUBLIC_KEY || "pk_live_Q8YucBLGXAKq3z23CBLa79Jv95brJLcwxvd9XUDM";
+
+    if (typeof window !== "undefined" && (window as any).Korapay) {
+      (window as any).Korapay.initialize({
+        key: korapayKey,
+        reference: task.id,
+        amount: nairaAmount,
+        currency: "NGN",
+        customer: {
+          name: "Taskly Creator",
+          email: "creator@taskly.app"
+        },
+        onClose: () => {
+          console.log("Korapay modal closed");
+        },
+        onSuccess: (response: any) => {
+          console.log("Korapay payment successful:", response);
+          setActiveTransaction({
+            status: "success",
+            title: task.title,
+            amount: activeTransaction.amount,
+            txHash: response.reference || "korapay-auto",
+            onClose: () => {
+              setActiveTransaction(null);
+            }
+          });
+          alert("Naira payment successful! The platform is automatically creating and funding your campaign on Celo Mainnet via the smart contract. Check the feed shortly!");
+        }
+      });
+    } else {
+      alert("Korapay payment script is still loading. Please wait a moment and try again.");
+    }
+  };
+
   // Create Task Action
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -4457,15 +4498,30 @@ export default function Home() {
                 <div className="space-y-3.5 pt-2">
                   <button
                     type="button"
+                    onClick={payWithKorapay}
+                    className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-xl text-xs font-bold hover:from-blue-700 hover:to-emerald-600 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    Pay with Card / Bank Transfer (Instant & Automated)
+                    <ExternalLink className="w-4 h-4" />
+                  </button>
+
+                  <div className="relative flex py-1 items-center">
+                    <div className="flex-grow border-t border-slate-200"></div>
+                    <span className="flex-shrink mx-4 text-slate-400 text-[10px] uppercase font-bold">Or use mobile money</span>
+                    <div className="flex-grow border-t border-slate-200"></div>
+                  </div>
+
+                  <button
+                    type="button"
                     onClick={() => {
                       const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
                       const payUrl = `https://pay.fonbnk.com/?network=CELO&asset=CUSD&address=${PLATFORM_ESCROW_WALLET}&amount=${amountNum}&currency=crypto&freezeWallet=true&freezeAmount=true`;
                       window.open(payUrl, "_blank", "width=480,height=650");
                     }}
-                    className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs font-bold hover:from-purple-700 hover:to-indigo-700 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2"
                   >
-                    Launch Fonbnk Payment Portal
-                    <ExternalLink className="w-4 h-4" />
+                    Pay via Fonbnk Portal
+                    <ExternalLink className="w-3.5 h-3.5" />
                   </button>
 
                   <button
@@ -4473,11 +4529,10 @@ export default function Home() {
                     onClick={() => {
                       setActiveTransaction(null);
                       setPendingTxData(null);
-                      alert("Thank you! Once the fiat-to-crypto transaction completes and cUSD lands in the escrow wallet, the administrator will review and activate your campaign.");
                     }}
-                    className="w-full py-3.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-sm"
+                    className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold active:scale-95 transition-all"
                   >
-                    I have Completed the Transfer
+                    Cancel
                   </button>
                 </div>
               </div>

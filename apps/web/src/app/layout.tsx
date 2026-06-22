@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import Script from 'next/script';
 
 import { WalletProvider } from "@/components/wallet-provider"
 
@@ -65,6 +66,10 @@ export default function RootLayout({
             </main>
           </WalletProvider>
         </div>
+        <Script 
+          src="https://korablobstorage.blob.core.windows.net/modal-bucket/korapay-collections.min.js" 
+          strategy="beforeInteractive" 
+        />
       </body>
     </html>
   );
