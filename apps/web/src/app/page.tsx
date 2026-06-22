@@ -556,6 +556,7 @@ export default function Home() {
   const [manualAddressInput, setManualAddressInput] = useState<string>("");
   const [manualAddressError, setManualAddressError] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "naira">("wallet");
+  const [isDepositing, setIsDepositing] = useState<boolean>(false);
   const isMiniPayApp = useMemo(() => {
     if (typeof window === "undefined") return false;
     const win = window as any;
@@ -4378,7 +4379,9 @@ export default function Home() {
                   </button>
                   <button
                     type="button"
+                    disabled={isDepositing}
                     onClick={async () => {
+                      setIsDepositing(true);
                       try {
                         const budget = payoutValue * slotsValue;
                         const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
@@ -4394,6 +4397,7 @@ export default function Home() {
                             };
                             await saveNewTask(pendingTask);
                           }
+                          setIsDepositing(false);
                           setActiveTransaction((prev) => prev ? { ...prev, status: "naira-checkout" } : null);
                           return;
                         }
@@ -4428,7 +4432,7 @@ export default function Home() {
                             functionName: "createCampaign",
                             args: [bytes32TaskId, rewardWei, BigInt(slotsValue), durationSeconds],
                             type: "legacy",
-                          });
+                            });
                         } else {
                           // Fallback to legacy transfer
                           txHash = await writeContractAsync({
@@ -4445,6 +4449,7 @@ export default function Home() {
                           saveNewTask(pendingTxData.newTask);
                         }
 
+                        setIsDepositing(false);
                         // Set success status
                         setActiveTransaction((prev) => prev ? { 
                           ...prev, 
@@ -4455,13 +4460,25 @@ export default function Home() {
                       } catch (err: any) {
                         console.error("Escrow deposit failed:", err);
                         alert("Transaction failed or rejected: " + (err.message || err));
+                        setIsDepositing(false);
                         setActiveTransaction(null);
                         setPendingTxData(null);
                       }
                     }}
-                    className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-xl text-xs font-bold hover:from-blue-700 hover:to-emerald-600 transition-all shadow-md active:scale-95"
+                    className={`flex-1 py-3 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 ${
+                      isDepositing 
+                        ? "bg-slate-400 cursor-not-allowed" 
+                        : "bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-700 hover:to-emerald-600"
+                    }`}
                   >
-                    Deposit & Launch
+                    {isDepositing ? (
+                      <>
+                        <RotateCw className="w-4 h-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      "Deposit & Launch"
+                    )}
                   </button>
                 </div>
               </div>
@@ -4501,27 +4518,8 @@ export default function Home() {
                     onClick={payWithKorapay}
                     className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-xl text-xs font-bold hover:from-blue-700 hover:to-emerald-600 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
                   >
-                    Pay with Card / Bank Transfer (Instant & Automated)
+                    Pay with Card / Bank Transfer
                     <ExternalLink className="w-4 h-4" />
-                  </button>
-
-                  <div className="relative flex py-1 items-center">
-                    <div className="flex-grow border-t border-slate-200"></div>
-                    <span className="flex-shrink mx-4 text-slate-400 text-[10px] uppercase font-bold">Or use mobile money</span>
-                    <div className="flex-grow border-t border-slate-200"></div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
-                      const payUrl = `https://pay.fonbnk.com/?network=CELO&asset=CUSD&address=${PLATFORM_ESCROW_WALLET}&amount=${amountNum}&currency=crypto&freezeWallet=true&freezeAmount=true`;
-                      window.open(payUrl, "_blank", "width=480,height=650");
-                    }}
-                    className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2"
-                  >
-                    Pay via Fonbnk Portal
-                    <ExternalLink className="w-3.5 h-3.5" />
                   </button>
 
                   <button
@@ -4534,6 +4532,10 @@ export default function Home() {
                   >
                     Cancel
                   </button>
+                  
+                  <span className="text-[10px] text-slate-400 font-bold block mt-2 text-center">
+                    🔒 Secured by Korapay
+                  </span>
                 </div>
               </div>
             )}
