@@ -552,9 +552,6 @@ export default function Home() {
     fetchRate();
   }, []);
 
-  const [manualAddress, setManualAddress] = useState<string>("");
-  const [manualAddressInput, setManualAddressInput] = useState<string>("");
-  const [manualAddressError, setManualAddressError] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "naira">("wallet");
   const [isDepositing, setIsDepositing] = useState<boolean>(false);
   const isMiniPayApp = useMemo(() => {
@@ -563,23 +560,13 @@ export default function Home() {
     return !!(win.ethereum && win.ethereum.isMiniPay);
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("taskly_manual_address");
-      if (saved) {
-        setManualAddress(saved);
-        setManualAddressInput(saved);
-      }
-    }
-  }, []);
-
   const activeAddress = useMemo(() => {
-    return (wagmiAddress || manualAddress || "").toLowerCase();
-  }, [wagmiAddress, manualAddress]);
+    return (wagmiAddress || "").toLowerCase();
+  }, [wagmiAddress]);
 
   const isUserConnected = useMemo(() => {
-    return isConnected || !!manualAddress;
-  }, [isConnected, manualAddress]);
+    return isConnected;
+  }, [isConnected]);
   const { connectAsync, connectors } = useConnect();
   const connectModal = useConnectModal();
   const openConnectModal = connectModal ? connectModal.openConnectModal : undefined;
@@ -1920,10 +1907,6 @@ export default function Home() {
   };
 
   const handleLogout = () => {
-    if (manualAddress) {
-      setManualAddress("");
-      localStorage.removeItem("taskly_manual_address");
-    }
     if (isConnected) {
       try {
         disconnect();
@@ -1968,52 +1951,6 @@ export default function Home() {
               <Wallet className="w-4 h-4" />
               Connect Web3 Wallet
             </button>
-            
-            <div className="flex items-center my-1.5">
-              <div className="flex-grow border-t border-slate-200/60"></div>
-              <span className="px-2 text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">or paste address</span>
-              <div className="flex-grow border-t border-slate-200/60"></div>
-            </div>
-
-            <div className="space-y-1 text-left">
-              <label htmlFor="manual-wallet-input" className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                Celo Wallet Address
-              </label>
-              <div className="flex gap-2">
-                <input
-                  id="manual-wallet-input"
-                  type="text"
-                  placeholder="0x..."
-                  value={manualAddressInput}
-                  onChange={(e) => {
-                    setManualAddressInput(e.target.value);
-                    setManualAddressError("");
-                  }}
-                  className="flex-grow px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const addr = manualAddressInput.trim();
-                    if (!addr.startsWith("0x") || addr.length !== 42) {
-                      setManualAddressError("Invalid EVM wallet address");
-                      return;
-                    }
-                    setManualAddress(addr);
-                    localStorage.setItem("taskly_manual_address", addr);
-                  }}
-                  className="px-3.5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all active:scale-95"
-                >
-                  Access
-                </button>
-              </div>
-              {manualAddressError && (
-                <span className="text-[10px] text-rose-500 font-semibold block">{manualAddressError}</span>
-              )}
-              <span className="text-[9px] text-slate-400 font-medium leading-relaxed block mt-1">
-                Enter your Celo address from Valora, MetaMask, Trust Wallet or exchange to view balance, submit tasks, and request payouts.
-              </span>
-            </div>
           </div>
         )}
         {isMinipay && (
@@ -3367,12 +3304,7 @@ export default function Home() {
                       </p>
                     </div>
 
-                    <div className="space-y-2 pt-2 border-t border-slate-50">
-                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">🦊 No Browser Wallet? No Problem!</h3>
-                      <p>
-                        If you are using mobile browsers like Safari or Chrome that don't have injected Web3 extensions, you can still participate! Simply paste your public Celo wallet address (e.g. from Valora, MetaMask, Trust Wallet, or exchange) to access history, submit tasks, and build your balance. Connect manually and start earning right away.
-                      </p>
-                    </div>
+
 
                     <div className="space-y-2 pt-2 border-t border-slate-50">
                       <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">🇳🇬 Naira (NGN) Funding & Multi-Browser Ramps</h3>
