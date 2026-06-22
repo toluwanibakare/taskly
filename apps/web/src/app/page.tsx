@@ -554,6 +554,7 @@ export default function Home() {
 
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "naira">("wallet");
   const [isDepositing, setIsDepositing] = useState<boolean>(false);
+  const [isConnectingWallet, setIsConnectingWallet] = useState<boolean>(false);
   const isMiniPayApp = useMemo(() => {
     if (typeof window === "undefined") return false;
     const win = window as any;
@@ -810,23 +811,32 @@ export default function Home() {
     if (screen === "main") {
       const win = typeof window !== "undefined" ? (window as any) : null;
       const isMinipay = !!(win && win.ethereum && win.ethereum.isMiniPay);
-      if (isMinipay && !isConnected) {
+      if (isMinipay && !isConnected && !isConnectingWallet) {
+        setIsConnectingWallet(true);
         // Request account access directly first to ensure ethereum object injection is ready
         win.ethereum.request({ method: "eth_requestAccounts" })
           .then(() => {
             const injectedConnector = connectors.find((c) => c.id === "injected") || connectors[0];
             if (injectedConnector) {
-              connectAsync({ connector: injectedConnector }).catch((err) => {
-                console.error("Auto-connect sync failed in MiniPay", err);
-              });
+              connectAsync({ connector: injectedConnector })
+                .then(() => {
+                  setIsConnectingWallet(false);
+                })
+                .catch((err) => {
+                  console.error("Auto-connect sync failed in MiniPay", err);
+                  setIsConnectingWallet(false);
+                });
+            } else {
+              setIsConnectingWallet(false);
             }
           })
           .catch((err: any) => {
             console.error("Direct MiniPay eth_requestAccounts failed:", err);
+            setIsConnectingWallet(false);
           });
       }
     }
-  }, [screen, isConnected, connectors, connectAsync]);
+  }, [screen, isConnected, connectors, connectAsync, isConnectingWallet]);
 
   // Load or create user document on connection (WAGMI or Manual)
   useEffect(() => {
@@ -1171,17 +1181,25 @@ export default function Home() {
       const win = window as any;
       const isMinipay = !!(win.ethereum && win.ethereum.isMiniPay);
       
-      if (isMinipay) {
-        // Force account initialization directly before syncing with Wagmi
-        await win.ethereum.request({ method: "eth_requestAccounts" });
-        const injectedConnector = connectors.find((c) => c.id === "injected") || connectors[0];
-        if (injectedConnector) {
-          await connectAsync({ connector: injectedConnector });
-          setTimeout(() => {
-            action();
-          }, 200);
-        } else {
-          alert("Injected wallet connector not found.");
+      if (isMinipay && !isConnectingWallet) {
+        setIsConnectingWallet(true);
+        try {
+          // Force account initialization directly before syncing with Wagmi
+          await win.ethereum.request({ method: "eth_requestAccounts" });
+          const injectedConnector = connectors.find((c) => c.id === "injected") || connectors[0];
+          if (injectedConnector) {
+            await connectAsync({ connector: injectedConnector });
+            setTimeout(() => {
+              action();
+              setIsConnectingWallet(false);
+            }, 200);
+          } else {
+            alert("Injected wallet connector not found.");
+            setIsConnectingWallet(false);
+          }
+        } catch (err) {
+          console.error("Manual connection failed in MiniPay", err);
+          setIsConnectingWallet(false);
         }
       } else {
         if (openConnectModal) {
@@ -3316,9 +3334,9 @@ export default function Home() {
 
 
                     <div className="space-y-2 pt-2 border-t border-slate-50">
-                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">🇳🇬 Naira (NGN) Funding & Multi-Browser Ramps</h3>
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">🇳🇬 Naira (NGN) Automated Funding</h3>
                       <p>
-                        Creators can fund campaign budgets on any mobile browser using Naira bank transfers via integrated Celo fiat-to-crypto ramps. If you don't have a Web3 browser extension, you can create a campaign in "pending payment" status, transfer Naira/cUSD to the admin's escrow wallet, and the platform admin will activate your campaign immediately.
+                        Creators can fund campaign budgets instantly using cards or direct bank transfers in Naira (NGN) via Korapay. When a creator launches a campaign with Naira, the system prompts them to pay the NGN budget, which is then processed automatically. Upon validation, the smart contract automatically creates and funds the campaign on-chain from the admin escrow, removing any manual approval delay.
                       </p>
                     </div>
 
