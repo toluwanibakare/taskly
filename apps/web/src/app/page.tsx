@@ -341,7 +341,7 @@ interface PlatformAction {
   basePrice: number;
 }
 
-const CUSD_TO_NGN_RATE = 1403;
+const FALLBACK_CUSD_TO_NGN_RATE = 1403;
 
 const PLATFORM_ACTIONS: Record<Platform, PlatformAction[]> = {
   x: [
@@ -531,6 +531,27 @@ const TasklyLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
 export default function Home() {
   const { address: wagmiAddress, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
+  const [CUSD_TO_NGN_RATE, setCusdToNgnRate] = useState<number>(FALLBACK_CUSD_TO_NGN_RATE);
+
+  useEffect(() => {
+    const fetchRate = async () => {
+      try {
+        const res = await fetch("https://open.er-api.com/v6/latest/USD");
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.rates && data.rates.NGN) {
+            const fetchedRate = Math.round(data.rates.NGN);
+            console.log("Fetched live NGN rate:", fetchedRate);
+            setCusdToNgnRate(fetchedRate);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch live exchange rate, using fallback:", err);
+      }
+    };
+    fetchRate();
+  }, []);
+
   const [manualAddress, setManualAddress] = useState<string>("");
   const [manualAddressInput, setManualAddressInput] = useState<string>("");
   const [manualAddressError, setManualAddressError] = useState<string>("");
