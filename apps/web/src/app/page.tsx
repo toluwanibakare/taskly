@@ -1207,10 +1207,15 @@ export default function Home() {
     if (!activeTransaction || !pendingTxData?.newTask) return;
     const task = pendingTxData.newTask;
     const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
-    const nairaAmount = Math.round(amountNum * CUSD_TO_NGN_RATE);
+    const baseNairaAmount = Math.round(amountNum * CUSD_TO_NGN_RATE);
+    
+    // Kora fee (1.5%) + Flat gas fee buffer (₦150)
+    const koraFee = Math.round(baseNairaAmount * 0.015);
+    const gasBuffer = 150;
+    const finalNairaAmount = baseNairaAmount + koraFee + gasBuffer;
 
-    if (nairaAmount < 100) {
-      alert("The minimum payment amount allowed by Korapay is ₦100. Please increase your campaign budget (either add more slots or increase payout per slot) to meet this requirement.");
+    if (finalNairaAmount < 100) {
+      alert("The minimum payment amount allowed by Korapay is ₦100. Please increase your campaign budget.");
       return;
     }
 
@@ -1220,7 +1225,7 @@ export default function Home() {
       (window as any).Korapay.initialize({
         key: korapayKey,
         reference: task.id,
-        amount: nairaAmount,
+        amount: finalNairaAmount,
         currency: "NGN",
         customer: {
           name: "Taskly Creator",
@@ -4502,18 +4507,45 @@ export default function Home() {
                   </p>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-semibold text-slate-600 space-y-2.5 text-left">
+                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-semibold text-slate-600 space-y-2.5 text-left">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">cUSD Budget to Fund:</span>
                     <span className="text-slate-800 font-bold">{activeTransaction.amount}</span>
                   </div>
-                  <div className="flex justify-between items-center border-t border-slate-200/50 pt-2.5">
-                    <span className="text-slate-400">Target Celo Address:</span>
-                    <span className="text-slate-800 font-mono text-[9px] truncate max-w-[150px]">{formatAddress(PLATFORM_ESCROW_WALLET)}</span>
+                  <div className="flex justify-between items-center border-t border-slate-200/50 pt-2">
+                    <span className="text-slate-400">Naira Exchange Amount:</span>
+                    <span className="text-slate-800">
+                      ₦{(() => {
+                        const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
+                        return Math.round(amountNum * CUSD_TO_NGN_RATE).toLocaleString();
+                      })()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-1">
+                    <span className="text-slate-400">Payment Gateway Fee (1.5%):</span>
+                    <span className="text-slate-800">
+                      ₦{(() => {
+                        const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
+                        const baseNaira = Math.round(amountNum * CUSD_TO_NGN_RATE);
+                        return Math.round(baseNaira * 0.015).toLocaleString();
+                      })()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-1">
+                    <span className="text-slate-400">Network Gas Fee Cover:</span>
+                    <span className="text-slate-800">₦150</span>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-800/10 pt-2.5 text-slate-950 font-black text-xs">
-                    <span>Approx. Naira Needed:</span>
-                    <span className="text-purple-600 font-extrabold">~₦{Math.round(parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) * CUSD_TO_NGN_RATE).toLocaleString()}</span>
+                    <span>Total Naira Needed:</span>
+                    <span className="text-purple-600 font-extrabold">
+                      ₦{(() => {
+                        const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
+                        const baseNaira = Math.round(amountNum * CUSD_TO_NGN_RATE);
+                        const koraFee = Math.round(baseNaira * 0.015);
+                        const gasBuffer = 150;
+                        return (baseNaira + koraFee + gasBuffer).toLocaleString();
+                      })()}
+                    </span>
                   </div>
                 </div>
 
