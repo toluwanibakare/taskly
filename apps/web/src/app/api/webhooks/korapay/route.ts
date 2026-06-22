@@ -68,11 +68,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: "ignored" });
     }
 
-    const taskId = data.reference; // reference contains the taskId
-    if (!taskId) {
-      console.error("No reference/taskId found in payload data");
+    const transactionReference = data.reference;
+    if (!transactionReference) {
+      console.error("No reference found in payload data");
       return NextResponse.json({ error: "Missing reference" }, { status: 400 });
     }
+    const taskId = transactionReference.split("_")[0];
 
     // Fetch the task from Firestore
     const taskRef = doc(db, "tasks", taskId);

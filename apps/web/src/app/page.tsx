@@ -1224,7 +1224,7 @@ export default function Home() {
     if (typeof window !== "undefined" && (window as any).Korapay) {
       (window as any).Korapay.initialize({
         key: korapayKey,
-        reference: task.id,
+        reference: `${task.id}_${Date.now()}`,
         amount: finalNairaAmount,
         currency: "NGN",
         customer: {
