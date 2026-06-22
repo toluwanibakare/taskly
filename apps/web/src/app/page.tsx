@@ -341,6 +341,8 @@ interface PlatformAction {
   basePrice: number;
 }
 
+const CUSD_TO_NGN_RATE = 1403;
+
 const PLATFORM_ACTIONS: Record<Platform, PlatformAction[]> = {
   x: [
     { value: "follow", label: "Follow Profile", basePrice: 0.02 },
@@ -657,14 +659,14 @@ export default function Home() {
     const val = parseFloat(amountStr.replace(/[^\d.]/g, ""));
     if (isNaN(val)) return amountStr;
     if (currencyPreference === "NGN") {
-      return `₦${Math.round(val * 1500).toLocaleString()}`;
+      return `₦${Math.round(val * CUSD_TO_NGN_RATE).toLocaleString()}`;
     }
     return `${val.toFixed(2)} cUSD`;
   };
 
   const formatCurrencyVal = (val: number) => {
     if (currencyPreference === "NGN") {
-      return `₦${Math.round(val * 1500).toLocaleString()}`;
+      return `₦${Math.round(val * CUSD_TO_NGN_RATE).toLocaleString()}`;
     }
     return `${val.toFixed(2)} cUSD`;
   };
@@ -2167,7 +2169,7 @@ export default function Home() {
                               if (!isNaN(val)) {
                                 return (
                                   <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                    {currencyPreference === "NGN" ? `${val.toFixed(2)} cUSD` : `~₦${Math.round(val * 1500)}`}
+                                    {currencyPreference === "NGN" ? `${val.toFixed(2)} cUSD` : `~₦${Math.round(val * CUSD_TO_NGN_RATE)}`}
                                   </span>
                                 );
                               }
@@ -2308,7 +2310,7 @@ export default function Home() {
                                 if (!isNaN(val)) {
                                   return (
                                     <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                      {currencyPreference === "NGN" ? `${val.toFixed(2)} cUSD` : `~₦${Math.round(val * 1500)}`}
+                                      {currencyPreference === "NGN" ? `${val.toFixed(2)} cUSD` : `~₦${Math.round(val * CUSD_TO_NGN_RATE)}`}
                                     </span>
                                   );
                                 }
@@ -2559,7 +2561,7 @@ export default function Home() {
                                     {platformAdminStats.feesCollected.toFixed(2)} cUSD
                                   </span>
                                   <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                    ~₦{Math.round(platformAdminStats.feesCollected * 1500).toLocaleString()}
+                                    ~₦{Math.round(platformAdminStats.feesCollected * CUSD_TO_NGN_RATE).toLocaleString()}
                                   </span>
                                 </div>
                                 
@@ -2571,7 +2573,7 @@ export default function Home() {
                                     {platformAdminStats.lockedEscrow.toFixed(2)} cUSD
                                   </span>
                                   <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                    ~₦{Math.round(platformAdminStats.lockedEscrow * 1500).toLocaleString()}
+                                    ~₦{Math.round(platformAdminStats.lockedEscrow * CUSD_TO_NGN_RATE).toLocaleString()}
                                   </span>
                                 </div>
                               </div>
@@ -3407,7 +3409,7 @@ export default function Home() {
                     if (!isNaN(val)) {
                       return (
                         <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
-                          {currencyPreference === "NGN" ? `${val.toFixed(2)} cUSD` : `~₦${Math.round(val * 1500)}`}
+                          {currencyPreference === "NGN" ? `${val.toFixed(2)} cUSD` : `~₦${Math.round(val * CUSD_TO_NGN_RATE)}`}
                         </span>
                       );
                     }
@@ -3718,7 +3720,7 @@ export default function Home() {
                 <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
                   {(PLATFORM_ACTIONS[createTaskForm.platform] || []).map((action) => {
                     const isChecked = checkedActions.includes(action.value);
-                    const nairaPrice = Math.round(action.basePrice * 1500);
+                    const nairaPrice = Math.round(action.basePrice * CUSD_TO_NGN_RATE);
                     return (
                       <label
                         key={action.value}
@@ -3867,13 +3869,13 @@ export default function Home() {
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-400 font-semibold">Payout Per Worker:</span>
                   <span className="text-slate-900 font-bold">
-                    {payoutValue.toFixed(2)} cUSD (~₦{Math.round(payoutValue * 1500)})
+                    {payoutValue.toFixed(2)} cUSD (~₦{Math.round(payoutValue * CUSD_TO_NGN_RATE)})
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs border-t border-slate-200/50 pt-2">
                   <span className="text-slate-400 font-semibold">Total Campaign Budget:</span>
                   <span className="text-emerald-600 font-black">
-                    {(payoutValue * slotsValue).toFixed(2)} cUSD (~₦{Math.round(payoutValue * slotsValue * 1500).toLocaleString()})
+                    {(payoutValue * slotsValue).toFixed(2)} cUSD (~₦{Math.round(payoutValue * slotsValue * CUSD_TO_NGN_RATE).toLocaleString()})
                   </span>
                 </div>
               </div>
@@ -4298,7 +4300,7 @@ export default function Home() {
                     <span className="text-emerald-600">{activeTransaction.amount}</span>
                   </div>
                   <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mt-1">
-                    Approx. ~₦{Math.round((payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)) * 1500).toLocaleString()}
+                    Approx. ~₦{Math.round((payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)) * CUSD_TO_NGN_RATE).toLocaleString()}
                   </div>
                 </div>
 
@@ -4427,7 +4429,7 @@ export default function Home() {
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-800/10 pt-2.5 text-slate-950 font-black text-xs">
                     <span>Approx. Naira Needed:</span>
-                    <span className="text-purple-600 font-extrabold">~₦{Math.round(parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) * 1500).toLocaleString()}</span>
+                    <span className="text-purple-600 font-extrabold">~₦{Math.round(parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) * CUSD_TO_NGN_RATE).toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -4436,7 +4438,7 @@ export default function Home() {
                     type="button"
                     onClick={() => {
                       const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
-                      const payUrl = `https://pay.fonbnk.com/?network=CELO&asset=CUSD&address=${PLATFORM_ESCROW_WALLET}&wallet=${PLATFORM_ESCROW_WALLET}&amount=${amountNum}`;
+                      const payUrl = `https://pay.fonbnk.com/?network=CELO&asset=CUSD&address=${PLATFORM_ESCROW_WALLET}&amount=${amountNum}&currency=crypto&freezeWallet=true&freezeAmount=true`;
                       window.open(payUrl, "_blank", "width=480,height=650");
                     }}
                     className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs font-bold hover:from-purple-700 hover:to-indigo-700 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"

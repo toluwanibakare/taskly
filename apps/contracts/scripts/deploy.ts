@@ -6,6 +6,7 @@ async function main() {
 
   // Mento USDm or cUSD addresses
   const tokenAddresses: Record<string, string> = {
+    celo: "0x765DE816845861e75A25fCA122bb6898B8B1282a", // cUSD on Celo Mainnet
     celoSepolia: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b", // USDm Mento
     celoAlfajores: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1", // cUSD
     hardhat: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1", // Fallback for local testing
