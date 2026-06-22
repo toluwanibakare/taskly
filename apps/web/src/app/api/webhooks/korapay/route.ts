@@ -49,13 +49,25 @@ export async function POST(req: Request) {
 
     // Verify webhook signature
     const bodyObj = JSON.parse(rawBody);
-    const expectedSignature = crypto
+    
+    // Korapay signatures can be computed on the entire raw body or just the data object.
+    // We compute both to guarantee compatibility across environments.
+    const signatureRaw = crypto
+      .createHmac("sha256", KORAPAY_SECRET_KEY)
+      .update(rawBody)
+      .digest("hex");
+      
+    const signatureData = crypto
       .createHmac("sha256", KORAPAY_SECRET_KEY)
       .update(JSON.stringify(bodyObj.data))
       .digest("hex");
 
-    if (signature !== expectedSignature) {
-      console.warn("Invalid webhook signature matches:", signature, "vs", expectedSignature);
+    const isValid = (signature === signatureRaw) || (signature === signatureData);
+
+    if (!isValid) {
+      console.warn(
+        `Invalid webhook signature. Received: ${signature}, Expected (raw): ${signatureRaw}, Expected (data): ${signatureData}`
+      );
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
