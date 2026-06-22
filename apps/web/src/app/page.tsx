@@ -811,12 +811,19 @@ export default function Home() {
       const win = typeof window !== "undefined" ? (window as any) : null;
       const isMinipay = !!(win && win.ethereum && win.ethereum.isMiniPay);
       if (isMinipay && !isConnected) {
-        const injectedConnector = connectors.find((c) => c.id === "injected") || connectors[0];
-        if (injectedConnector) {
-          connectAsync({ connector: injectedConnector }).catch((err) => {
-            console.error("Auto-connect failed in MiniPay", err);
+        // Request account access directly first to ensure ethereum object injection is ready
+        win.ethereum.request({ method: "eth_requestAccounts" })
+          .then(() => {
+            const injectedConnector = connectors.find((c) => c.id === "injected") || connectors[0];
+            if (injectedConnector) {
+              connectAsync({ connector: injectedConnector }).catch((err) => {
+                console.error("Auto-connect sync failed in MiniPay", err);
+              });
+            }
+          })
+          .catch((err: any) => {
+            console.error("Direct MiniPay eth_requestAccounts failed:", err);
           });
-        }
       }
     }
   }, [screen, isConnected, connectors, connectAsync]);
@@ -1165,6 +1172,8 @@ export default function Home() {
       const isMinipay = !!(win.ethereum && win.ethereum.isMiniPay);
       
       if (isMinipay) {
+        // Force account initialization directly before syncing with Wagmi
+        await win.ethereum.request({ method: "eth_requestAccounts" });
         const injectedConnector = connectors.find((c) => c.id === "injected") || connectors[0];
         if (injectedConnector) {
           await connectAsync({ connector: injectedConnector });
