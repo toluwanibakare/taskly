@@ -723,6 +723,7 @@ export default function Home() {
     link: "",
     proofType: "screenshot" as "screenshot" | "text" | "both" | "screen-recording"
   });
+  const [isReopening, setIsReopening] = useState<boolean>(false);
 
   // Auto-update payout when selected actions change
   useEffect(() => {
@@ -816,7 +817,7 @@ export default function Home() {
         // Request account access directly first to ensure ethereum object injection is ready
         win.ethereum.request({ method: "eth_requestAccounts" })
           .then(() => {
-            const injectedConnector = connectors.find((c) => c.id === "injected") || connectors[0];
+            const injectedConnector = connectors.find((c) => c.type === "injected") || connectors.find((c) => c.id === "injected") || connectors[0];
             if (injectedConnector) {
               connectAsync({ connector: injectedConnector })
                 .then(() => {
@@ -1186,7 +1187,7 @@ export default function Home() {
         try {
           // Force account initialization directly before syncing with Wagmi
           await win.ethereum.request({ method: "eth_requestAccounts" });
-          const injectedConnector = connectors.find((c) => c.id === "injected") || connectors[0];
+          const injectedConnector = connectors.find((c) => c.type === "injected") || connectors.find((c) => c.id === "injected") || connectors[0];
           if (injectedConnector) {
             await connectAsync({ connector: injectedConnector });
             setTimeout(() => {
@@ -1205,7 +1206,7 @@ export default function Home() {
         if (openConnectModal) {
           openConnectModal();
         } else {
-          const injectedConnector = connectors.find((c) => c.id === "injected");
+          const injectedConnector = connectors.find((c) => c.type === "injected") || connectors.find((c) => c.id === "injected");
           if (injectedConnector) {
             await connectAsync({ connector: injectedConnector });
           }
@@ -1419,6 +1420,7 @@ export default function Home() {
 
     setScreen("main");
     setActiveTab("home");
+    setIsReopening(false);
   };
 
   // Submit Proof Action (with Firebase Storage upload)
@@ -1825,97 +1827,47 @@ export default function Home() {
     const tk = tasks.find((t) => t.id === taskId);
     if (!tk) return;
 
-    const payoutVal = parseFloat(tk.amount.replace(/[^\d.]/g, "")) || 0.05;
-    const budget = payoutVal * tk.slotsTotal;
-    const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
-    const total = budget + fee;
-
-    setPendingTxData({ taskId });
-    setActiveTransaction({
-      status: "confirm-reopen",
-      title: "Reopen Campaign",
-      amount: `${total.toFixed(2)} cUSD`,
-      onClose: () => {
-        setActiveTransaction(null);
-        setPendingTxData(null);
-      }
+    const rewardNum = parseFloat(tk.amount.replace(/[^\d.]/g, "")) || 0.05;
+    
+    setCreateTaskForm({
+      title: tk.title,
+      platform: tk.platform || "x",
+      description: tk.description || "",
+      type: tk.type || "Social Follow",
+      instructionsText: (tk.instructions || []).join("\n"),
+      proofRequirements: tk.proofRequirements || "Submit screenshot showing completion.",
+      link: tk.link || "https://celo.org",
+      proofType: tk.proofType || "screenshot"
     });
-  };
+    
+    setPayoutValue(rewardNum);
+    setPayoutInput(rewardNum.toFixed(2));
+    setSlotsValue(tk.slotsTotal || 50);
+    setSlotsInput(String(tk.slotsTotal || 50));
+    setExpiryHours(tk.expiryHours || 24);
+    setIsReopening(true);
 
-  const executeReopen = async (taskId: string) => {
-    try {
-      const tk = tasks.find((t) => t.id === taskId);
-      if (!tk) return;
-
-      const payoutVal = parseFloat(tk.amount.replace(/[^\d.]/g, "")) || 0.05;
-      const budget = payoutVal * tk.slotsTotal;
-      const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
-      const total = budget + fee;
-
-      // Transition to sending state
-      setActiveTransaction((prev) => prev ? { ...prev, status: "reopening-campaign" } : null);
-
-      // 1. Write the blockchain transaction (same token transfer as task creation)
-      const amountWei = parseEther(total.toFixed(18));
-      const cusdAddress = getCusdAddress(chainId);
-      const txHash = await writeContractAsync({
-        address: cusdAddress,
-        abi: ERC20_ABI,
-        functionName: "transfer",
-        args: [PLATFORM_ESCROW_WALLET as `0x${string}`, amountWei],
-        type: "legacy",
-      });
-
-      // 2. Update the task doc in Firestore
-      const taskRef = doc(db, "tasks", taskId);
-      const updatedExpiry = new Date(Date.now() + (tk.expiryHours || 24) * 3600 * 1000).toISOString();
-      await updateDoc(taskRef, {
-        status: "active",
-        slots_remaining: tk.slotsTotal,
-        expires_at: updatedExpiry,
-        updated_at: new Date().toISOString(),
-        transaction_hash: txHash
-      });
-
-      // 3. Create a payment record
-      await setDoc(doc(db, "payments", `pay-${taskId}-reopen-${Date.now()}`), {
-        task_id: taskId,
-        wallet_address: wagmiAddress?.toLowerCase() || "unknown",
-        amount: budget,
-        currency: "cUSD",
-        transaction_hash: txHash,
-        payment_status: "paid",
-        created_at: new Date().toISOString()
-      });
-
-      // 4. Update admin stats
-      const statsRef = doc(db, "admin", "stats");
-      await runTransaction(db, async (transaction) => {
-        const sfDoc = await transaction.get(statsRef);
-        const currentFees = sfDoc.exists() ? sfDoc.data().feesCollected || 0 : 0;
-        const currentEscrow = sfDoc.exists() ? sfDoc.data().lockedEscrow || 0 : 0;
-        
-        transaction.set(statsRef, {
-          feesCollected: parseFloat((currentFees + fee).toFixed(2)),
-          lockedEscrow: parseFloat((currentEscrow + budget).toFixed(2))
-        }, { merge: true });
-      });
-
-      // Transition to success
-      setActiveTransaction((prev) => prev ? { 
-        ...prev, 
-        status: "success", 
-        txHash
-      } : null);
-
-    } catch (err: any) {
-      console.error("Campaign reopening deposit failed:", err);
-      alert("Transaction failed or rejected: " + (err.message || err));
-      setActiveTransaction(null);
-      setPendingTxData(null);
+    const actions: string[] = [];
+    const titleLower = tk.title.toLowerCase();
+    if (titleLower.includes("follow") || titleLower.includes("subscribe")) {
+      if (tk.platform === "youtube") actions.push("subscribe");
+      else if (tk.platform === "linkedin") actions.push("follow_company");
+      else if (tk.platform === "facebook") actions.push("follow_page");
+      else actions.push("follow");
     }
-  };
+    if (titleLower.includes("like")) actions.push("like");
+    if (titleLower.includes("retweet") || titleLower.includes("repost")) actions.push("retweet");
+    if (titleLower.includes("comment")) actions.push("comment");
+    if (titleLower.includes("star")) actions.push("star");
+    if (titleLower.includes("fork")) actions.push("fork");
+    
+    if (actions.length === 0) {
+      actions.push("follow");
+    }
+    setCheckedActions(actions);
 
+    setScreen("create-task");
+  };
   // Filter creator submissions for selected created task
   const activeCreatorSubmissions = useMemo(() => {
     if (!selectedCreatedTask) return [];
@@ -3717,12 +3669,17 @@ export default function Home() {
         <div className="flex-1 flex flex-col bg-[#FAFAFC] pb-6">
           <header className="h-14 bg-white border-b border-slate-100 sticky top-0 z-45 px-4 flex items-center justify-between">
             <button
-              onClick={() => setScreen("main")}
+              onClick={() => {
+                setScreen("main");
+                setIsReopening(false);
+              }}
               className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
             >
               <X className="w-5 h-5 text-slate-800" />
             </button>
-            <span className="text-sm font-bold text-slate-900">Create Task</span>
+            <span className="text-sm font-bold text-slate-900">
+              {isReopening ? "Reopen & Edit Campaign" : "Create Task"}
+            </span>
             <div className="w-7 h-7" />
           </header>
 
@@ -4064,7 +4021,7 @@ export default function Home() {
                 type="submit"
                 className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-xl text-xs font-bold hover:from-blue-700 hover:to-emerald-600 active:scale-95 transition-all shadow-md"
               >
-                Launch Task
+                {isReopening ? "Reopen Campaign" : "Launch Task"}
               </button>
             </div>
           </form>
@@ -4219,63 +4176,7 @@ export default function Home() {
               </div>
             )}
 
-            {activeTransaction.status === "confirm-reopen" && (
-              <div className="space-y-5 animate-fade-in">
-                <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
-                  <RefreshCw className="w-7 h-7 text-emerald-600 animate-pulse" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-lg font-black text-slate-900">Reopen Campaign</h3>
-                  <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans px-2">
-                    Replenishing campaign slots requires a new escrow deposit.
-                  </p>
-                </div>
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-semibold text-slate-600 space-y-2.5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400">Total Deposit Cost:</span>
-                    <span className="text-emerald-600 font-black text-sm">{activeTransaction.amount}</span>
-                  </div>
-                  <div className="flex justify-between items-center border-t border-slate-200/50 pt-2.5">
-                    <span className="text-slate-400">Escrow Destination:</span>
-                    <span className="text-slate-800 font-mono text-[9px]">{formatAddress(PLATFORM_ESCROW_WALLET)}</span>
-                  </div>
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (activeTransaction.onClose) activeTransaction.onClose();
-                    }}
-                    className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (pendingTxData?.taskId) {
-                        executeReopen(pendingTxData.taskId);
-                      }
-                    }}
-                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
-                  >
-                    Deposit & Reopen
-                  </button>
-                </div>
-              </div>
-            )}
 
-            {activeTransaction.status === "reopening-campaign" && (
-              <div className="py-8 space-y-6 animate-fade-in">
-                <div className="w-12 h-12 border-4 border-slate-100 border-t-emerald-600 rounded-full animate-spin mx-auto"></div>
-                <div className="space-y-2">
-                  <h3 className="text-sm font-bold text-slate-950">Depositing to Escrow</h3>
-                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider animate-pulse">
-                    Broadcasting reopening transaction...
-                  </p>
-                </div>
-              </div>
-            )}
 
             {activeTransaction.status === "confirm-deposit" && (
               <div className="space-y-5">
