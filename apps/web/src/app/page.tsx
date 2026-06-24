@@ -615,6 +615,9 @@ export default function Home() {
     lockedEscrow: 1.50,
   });
   const [totalUsersCount, setTotalUsersCount] = useState<number>(0);
+  const [onchainTxCount, setOnchainTxCount] = useState<number>(0);
+  const [onchainUsersCount, setOnchainUsersCount] = useState<number>(0);
+  const [isLoadingOnchainStats, setIsLoadingOnchainStats] = useState<boolean>(false);
 
   // Deriving User's own Submissions History from the global submissions database
   const history = useMemo(() => {
@@ -947,6 +950,45 @@ export default function Home() {
       unsubscribeUsers();
     };
   }, []);
+
+  // Fetch Live On-Chain Contract Statistics (Unique Users & Transactions) via Blockscout API
+  useEffect(() => {
+    const fetchOnchainStats = async () => {
+      if (wagmiAddress?.toLowerCase() !== PLATFORM_ESCROW_WALLET.toLowerCase()) return;
+      
+      setIsLoadingOnchainStats(true);
+      try {
+        const explorerUrl = chainId === 42220 
+          ? "https://celo.blockscout.com" 
+          : "https://celo-sepolia.blockscout.com";
+        const contractAddress = getEscrowAddress(chainId);
+        
+        if (contractAddress && contractAddress !== "0x0000000000000000000000000000000000000000") {
+          const res = await fetch(`${explorerUrl}/api/v2/addresses/${contractAddress}/transactions`);
+          if (res.ok) {
+            const json = await res.json();
+            const items = json.items || [];
+            setOnchainTxCount(items.length);
+            
+            const uniqueUsers = new Set<string>();
+            items.forEach((tx: any) => {
+              if (tx.from && tx.from.hash) uniqueUsers.add(tx.from.hash.toLowerCase());
+              if (tx.to && tx.to.hash) uniqueUsers.add(tx.to.hash.toLowerCase());
+            });
+            setOnchainUsersCount(uniqueUsers.size);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching live on-chain statistics:", err);
+      } finally {
+        setIsLoadingOnchainStats(false);
+      }
+    };
+
+    if (screen === "main" && activeTab === "profile") {
+      fetchOnchainStats();
+    }
+  }, [screen, activeTab, wagmiAddress, chainId]);
 
   // Real-time listener for current user document to track balance
   useEffect(() => {
@@ -2590,6 +2632,33 @@ export default function Home() {
                                   </span>
                                   <span className="text-slate-800 font-black text-xs block mt-0.5">
                                     {tasks.filter(t => t.slotsRemaining <= 0 || t.status === "completed").length}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-center bg-slate-100/50 rounded-xl p-3 mt-1">
+                                <div>
+                                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">
+                                    On-Chain Users
+                                  </span>
+                                  <span className="text-slate-800 font-black text-xs block mt-0.5 flex items-center justify-center gap-1">
+                                    {isLoadingOnchainStats ? (
+                                      <span className="inline-block w-3 h-3 border-2 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></span>
+                                    ) : (
+                                      onchainUsersCount
+                                    )}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">
+                                    On-Chain Transactions
+                                  </span>
+                                  <span className="text-slate-800 font-black text-xs block mt-0.5 flex items-center justify-center gap-1">
+                                    {isLoadingOnchainStats ? (
+                                      <span className="inline-block w-3 h-3 border-2 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></span>
+                                    ) : (
+                                      onchainTxCount
+                                    )}
                                   </span>
                                 </div>
                               </div>
