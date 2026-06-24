@@ -2555,15 +2555,49 @@ export default function Home() {
                           className="w-full py-4 px-5 bg-white border border-slate-100 rounded-2xl flex items-center justify-between shadow-sm hover:shadow-md hover:border-slate-200 transition-all text-left"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="p-2.5 bg-blue-50 rounded-xl">
+                            <div className="p-2.5 bg-blue-50 rounded-xl relative">
                               <FileText className="w-5 h-5 text-blue-600" />
+                              {(() => {
+                                const myTaskIds = new Set(tasks.filter(t => t.createdByWallet?.toLowerCase() === activeAddress?.toLowerCase()).map(t => t.id));
+                                const pendingCount = creatorSubmissions.filter(s => myTaskIds.has(s.taskId) && s.status === "pending").length;
+                                if (pendingCount > 0) {
+                                  return (
+                                    <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white ring-2 ring-white">
+                                      {pendingCount}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                             <div>
                               <span className="text-sm font-bold text-slate-900 block">Tasks Created</span>
-                              <span className="text-xs text-slate-400 block mt-0.5">Manage your campaigns and submissions</span>
+                              <span className="text-xs text-slate-400 block mt-0.5">
+                                {(() => {
+                                  const myTaskIds = new Set(tasks.filter(t => t.createdByWallet?.toLowerCase() === activeAddress?.toLowerCase()).map(t => t.id));
+                                  const pendingCount = creatorSubmissions.filter(s => myTaskIds.has(s.taskId) && s.status === "pending").length;
+                                  return pendingCount > 0 
+                                    ? `${pendingCount} new submission${pendingCount > 1 ? "s" : ""} pending review`
+                                    : "Manage your campaigns and submissions";
+                                })()}
+                              </span>
                             </div>
                           </div>
-                          <ChevronRight className="w-5 h-5 text-slate-400" />
+                          <div className="flex items-center gap-2">
+                            {(() => {
+                              const myTaskIds = new Set(tasks.filter(t => t.createdByWallet?.toLowerCase() === activeAddress?.toLowerCase()).map(t => t.id));
+                              const pendingCount = creatorSubmissions.filter(s => myTaskIds.has(s.taskId) && s.status === "pending").length;
+                              if (pendingCount > 0) {
+                                return (
+                                  <span className="px-2 py-0.5 bg-rose-50 text-rose-600 rounded-full text-[9px] font-bold">
+                                    New
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
+                            <ChevronRight className="w-5 h-5 text-slate-400" />
+                          </div>
                         </button>
                         {/* Platform Developer Admin Panel Settings Card - Admin Only */}
                         {wagmiAddress?.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase() && (
