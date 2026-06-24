@@ -3372,19 +3372,29 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* WhatsApp Community Invitation */}
+                  {/* WhatsApp Community & Support Invitation */}
                   <div className="bg-emerald-50/50 border border-emerald-100/50 rounded-2xl p-4 text-center space-y-3">
                     <p className="text-xs font-bold text-emerald-800/90 leading-relaxed">
-                      Join our WhatsApp community for Taskly updates and to learn more!
+                      Join our WhatsApp community or contact support directly if you need assistance!
                     </p>
-                    <a
-                      href="https://chat.whatsapp.com/Ji6pwJZLeOLI8kmLGfjLwe"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
-                    >
-                      Join WhatsApp Community
-                    </a>
+                    <div className="flex flex-col gap-2">
+                      <a
+                        href="https://chat.whatsapp.com/Ji6pwJZLeOLI8kmLGfjLwe"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                      >
+                        Join WhatsApp Community
+                      </a>
+                      <a
+                        href="https://wa.me/12272143646"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                      >
+                        Contact Support
+                      </a>
+                    </div>
                   </div>
                 </div>
 
@@ -4175,7 +4185,7 @@ export default function Home() {
               }}
               className="w-full py-4 border border-slate-200 text-slate-800 rounded-2xl text-xs font-bold hover:bg-slate-50 active:scale-95 transition-all"
             >
-              Back to Dashboard
+              Go to Tasks
             </button>
           </div>
         </div>
