@@ -444,11 +444,12 @@ const PLATFORM_FEE_PERCENTAGE = 2; // 2% platform fee
 
 const CUSD_ADDRESSES: Record<number, `0x${string}`> = {
   42220: "0x765DE816845861e75A25fCA122bb6898B8B1282a", // Celo Mainnet
-  44787: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1", // Celo Sepolia
+  44787: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1", // Celo Alfajores
+  11142220: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b", // Celo Sepolia
 };
 
 const getCusdAddress = (chainId: number): `0x${string}` => {
-  return CUSD_ADDRESSES[chainId] || "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1";
+  return CUSD_ADDRESSES[chainId] || "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b";
 };
 
 const ERC20_ABI = [
