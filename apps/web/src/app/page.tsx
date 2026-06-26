@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useAccount, useConnect, useWriteContract, useChainId, useDisconnect } from "wagmi";
+import { useAccount, useConnect, useWriteContract, useChainId, useDisconnect, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { parseEther } from "viem";
+import { parseEther, formatEther } from "viem";
 import { getEscrowAddress, formatTaskIdToBytes32 } from "../hooks/useEscrow";
 import { ESCROW_ABI } from "../lib/escrowAbi";
 import { db, storage } from "../lib/firebase";
@@ -471,6 +471,13 @@ const ERC20_ABI = [
       { name: "value", type: "uint256" }
     ],
     outputs: [{ name: "", type: "bool" }]
+  },
+  {
+    name: "balanceOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "balance", type: "uint256" }]
   }
 ] as const;
 
@@ -618,6 +625,30 @@ export default function Home() {
   const [onchainTxCount, setOnchainTxCount] = useState<number>(0);
   const [onchainUsersCount, setOnchainUsersCount] = useState<number>(0);
   const [isLoadingOnchainStats, setIsLoadingOnchainStats] = useState<boolean>(false);
+
+  const escrowContractAddress = getEscrowAddress(chainId);
+  const cusdAddress = getCusdAddress(chainId);
+
+  const { data: rawEscrowBalance } = useReadContract({
+    address: cusdAddress,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: [escrowContractAddress],
+    query: {
+      enabled: !!escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000",
+    }
+  });
+
+  const liveLockedEscrow = useMemo(() => {
+    if (rawEscrowBalance === undefined || rawEscrowBalance === null) {
+      return platformAdminStats.lockedEscrow;
+    }
+    try {
+      return parseFloat(formatEther(rawEscrowBalance as bigint));
+    } catch {
+      return platformAdminStats.lockedEscrow;
+    }
+  }, [rawEscrowBalance, platformAdminStats.lockedEscrow]);
 
   // Deriving User's own Submissions History from the global submissions database
   const history = useMemo(() => {
@@ -2636,10 +2667,10 @@ export default function Home() {
                                     Locked in Escrow
                                   </span>
                                   <span className="text-blue-600 font-black text-sm block mt-0.5">
-                                    {platformAdminStats.lockedEscrow.toFixed(2)} cUSD
+                                    {liveLockedEscrow.toFixed(2)} cUSD
                                   </span>
                                   <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                    ~₦{Math.round(platformAdminStats.lockedEscrow * CUSD_TO_NGN_RATE).toLocaleString()}
+                                    ~₦{Math.round(liveLockedEscrow * CUSD_TO_NGN_RATE).toLocaleString()}
                                   </span>
                                 </div>
                               </div>
