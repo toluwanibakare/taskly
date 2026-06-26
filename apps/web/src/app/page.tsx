@@ -1331,8 +1331,9 @@ export default function Home() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
 
+    const taskId = doc(collection(db, "tasks")).id;
     const newTask: Task = {
-      id: String(tasks.length + 10), // ensures higher ID for recency sorting
+      id: taskId,
       platform: createTaskForm.platform,
       title: createTaskForm.title,
       amount: `${payoutValue.toFixed(2)} cUSD`,
@@ -3406,19 +3407,19 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* WhatsApp Community & Support Invitation */}
-                  <div className="bg-emerald-50/50 border border-emerald-100/50 rounded-2xl p-4 text-center space-y-3">
-                    <p className="text-xs font-bold text-emerald-800/90 leading-relaxed">
-                      Join our WhatsApp community or contact support directly if you need assistance!
+                  {/* Telegram Community & Support Invitation */}
+                  <div className="bg-sky-50/50 border border-sky-100/50 rounded-2xl p-4 text-center space-y-3">
+                    <p className="text-xs font-bold text-sky-900 leading-relaxed">
+                      Join our Telegram channel or contact support directly if you need assistance!
                     </p>
                     <div className="flex flex-col gap-2">
                       <a
-                        href="https://chat.whatsapp.com/Ji6pwJZLeOLI8kmLGfjLwe"
+                        href="https://t.me/taskly_updates"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                        className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
                       >
-                        Join WhatsApp Community
+                        Join Telegram Channel
                       </a>
                       <a
                         href="https://wa.me/12272143646"
