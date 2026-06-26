@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useAccount, useConnect, useWriteContract, useChainId, useDisconnect, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseEther, formatEther } from "viem";
+
 import { getEscrowAddress, formatTaskIdToBytes32 } from "../hooks/useEscrow";
 import { ESCROW_ABI } from "../lib/escrowAbi";
 import { db, storage } from "../lib/firebase";
@@ -629,6 +630,26 @@ export default function Home() {
 
   const escrowContractAddress = getEscrowAddress(chainId);
   const cusdAddress = getCusdAddress(chainId);
+
+  // Read user's own cUSD balance on-chain
+  const { data: rawUserCusdBalance } = useReadContract({
+    address: cusdAddress,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: [wagmiAddress || "0x0000000000000000000000000000000000000000"],
+    query: {
+      enabled: !!wagmiAddress && !!cusdAddress,
+    }
+  });
+
+  const userCusdBalance = useMemo(() => {
+    if (!rawUserCusdBalance) return 0;
+    try {
+      return parseFloat(formatEther(rawUserCusdBalance as bigint));
+    } catch {
+      return 0;
+    }
+  }, [rawUserCusdBalance]);
 
   const { data: rawEscrowBalance } = useReadContract({
     address: cusdAddress,
@@ -4398,6 +4419,25 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* cUSD Balance Check */}
+                {isConnected && paymentMethod !== "naira" && (() => {
+                  const budget = payoutValue * slotsValue;
+                  const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
+                  const totalNeeded = budget + fee;
+                  const hasEnough = userCusdBalance >= totalNeeded;
+                  return (
+                    <div className={`rounded-xl px-3 py-2.5 text-xs font-semibold flex items-center gap-2 ${hasEnough ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-red-50 text-red-700 border border-red-100"}`}>
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${hasEnough ? "bg-emerald-400" : "bg-red-400"}`} />
+                      <span>
+                        Your cUSD balance: <strong>{userCusdBalance.toFixed(4)} cUSD</strong>
+                        {!hasEnough && (
+                          <span className="block text-[10px] mt-0.5 text-red-600">⚠ Insufficient — need at least {totalNeeded.toFixed(4)} cUSD. Fund your wallet first.</span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })()}
+
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
@@ -4410,7 +4450,7 @@ export default function Home() {
                   </button>
                   <button
                     type="button"
-                    disabled={isDepositing}
+                    disabled={isDepositing || (isConnected && paymentMethod !== "naira" && userCusdBalance < (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)))}
                     onClick={async () => {
                       setIsDepositing(true);
                       try {
@@ -4490,15 +4530,33 @@ export default function Home() {
 
                       } catch (err: any) {
                         console.error("Escrow deposit failed:", err);
-                        alert("Transaction failed or rejected: " + (err.message || err));
+                        // Extract specific revert reasons from contract errors
+                        let errorMsg = "Transaction failed or rejected.";
+                        const errStr = String(err?.message || err || "");
+                        if (errStr.includes("Campaign already exists")) {
+                          errorMsg = "⚠ Campaign already exists on-chain for this task ID. Please create a new task.";
+                        } else if (errStr.includes("Escrow deposit failed") || errStr.includes("transferFrom")) {
+                          errorMsg = "⚠ cUSD transfer failed. Please check you have enough cUSD in your wallet and that the approval was signed correctly.";
+                        } else if (errStr.includes("insufficient allowance") || errStr.includes("ERC20: insufficient")) {
+                          errorMsg = "⚠ Insufficient cUSD allowance. The approve step may have failed. Please try again.";
+                        } else if (errStr.includes("User rejected") || errStr.includes("user rejected")) {
+                          errorMsg = "Transaction was rejected by wallet.";
+                        } else if (errStr.includes("execution reverted")) {
+                          // Try to pull out the revert message
+                          const match = errStr.match(/reverted with reason string '(.+?)'/);
+                          errorMsg = match ? `⚠ Contract reverted: "${match[1]}"` : "⚠ Contract execution reverted. Check your cUSD balance and wallet connection.";
+                        } else if (errStr.length > 0) {
+                          errorMsg = errStr.slice(0, 200);
+                        }
+                        alert(errorMsg);
                         setIsDepositing(false);
                         setActiveTransaction(null);
                         setPendingTxData(null);
                       }
                     }}
                     className={`flex-1 py-3 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 ${
-                      isDepositing 
-                        ? "bg-slate-400 cursor-not-allowed" 
+                      isDepositing || (isConnected && paymentMethod !== "naira" && userCusdBalance < (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)))
+                        ? "bg-slate-400 cursor-not-allowed opacity-60" 
                         : "bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-700 hover:to-emerald-600"
                     }`}
                   >
