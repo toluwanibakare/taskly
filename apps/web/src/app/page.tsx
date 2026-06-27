@@ -2888,7 +2888,7 @@ export default function Home() {
                                       )}
                                     </div>
                                   </div>
-                                  {pendingSubmissions > 0 && taskStatus === "active" && (
+                                  {pendingSubmissions > 0 && (
                                     <span className="px-2 py-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full">
                                       {pendingSubmissions} new
                                     </span>
@@ -2907,18 +2907,16 @@ export default function Home() {
                                     campaign {taskStatus}
                                   </span>
                                   <div className="flex gap-2">
-                                    {taskStatus === "active" && (
-                                      <button
-                                        onClick={() => {
-                                          setSelectedCreatedTask(t as Task);
-                                          setProfileSubScreen("manage-submissions");
-                                        }}
-                                        className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all flex items-center gap-1.5"
-                                      >
-                                        <UserCheck className="w-3.5 h-3.5" />
-                                        Review Proofs
-                                      </button>
-                                    )}
+                                    <button
+                                      onClick={() => {
+                                        setSelectedCreatedTask(t as Task);
+                                        setProfileSubScreen("manage-submissions");
+                                      }}
+                                      className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all flex items-center gap-1.5"
+                                    >
+                                      <UserCheck className="w-3.5 h-3.5" />
+                                      Review Proofs
+                                    </button>
                                     {taskStatus === "expired" && t.slotsRemaining > 0 && (
                                       <button
                                         onClick={() => handleClaimRefund(t.id)}
