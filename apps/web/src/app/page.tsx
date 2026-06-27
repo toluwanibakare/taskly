@@ -2689,7 +2689,9 @@ export default function Home() {
                                     Locked in Escrow
                                   </span>
                                   <span className="text-blue-600 font-black text-sm block mt-0.5">
-                                    {liveLockedEscrow.toFixed(2)} USDm
+                                    {rawEscrowBalance !== undefined && rawEscrowBalance !== null 
+                                      ? parseFloat(formatEther(rawEscrowBalance as bigint)).toString() 
+                                      : liveLockedEscrow.toFixed(2)} USDm
                                   </span>
                                   <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
                                     ~₦{Math.round(liveLockedEscrow * USDM_TO_NGN_RATE).toLocaleString()}
