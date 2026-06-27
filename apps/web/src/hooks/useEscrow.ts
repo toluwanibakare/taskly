@@ -4,7 +4,7 @@ import { parseUnits, keccak256, toBytes } from "viem";
 
 // Mappings for deployed Escrow contract addresses per Celo network chain ID
 const ESCROW_CONTRACT_ADDRESSES: Record<number, `0x${string}`> = {
-  42220: (process.env.NEXT_PUBLIC_ESCROW_ADDRESS_MAINNET || "0x2e18C5b4427637e827eE02329DC1eE90B27290dE") as `0x${string}`, // Mainnet
+  42220: (process.env.NEXT_PUBLIC_ESCROW_ADDRESS_MAINNET || "0x26947186C148a3b2dbfB864a5535c05CCcbD31C7") as `0x${string}`, // Mainnet
   44787: (process.env.NEXT_PUBLIC_ESCROW_ADDRESS_ALFAJORES || "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1") as `0x${string}`, // Alfajores Testnet
   11142220: (process.env.NEXT_PUBLIC_ESCROW_ADDRESS_SEPOLIA || "0x9fD34F2D34e288257269eF0fc9770431D736FC48") as `0x${string}`, // Sepolia Testnet
 };
