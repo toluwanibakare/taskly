@@ -1,13 +1,13 @@
 # Taskly
 
-Taskly is a decentralized microwork and task marketplace built on the Celo blockchain. The platform allows campaign creators to list micro-tasks (such as social media engagement, surveys, and application testing) and secure the rewards in a smart contract escrow. Earners can complete these tasks, submit verification proofs, and claim rewards in cUSD (Celo Dollar) stablecoin.
+Taskly is a decentralized microwork and task marketplace built on the Celo blockchain. The platform allows campaign creators to list micro-tasks (such as social media engagement, surveys, and application testing) and secure the rewards in a smart contract escrow. Earners can complete these tasks, submit verification proofs, and claim rewards in USDm (Mento Dollar) stablecoin.
 
 To enable accessibility for non-crypto users, Taskly integrates Naira (NGN) fiat payments via Korapay, enabling automated on-chain campaign creation and funding through traditional cards and bank transfers.
 
 ## Features
 
 - Smart Contract Escrow: Secure campaign funding and worker payouts using the TasklyEscrow solidity contract.
-- Automated Fiat In-Ramp: Seamless Naira deposits via Korapay that automatically trigger on-chain cUSD campaign funding.
+- Automated Fiat In-Ramp: Seamless Naira deposits via Korapay that automatically trigger on-chain USDm campaign funding.
 - Mobile Web Optimized: Designed for responsive mobile use, including integrated support for Opera MiniPay containers.
 - Gas Fee Optimization: Off-chain reward accrual with batch withdrawals to minimize network gas costs for workers.
 - Manual Wallet Connections: Support for paste-in Celo addresses allowing earners without injected Web3 browser extensions to complete tasks and receive payouts.
@@ -18,7 +18,7 @@ To enable accessibility for non-crypto users, Taskly integrates Naira (NGN) fiat
 - Smart Contracts: Solidity (v0.8.20), Hardhat, Ethers.js
 - Database and Media Storage: Google Firebase (Firestore and Firebase Storage)
 - Payments: Korapay API (Collections & Webhook signature verification)
-- Blockchain Infrastructure: Celo Mainnet (cUSD stablecoin token)
+- Blockchain Infrastructure: Celo Mainnet (USDm stablecoin token)
 
 ## Project Structure
 

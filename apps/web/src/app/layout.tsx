@@ -18,7 +18,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Taskly | Microwork & Tasks for Stablecoins',
   description: 'Earn stablecoins instantly by completing micro-tasks, social engagements, surveys, and app testing on Taskly—the premier MiniPay-powered microwork marketplace.',
-  keywords: ['Celo', 'MiniPay', 'Stablecoins', 'Microwork', 'Earn Crypto', 'Micro-tasks', 'USDm', 'cUSD', 'Valora', 'Opera Mini'],
+  keywords: ['Celo', 'MiniPay', 'Stablecoins', 'Microwork', 'Earn Crypto', 'Micro-tasks', 'USDm', 'Valora', 'Opera Mini'],
   authors: [{ name: 'TMB', url: 'https://www.tmb.it.com' }],
   openGraph: {
     title: 'Taskly | Microwork & Tasks for Stablecoins',

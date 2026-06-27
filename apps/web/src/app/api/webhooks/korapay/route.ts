@@ -28,7 +28,7 @@ const ERC20_ABI = [
 ] as const;
 
 const ESCROW_CONTRACT = (process.env.NEXT_PUBLIC_ESCROW_ADDRESS_MAINNET || "0x2e18C5b4427637e827eE02329DC1eE90B27290dE") as `0x${string}`;
-const CUSD_CONTRACT = "0x765DE816845861e75A25fCA122bb6898B8B1282a"; // cUSD Celo Mainnet
+const USDM_CONTRACT = "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b"; // USDm Celo Mainnet
 const PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY;
 const KORAPAY_SECRET_KEY = process.env.KORAPAY_SECRET_KEY;
 
@@ -123,10 +123,10 @@ export async function POST(req: Request) {
     const bytes32TaskId = stringToHex(taskId.slice(0, 31).padEnd(32, "\0")) as `0x${string}`;
     const durationSeconds = BigInt((taskData.expiryHours || 24) * 3600);
 
-    // Step 1: Approve Escrow Contract to spend cUSD
-    console.log(`Approving cUSD spend of ${taskData.amount} for Escrow contract...`);
+    // Step 1: Approve Escrow Contract to spend USDm
+    console.log(`Approving USDm spend of ${taskData.amount} for Escrow contract...`);
     const approveTx = await walletClient.writeContract({
-      address: CUSD_CONTRACT as `0x${string}`,
+      address: USDM_CONTRACT as `0x${string}`,
       abi: ERC20_ABI,
       functionName: "approve",
       args: [ESCROW_CONTRACT, amountWei],

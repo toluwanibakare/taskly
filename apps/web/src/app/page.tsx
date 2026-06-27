@@ -120,7 +120,7 @@ const TEMPLATE_PRESETS: Record<string, TaskTemplate> = {
     type: "Content Sharing",
     payout: 0.50,
     description: "Write a unique, organic post on your personal X profile promoting Taskly for micro-jobs in Nigeria.",
-    instructions: "Compose a tweet describing how Taskly helps Nigerians earn cUSD.\nInclude the hashtags #Taskly and #Celo.\nPost the tweet.\nCopy the link of your published tweet.",
+    instructions: "Compose a tweet describing how Taskly helps Nigerians earn USDm.\nInclude the hashtags #Taskly and #Celo.\nPost the tweet.\nCopy the link of your published tweet.",
     proofRequirements: "Provide the direct URL of your published X post.",
     proofType: "text",
     link: "https://x.com/compose/post"
@@ -342,7 +342,7 @@ interface PlatformAction {
   basePrice: number;
 }
 
-const FALLBACK_CUSD_TO_NGN_RATE = 1403;
+const FALLBACK_USDM_TO_NGN_RATE = 1403;
 
 const PLATFORM_ACTIONS: Record<Platform, PlatformAction[]> = {
   x: [
@@ -443,14 +443,14 @@ const ACTION_PROOF_PRESETS: Record<string, string[]> = {
 const PLATFORM_ESCROW_WALLET = process.env.NEXT_PUBLIC_ADMIN_WALLET || "0x9335E6F2eDA0d96E0B88c104d39a221DF001e475";
 const PLATFORM_FEE_PERCENTAGE = 2; // 2% platform fee
 
-const CUSD_ADDRESSES: Record<number, `0x${string}`> = {
-  42220: "0x765DE816845861e75A25fCA122bb6898B8B1282a", // Celo Mainnet
-  44787: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1", // Celo Alfajores
+const USDM_ADDRESSES: Record<number, `0x${string}`> = {
+  42220: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b", // Celo Mainnet
+  44787: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b", // Celo Alfajores
   11142220: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b", // Celo Sepolia
 };
 
-const getCusdAddress = (chainId: number): `0x${string}` => {
-  return CUSD_ADDRESSES[chainId] || "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b";
+const getUsdmAddress = (chainId: number): `0x${string}` => {
+  return USDM_ADDRESSES[chainId] || "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b";
 };
 
 const ERC20_ABI = [
@@ -540,7 +540,7 @@ const TasklyLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
 export default function Home() {
   const { address: wagmiAddress, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
-  const [CUSD_TO_NGN_RATE, setCusdToNgnRate] = useState<number>(FALLBACK_CUSD_TO_NGN_RATE);
+  const [USDM_TO_NGN_RATE, setUsdmToNgnRate] = useState<number>(FALLBACK_USDM_TO_NGN_RATE);
 
   useEffect(() => {
     const fetchRate = async () => {
@@ -551,7 +551,7 @@ export default function Home() {
           if (data && data.rates && data.rates.NGN) {
             const fetchedRate = Math.round(data.rates.NGN);
             console.log("Fetched live NGN rate:", fetchedRate);
-            setCusdToNgnRate(fetchedRate);
+            setUsdmToNgnRate(fetchedRate);
           }
         }
       } catch (err) {
@@ -615,8 +615,8 @@ export default function Home() {
   // Filter selection state
   const [activeFilter, setActiveFilter] = useState<string>("All");
 
-  // Currency Preference: "cUSD" | "NGN"
-  const [currencyPreference, setCurrencyPreference] = useState<"cUSD" | "NGN">("cUSD");
+  // Currency Preference: "USDm" | "NGN"
+  const [currencyPreference, setCurrencyPreference] = useState<"USDm" | "NGN">("USDm");
 
   // Platform Administrator stats (from Firestore database stats doc)
   const [platformAdminStats, setPlatformAdminStats] = useState({
@@ -629,30 +629,30 @@ export default function Home() {
   const [isLoadingOnchainStats, setIsLoadingOnchainStats] = useState<boolean>(false);
 
   const escrowContractAddress = getEscrowAddress(chainId);
-  const cusdAddress = getCusdAddress(chainId);
+  const usdmAddress = getUsdmAddress(chainId);
 
-  // Read user's own cUSD balance on-chain
-  const { data: rawUserCusdBalance } = useReadContract({
-    address: cusdAddress,
+  // Read user's own USDm balance on-chain
+  const { data: rawUserUsdmBalance } = useReadContract({
+    address: usdmAddress,
     abi: ERC20_ABI,
     functionName: "balanceOf",
     args: [wagmiAddress || "0x0000000000000000000000000000000000000000"],
     query: {
-      enabled: !!wagmiAddress && !!cusdAddress,
+      enabled: !!wagmiAddress && !!usdmAddress,
     }
   });
 
-  const userCusdBalance = useMemo(() => {
-    if (!rawUserCusdBalance) return 0;
+  const userUsdmBalance = useMemo(() => {
+    if (!rawUserUsdmBalance) return 0;
     try {
-      return parseFloat(formatEther(rawUserCusdBalance as bigint));
+      return parseFloat(formatEther(rawUserUsdmBalance as bigint));
     } catch {
       return 0;
     }
-  }, [rawUserCusdBalance]);
+  }, [rawUserUsdmBalance]);
 
   const { data: rawEscrowBalance } = useReadContract({
-    address: cusdAddress,
+    address: usdmAddress,
     abi: ERC20_ABI,
     functionName: "balanceOf",
     args: [escrowContractAddress],
@@ -683,7 +683,7 @@ export default function Home() {
           id: sub.id,
           taskTitle: t ? t.title : "Celo Task",
           platform: t ? t.platform : ("x" as Platform),
-          amount: t ? t.amount : "0.05 cUSD",
+          amount: t ? t.amount : "0.05 USDm",
           status: sub.status,
           date: sub.date.split("T")[0],
           proofLink: sub.proofLink,
@@ -725,16 +725,16 @@ export default function Home() {
     const val = parseFloat(amountStr.replace(/[^\d.]/g, ""));
     if (isNaN(val)) return amountStr;
     if (currencyPreference === "NGN") {
-      return `₦${Math.round(val * CUSD_TO_NGN_RATE).toLocaleString()}`;
+      return `₦${Math.round(val * USDM_TO_NGN_RATE).toLocaleString()}`;
     }
-    return `${val.toFixed(2)} cUSD`;
+    return `${val.toFixed(2)} USDm`;
   };
 
   const formatCurrencyVal = (val: number) => {
     if (currencyPreference === "NGN") {
-      return `₦${Math.round(val * CUSD_TO_NGN_RATE).toLocaleString()}`;
+      return `₦${Math.round(val * USDM_TO_NGN_RATE).toLocaleString()}`;
     }
-    return `${val.toFixed(2)} cUSD`;
+    return `${val.toFixed(2)} USDm`;
   };
 
   // Checked checklist actions for the selected platform
@@ -1159,7 +1159,7 @@ export default function Home() {
 
     return {
       completed: approved.length,
-      earnings: `${totalEarned.toFixed(2)} cUSD`
+      earnings: `${totalEarned.toFixed(2)} USDm`
     };
   }, [history]);
 
@@ -1317,7 +1317,7 @@ export default function Home() {
     if (!activeTransaction || !pendingTxData?.newTask) return;
     const task = pendingTxData.newTask;
     const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
-    const baseNairaAmount = Math.round(amountNum * CUSD_TO_NGN_RATE);
+    const baseNairaAmount = Math.round(amountNum * USDM_TO_NGN_RATE);
     
     // Kora fee (1.5%) + Flat gas fee buffer (₦150)
     const koraFee = Math.round(baseNairaAmount * 0.015);
@@ -1389,7 +1389,7 @@ export default function Home() {
       id: taskId,
       platform: createTaskForm.platform,
       title: createTaskForm.title,
-      amount: `${payoutValue.toFixed(2)} cUSD`,
+      amount: `${payoutValue.toFixed(2)} USDm`,
       description: description,
       type: createTaskForm.type,
       slotsRemaining: slotsValue,
@@ -1418,7 +1418,7 @@ export default function Home() {
         setActiveTransaction({
           status: "success",
           title: newTask.title,
-          amount: `${total.toFixed(2)} cUSD`,
+          amount: `${total.toFixed(2)} USDm`,
           txHash: undefined,
           onClose: () => {
             setActiveTransaction(null);
@@ -1437,7 +1437,7 @@ export default function Home() {
     setActiveTransaction({
       status: "confirm-deposit",
       title: newTask.title,
-      amount: `${total.toFixed(2)} cUSD`,
+      amount: `${total.toFixed(2)} USDm`,
       onClose: () => {
         setActiveTransaction(null);
         setPendingTxData(null);
@@ -1465,7 +1465,7 @@ export default function Home() {
       updated_at: new Date().toISOString(),
       total_budget: parseFloat(newTask.amount.replace(/[^\d.]/g, "")) * newTask.slotsTotal,
       transaction_hash: activeTransaction?.txHash || (newTask as any).transactionHash || "0x",
-      payout_currency: "cUSD"
+      payout_currency: "USDm"
     };
 
     try {
@@ -1475,7 +1475,7 @@ export default function Home() {
         task_id: newTask.id,
         wallet_address: activeAddress || "unknown",
         amount: taskData.total_budget,
-        currency: "cUSD",
+        currency: "USDm",
         transaction_hash: activeTransaction?.txHash || (newTask as any).transactionHash || "0x",
         payment_status: taskData.status === "pending_payment" ? "pending" : "paid",
         created_at: new Date().toISOString()
@@ -1593,7 +1593,7 @@ export default function Home() {
   // Creator Action: Approve Worker Submission (triggers escrow release transaction)
   const handleApproveSubmission = (subId: string, taskId: string) => {
     const tk = tasks.find((t) => t.id === taskId);
-    const payoutStr = tk ? tk.amount : "1.50 cUSD";
+    const payoutStr = tk ? tk.amount : "1.50 USDm";
     
     setPendingTxData({ subId, taskId });
     setActiveTransaction({
@@ -1756,7 +1756,7 @@ export default function Home() {
     setActiveTransaction({
       status: "confirm-release",
       title: "Resolve Dispute: Payout Worker",
-      amount: `${payoutVal.toFixed(2)} cUSD`,
+      amount: `${payoutVal.toFixed(2)} USDm`,
       onClose: () => {
         setActiveTransaction(null);
         setPendingTxData(null);
@@ -1806,10 +1806,10 @@ export default function Home() {
       return;
     }
     if (dbUserBalance < 1.00) {
-      alert("Minimum withdrawable amount is 1 cUSD.");
+      alert("Minimum withdrawable amount is 1 USDm.");
       return;
     }
-    if (!window.confirm(`Are you sure you want to withdraw ${dbUserBalance.toFixed(2)} cUSD? This will request a payout to your connected wallet address ${wagmiAddress}.`)) {
+    if (!window.confirm(`Are you sure you want to withdraw ${dbUserBalance.toFixed(2)} USDm? This will request a payout to your connected wallet address ${wagmiAddress}.`)) {
       return;
     }
 
@@ -1830,7 +1830,7 @@ export default function Home() {
         createdAt: new Date().toISOString()
       });
 
-      alert(`Withdrawal request of ${amountToWithdraw.toFixed(2)} cUSD submitted successfully! It is pending platform admin payout.`);
+      alert(`Withdrawal request of ${amountToWithdraw.toFixed(2)} USDm submitted successfully! It is pending platform admin payout.`);
     } catch (err: any) {
       console.error("Withdrawal request failed:", err);
       alert("Failed to submit withdrawal request: " + err.message);
@@ -1843,7 +1843,7 @@ export default function Home() {
     setActiveTransaction({
       status: "confirm-withdrawal",
       title: "Process Worker Withdrawal",
-      amount: `${withdrawal.amount.toFixed(2)} cUSD`,
+      amount: `${withdrawal.amount.toFixed(2)} USDm`,
       onClose: () => {
         setActiveTransaction(null);
         setPendingTxData(null);
@@ -1862,7 +1862,7 @@ export default function Home() {
     setActiveTransaction({
       status: "confirm-refund",
       title: "Claim Escrow Refund",
-      amount: `${refundVal.toFixed(2)} cUSD`,
+      amount: `${refundVal.toFixed(2)} USDm`,
       onClose: () => {
         setActiveTransaction(null);
         setPendingTxData(null);
@@ -2254,7 +2254,7 @@ export default function Home() {
                               if (!isNaN(val)) {
                                 return (
                                   <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                    {currencyPreference === "NGN" ? `${val.toFixed(2)} cUSD` : `~₦${Math.round(val * CUSD_TO_NGN_RATE)}`}
+                                    {currencyPreference === "NGN" ? `${val.toFixed(2)} USDm` : `~₦${Math.round(val * USDM_TO_NGN_RATE)}`}
                                   </span>
                                 );
                               }
@@ -2395,7 +2395,7 @@ export default function Home() {
                                 if (!isNaN(val)) {
                                   return (
                                     <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                      {currencyPreference === "NGN" ? `${val.toFixed(2)} cUSD` : `~₦${Math.round(val * CUSD_TO_NGN_RATE)}`}
+                                      {currencyPreference === "NGN" ? `${val.toFixed(2)} USDm` : `~₦${Math.round(val * USDM_TO_NGN_RATE)}`}
                                     </span>
                                   );
                                 }
@@ -2527,7 +2527,7 @@ export default function Home() {
                               Withdrawable Balance
                             </span>
                             <span className="text-2xl font-black text-slate-950 block mt-1">
-                              {formatCurrency(`${dbUserBalance.toFixed(2)} cUSD`)}
+                              {formatCurrency(`${dbUserBalance.toFixed(2)} USDm`)}
                             </span>
                           </div>
                           
@@ -2579,14 +2579,14 @@ export default function Home() {
                             <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
                               <button
                                 type="button"
-                                onClick={() => setCurrencyPreference("cUSD")}
+                                onClick={() => setCurrencyPreference("USDm")}
                                 className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
-                                  currencyPreference === "cUSD"
+                                  currencyPreference === "USDm"
                                     ? "bg-white text-slate-900 shadow-sm"
                                     : "text-slate-500 hover:text-slate-900"
                                 }`}
                               >
-                                cUSD
+                                USDm
                               </button>
                               <button
                                 type="button"
@@ -2677,10 +2677,10 @@ export default function Home() {
                                     Fees Earned (2%)
                                   </span>
                                   <span className="text-emerald-600 font-black text-sm block mt-0.5">
-                                    {platformAdminStats.feesCollected.toFixed(2)} cUSD
+                                    {platformAdminStats.feesCollected.toFixed(2)} USDm
                                   </span>
                                   <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                    ~₦{Math.round(platformAdminStats.feesCollected * CUSD_TO_NGN_RATE).toLocaleString()}
+                                    ~₦{Math.round(platformAdminStats.feesCollected * USDM_TO_NGN_RATE).toLocaleString()}
                                   </span>
                                 </div>
                                 
@@ -2689,10 +2689,10 @@ export default function Home() {
                                     Locked in Escrow
                                   </span>
                                   <span className="text-blue-600 font-black text-sm block mt-0.5">
-                                    {liveLockedEscrow.toFixed(2)} cUSD
+                                    {liveLockedEscrow.toFixed(2)} USDm
                                   </span>
                                   <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                    ~₦{Math.round(liveLockedEscrow * CUSD_TO_NGN_RATE).toLocaleString()}
+                                    ~₦{Math.round(liveLockedEscrow * USDM_TO_NGN_RATE).toLocaleString()}
                                   </span>
                                 </div>
                               </div>
@@ -3145,7 +3145,7 @@ export default function Home() {
                                         Task: {t ? t.title : "Celo Task"}
                                       </h4>
                                       <div className="flex gap-2 text-[10px] text-slate-400 mt-1 font-semibold">
-                                        <span>Payout: {t ? formatCurrency(t.amount) : "0.05 cUSD"}</span>
+                                        <span>Payout: {t ? formatCurrency(t.amount) : "0.05 USDm"}</span>
                                         <span>Creator: {t && t.createdByWallet ? formatAddress(t.createdByWallet) : "unknown"}</span>
                                       </div>
                                     </div>
@@ -3365,7 +3365,7 @@ export default function Home() {
                                     </div>
                                     <div className="flex-grow">
                                       <h3 className="text-xs font-bold text-slate-900 line-clamp-1">
-                                        Withdrawal of {w.amount.toFixed(2)} cUSD
+                                        Withdrawal of {w.amount.toFixed(2)} USDm
                                       </h3>
                                       <div className="space-y-1 mt-1.5 font-semibold text-[10px] text-slate-400">
                                         <div className="text-[9px] text-slate-400 font-mono select-all truncate max-w-[240px]">
@@ -3436,7 +3436,7 @@ export default function Home() {
                     <div className="space-y-2 pt-2 border-t border-slate-50">
                       <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">💳 Off-Chain Balance System</h3>
                       <p>
-                        To save earners from paying blockchain gas fees on every single submission, Taskly accumulates your earnings securely off-chain in a general treasury wallet. Once your balance reaches the minimum threshold of <span className="font-extrabold text-emerald-600">1.00 cUSD</span>, you can submit a withdrawal request. Payouts are aggregated and batch-sent on-chain, keeping transaction fees at zero for earners!
+                        To save earners from paying blockchain gas fees on every single submission, Taskly accumulates your earnings securely off-chain in a general treasury wallet. Once your balance reaches the minimum threshold of <span className="font-extrabold text-emerald-600">1.00 USDm</span>, you can submit a withdrawal request. Payouts are aggregated and batch-sent on-chain, keeping transaction fees at zero for earners!
                       </p>
                     </div>
 
@@ -3453,8 +3453,8 @@ export default function Home() {
                       <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">⚙️ Platform Architecture</h3>
                       <ul className="list-disc pl-4 space-y-1 mt-1 text-[11px]">
                         <li>Network: <span className="font-bold">Celo Mainnet</span></li>
-                        <li>Payment Currency: <span className="font-bold">cUSD (Celo Dollar)</span></li>
-                        <li>Minimum Withdrawal: <span className="font-bold text-emerald-600">1.00 cUSD</span></li>
+                        <li>Payment Currency: <span className="font-bold">USDm (Celo Dollar)</span></li>
+                        <li>Minimum Withdrawal: <span className="font-bold text-emerald-600">1.00 USDm</span></li>
                         <li>Platform Fee: <span className="font-bold">2.0%</span></li>
                       </ul>
                     </div>
@@ -3575,7 +3575,7 @@ export default function Home() {
                     if (!isNaN(val)) {
                       return (
                         <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
-                          {currencyPreference === "NGN" ? `${val.toFixed(2)} cUSD` : `~₦${Math.round(val * CUSD_TO_NGN_RATE)}`}
+                          {currencyPreference === "NGN" ? `${val.toFixed(2)} USDm` : `~₦${Math.round(val * USDM_TO_NGN_RATE)}`}
                         </span>
                       );
                     }
@@ -3891,7 +3891,7 @@ export default function Home() {
                 <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
                   {(PLATFORM_ACTIONS[createTaskForm.platform] || []).map((action) => {
                     const isChecked = checkedActions.includes(action.value);
-                    const nairaPrice = Math.round(action.basePrice * CUSD_TO_NGN_RATE);
+                    const nairaPrice = Math.round(action.basePrice * USDM_TO_NGN_RATE);
                     return (
                       <label
                         key={action.value}
@@ -3919,7 +3919,7 @@ export default function Home() {
                         <div className="flex-1 flex justify-between items-center text-xs">
                           <span className="font-bold">{action.label}</span>
                           <span className="font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                            +{action.basePrice.toFixed(2)} cUSD (~₦{nairaPrice})
+                            +{action.basePrice.toFixed(2)} USDm (~₦{nairaPrice})
                           </span>
                         </div>
                       </label>
@@ -3978,7 +3978,7 @@ export default function Home() {
                         }}
                         className="w-full text-center text-xs font-bold focus:outline-none bg-transparent py-3"
                       />
-                      <span className="text-[10px] font-bold text-slate-400 mr-2 flex-shrink-0">cUSD</span>
+                      <span className="text-[10px] font-bold text-slate-400 mr-2 flex-shrink-0">USDm</span>
                     </div>
                     <button
                       type="button"
@@ -4040,13 +4040,13 @@ export default function Home() {
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-400 font-semibold">Payout Per Worker:</span>
                   <span className="text-slate-900 font-bold">
-                    {payoutValue.toFixed(2)} cUSD (~₦{Math.round(payoutValue * CUSD_TO_NGN_RATE)})
+                    {payoutValue.toFixed(2)} USDm (~₦{Math.round(payoutValue * USDM_TO_NGN_RATE)})
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs border-t border-slate-200/50 pt-2">
                   <span className="text-slate-400 font-semibold">Total Campaign Budget:</span>
                   <span className="text-emerald-600 font-black">
-                    {(payoutValue * slotsValue).toFixed(2)} cUSD (~₦{Math.round(payoutValue * slotsValue * CUSD_TO_NGN_RATE).toLocaleString()})
+                    {(payoutValue * slotsValue).toFixed(2)} USDm (~₦{Math.round(payoutValue * slotsValue * USDM_TO_NGN_RATE).toLocaleString()})
                   </span>
                 </div>
               </div>
@@ -4375,7 +4375,7 @@ export default function Home() {
                           : "text-slate-600 hover:bg-slate-100/30 active:scale-95"
                       }`}
                     >
-                      Web3 Wallet (cUSD)
+                      Web3 Wallet (USDm)
                     </button>
                     <button
                       type="button"
@@ -4400,11 +4400,11 @@ export default function Home() {
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-semibold text-slate-600 space-y-2.5">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">Total Campaign Budget:</span>
-                    <span className="text-slate-800">{(payoutValue * slotsValue).toFixed(2)} cUSD</span>
+                    <span className="text-slate-800">{(payoutValue * slotsValue).toFixed(2)} USDm</span>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-200/50 pt-2.5">
                     <span className="text-slate-400">Platform Fee ({PLATFORM_FEE_PERCENTAGE}%):</span>
-                    <span className="text-slate-800">{((payoutValue * slotsValue) * (PLATFORM_FEE_PERCENTAGE / 100)).toFixed(2)} cUSD</span>
+                    <span className="text-slate-800">{((payoutValue * slotsValue) * (PLATFORM_FEE_PERCENTAGE / 100)).toFixed(2)} USDm</span>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-200/50 pt-2.5">
                     <span className="text-slate-400">Admin Escrow Wallet:</span>
@@ -4415,23 +4415,23 @@ export default function Home() {
                     <span className="text-emerald-600">{activeTransaction.amount}</span>
                   </div>
                   <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mt-1">
-                    Approx. ~₦{Math.round((payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)) * CUSD_TO_NGN_RATE).toLocaleString()}
+                    Approx. ~₦{Math.round((payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)) * USDM_TO_NGN_RATE).toLocaleString()}
                   </div>
                 </div>
 
-                {/* cUSD Balance Check */}
+                {/* USDm Balance Check */}
                 {isConnected && paymentMethod !== "naira" && (() => {
                   const budget = payoutValue * slotsValue;
                   const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
                   const totalNeeded = budget + fee;
-                  const hasEnough = userCusdBalance >= totalNeeded;
+                  const hasEnough = userUsdmBalance >= totalNeeded;
                   return (
                     <div className={`rounded-xl px-3 py-2.5 text-xs font-semibold flex items-center gap-2 ${hasEnough ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-red-50 text-red-700 border border-red-100"}`}>
                       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${hasEnough ? "bg-emerald-400" : "bg-red-400"}`} />
                       <span>
-                        Your cUSD balance: <strong>{userCusdBalance.toFixed(4)} cUSD</strong>
+                        Your USDm balance: <strong>{userUsdmBalance.toFixed(4)} USDm</strong>
                         {!hasEnough && (
-                          <span className="block text-[10px] mt-0.5 text-red-600">⚠ Insufficient — need at least {totalNeeded.toFixed(4)} cUSD. Fund your wallet first.</span>
+                          <span className="block text-[10px] mt-0.5 text-red-600">⚠ Insufficient — need at least {totalNeeded.toFixed(4)} USDm. Fund your wallet first.</span>
                         )}
                       </span>
                     </div>
@@ -4450,7 +4450,7 @@ export default function Home() {
                   </button>
                   <button
                     type="button"
-                    disabled={isDepositing || (isConnected && paymentMethod !== "naira" && userCusdBalance < (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)))}
+                    disabled={isDepositing || (isConnected && paymentMethod !== "naira" && userUsdmBalance < (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)))}
                     onClick={async () => {
                       setIsDepositing(true);
                       try {
@@ -4477,14 +4477,14 @@ export default function Home() {
                         setActiveTransaction((prev) => prev ? { ...prev, status: "sending-escrow" } : null);
                         const amountWei = parseEther(total.toFixed(18));
 
-                        const cusdAddress = getCusdAddress(chainId);
+                        const usdmAddress = getUsdmAddress(chainId);
                         const escrowContractAddress = getEscrowAddress(chainId);
 
                         let txHash: `0x${string}` | undefined;
                         if (escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000") {
-                          // Step 1: Approve the Escrow Contract to spend cUSD/USDm
+                          // Step 1: Approve the Escrow Contract to spend USDm/USDm
                           await writeContractAsync({
-                            address: cusdAddress,
+                            address: usdmAddress,
                             abi: ERC20_ABI,
                             // function name matches approve(address spender, uint256 value)
                             functionName: "approve",
@@ -4507,7 +4507,7 @@ export default function Home() {
                         } else {
                           // Fallback to legacy transfer
                           txHash = await writeContractAsync({
-                            address: cusdAddress,
+                            address: usdmAddress,
                             abi: ERC20_ABI,
                             functionName: "transfer",
                             args: [PLATFORM_ESCROW_WALLET as `0x${string}`, amountWei],
@@ -4536,15 +4536,15 @@ export default function Home() {
                         if (errStr.includes("Campaign already exists")) {
                           errorMsg = "⚠ Campaign already exists on-chain for this task ID. Please create a new task.";
                         } else if (errStr.includes("Escrow deposit failed") || errStr.includes("transferFrom")) {
-                          errorMsg = "⚠ cUSD transfer failed. Please check you have enough cUSD in your wallet and that the approval was signed correctly.";
+                          errorMsg = "⚠ USDm transfer failed. Please check you have enough USDm in your wallet and that the approval was signed correctly.";
                         } else if (errStr.includes("insufficient allowance") || errStr.includes("ERC20: insufficient")) {
-                          errorMsg = "⚠ Insufficient cUSD allowance. The approve step may have failed. Please try again.";
+                          errorMsg = "⚠ Insufficient USDm allowance. The approve step may have failed. Please try again.";
                         } else if (errStr.includes("User rejected") || errStr.includes("user rejected")) {
                           errorMsg = "Transaction was rejected by wallet.";
                         } else if (errStr.includes("execution reverted")) {
                           // Try to pull out the revert message
                           const match = errStr.match(/reverted with reason string '(.+?)'/);
-                          errorMsg = match ? `⚠ Contract reverted: "${match[1]}"` : "⚠ Contract execution reverted. Check your cUSD balance and wallet connection.";
+                          errorMsg = match ? `⚠ Contract reverted: "${match[1]}"` : "⚠ Contract execution reverted. Check your USDm balance and wallet connection.";
                         } else if (errStr.length > 0) {
                           errorMsg = errStr.slice(0, 200);
                         }
@@ -4555,7 +4555,7 @@ export default function Home() {
                       }
                     }}
                     className={`flex-1 py-3 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 ${
-                      isDepositing || (isConnected && paymentMethod !== "naira" && userCusdBalance < (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)))
+                      isDepositing || (isConnected && paymentMethod !== "naira" && userUsdmBalance < (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)))
                         ? "bg-slate-400 cursor-not-allowed opacity-60" 
                         : "bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-700 hover:to-emerald-600"
                     }`}
@@ -4580,15 +4580,15 @@ export default function Home() {
                 </div>
                 
                 <div className="space-y-1.5">
-                  <h3 className="text-lg font-black text-slate-900">Naira ➔ cUSD Payment Portal</h3>
+                  <h3 className="text-lg font-black text-slate-900">Naira ➔ USDm Payment Portal</h3>
                   <p className="text-xs text-slate-500 font-medium leading-relaxed px-2">
-                    Send local Naira bank transfers to automatically deposit cUSD into the Celo escrow wallet.
+                    Send local Naira bank transfers to automatically deposit USDm into the Celo escrow wallet.
                   </p>
                 </div>
 
                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-semibold text-slate-600 space-y-2.5 text-left">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400">cUSD Budget to Fund:</span>
+                    <span className="text-slate-400">USDm Budget to Fund:</span>
                     <span className="text-slate-800 font-bold">{activeTransaction.amount}</span>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-200/50 pt-2">
@@ -4596,7 +4596,7 @@ export default function Home() {
                     <span className="text-slate-800">
                       ₦{(() => {
                         const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
-                        return Math.round(amountNum * CUSD_TO_NGN_RATE).toLocaleString();
+                        return Math.round(amountNum * USDM_TO_NGN_RATE).toLocaleString();
                       })()}
                     </span>
                   </div>
@@ -4605,7 +4605,7 @@ export default function Home() {
                     <span className="text-slate-800">
                       ₦{(() => {
                         const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
-                        const baseNaira = Math.round(amountNum * CUSD_TO_NGN_RATE);
+                        const baseNaira = Math.round(amountNum * USDM_TO_NGN_RATE);
                         return Math.round(baseNaira * 0.015).toLocaleString();
                       })()}
                     </span>
@@ -4619,7 +4619,7 @@ export default function Home() {
                     <span className="text-purple-600 font-extrabold">
                       ₦{(() => {
                         const amountNum = parseFloat(activeTransaction.amount.replace(/[^\d.]/g, "")) || 1;
-                        const baseNaira = Math.round(amountNum * CUSD_TO_NGN_RATE);
+                        const baseNaira = Math.round(amountNum * USDM_TO_NGN_RATE);
                         const koraFee = Math.round(baseNaira * 0.015);
                         const gasBuffer = 150;
                         return (baseNaira + koraFee + gasBuffer).toLocaleString();
@@ -4762,7 +4762,7 @@ export default function Home() {
                 <div className="space-y-2">
                   <h3 className="text-lg font-black text-slate-900">Confirm Payout</h3>
                   <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans px-2">
-                    This will initiate a blockchain transfer of cUSD from the platform escrow/admin wallet directly to the worker.
+                    This will initiate a blockchain transfer of USDm from the platform escrow/admin wallet directly to the worker.
                   </p>
                 </div>
                 
@@ -4802,11 +4802,11 @@ export default function Home() {
                         }
 
                         const amountWei = parseEther(payoutVal.toFixed(18));
-                        const cusdAddress = getCusdAddress(chainId);
+                        const usdmAddress = getUsdmAddress(chainId);
 
                         // On-chain transfer of the accumulated amount to the worker
                         const txHash = await writeContractAsync({
-                          address: cusdAddress,
+                          address: usdmAddress,
                           abi: ERC20_ABI,
                           functionName: "transfer",
                           args: [workerWallet as `0x${string}`, amountWei],
@@ -4848,7 +4848,7 @@ export default function Home() {
                 <div className="space-y-2">
                   <h3 className="text-sm font-bold text-slate-950">Processing Worker Withdrawal</h3>
                   <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider animate-pulse">
-                    Transferring accumulated cUSD to worker...
+                    Transferring accumulated USDm to worker...
                   </p>
                 </div>
               </div>
