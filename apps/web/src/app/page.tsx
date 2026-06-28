@@ -453,13 +453,13 @@ const PLATFORM_ESCROW_WALLET = process.env.NEXT_PUBLIC_ADMIN_WALLET || "0xe6B379
 const PLATFORM_FEE_PERCENTAGE = 2; // 2% platform fee
 
 const USDM_ADDRESSES: Record<number, `0x${string}`> = {
-  42220: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b", // Celo Mainnet
-  44787: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b", // Celo Alfajores
-  11142220: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b", // Celo Sepolia
+  42220: "0x765DE816845861e75A25fCA122bb6898B8B1282a", // Celo Mainnet (USDm)
+  44787: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1", // Celo Alfajores (formerly cUSD)
+  11142220: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b", // Celo Sepolia (USDm)
 };
 
 const getUsdmAddress = (chainId: number): `0x${string}` => {
-  return USDM_ADDRESSES[chainId] || "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b";
+  return USDM_ADDRESSES[chainId] || "0x765DE816845861e75A25fCA122bb6898B8B1282a";
 };
 
 const ERC20_ABI = [
