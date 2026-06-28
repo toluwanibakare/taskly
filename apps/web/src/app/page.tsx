@@ -774,6 +774,7 @@ export default function Home() {
 
   const [disputingSubId, setDisputingSubId] = useState<string | null>(null);
   const [disputeReasonInput, setDisputeReasonInput] = useState<string>("");
+  const [openAccordion, setOpenAccordion] = useState<string | null>(null);
 
   // Media Viewer Modal state
   const [mediaViewerUrl, setMediaViewerUrl] = useState<string | null>(null);
@@ -3478,8 +3479,6 @@ export default function Home() {
                       </p>
                     </div>
 
-
-
                     <div className="space-y-2 pt-2 border-t border-slate-50">
                       <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">🇳🇬 Naira (NGN) Automated Funding</h3>
                       <p>
@@ -3497,6 +3496,133 @@ export default function Home() {
                       </ul>
                     </div>
                   </div>
+
+                  {/* USER FAQ ACCORDIONS */}
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide px-1 flex items-center gap-1.5 mt-2">
+                      <Info className="w-4 h-4 text-blue-500" /> User Guide & FAQ
+                    </h3>
+                    
+                    <div className="space-y-2">
+                      {/* Accordion Item 1 */}
+                      <div className="border border-slate-100 rounded-2xl bg-white overflow-hidden shadow-sm transition-all">
+                        <button
+                          onClick={() => setOpenAccordion(openAccordion === "wallet" ? null : "wallet")}
+                          className="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-xs text-slate-800 hover:bg-slate-50 transition-colors focus:outline-none"
+                        >
+                          <span>🔌 How to Connect Your Wallet</span>
+                          <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${openAccordion === "wallet" ? "rotate-90 text-blue-500" : ""}`} />
+                        </button>
+                        {openAccordion === "wallet" && (
+                          <div className="px-5 pb-4 text-[11px] leading-relaxed text-slate-600 border-t border-slate-50 pt-3 space-y-2">
+                            <p>
+                              Tap the <strong>Connect Wallet</strong> button at the top right of the application screen.
+                            </p>
+                            <p>
+                              Choose your preferred Web3 provider (e.g. <strong>MetaMask, Valora, or MiniPay</strong>). Ensure your wallet network is set to <strong>Celo Mainnet</strong>. Once successfully connected, your shortened address and live USDm token balance will display in the top header.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Accordion Item 2 */}
+                      <div className="border border-slate-100 rounded-2xl bg-white overflow-hidden shadow-sm transition-all">
+                        <button
+                          onClick={() => setOpenAccordion(openAccordion === "create-task" ? null : "create-task")}
+                          className="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-xs text-slate-800 hover:bg-slate-50 transition-colors focus:outline-none"
+                        >
+                          <span>📢 How to Create a Task (Advertisers)</span>
+                          <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${openAccordion === "create-task" ? "rotate-90 text-blue-500" : ""}`} />
+                        </button>
+                        {openAccordion === "create-task" && (
+                          <div className="px-5 pb-4 text-[11px] leading-relaxed text-slate-600 border-t border-slate-50 pt-3 space-y-2">
+                            <p>
+                              1. Tap the floating <strong>+</strong> button on the feed homepage or the "Create Campaign" tab.
+                            </p>
+                            <p>
+                              2. Choose your platform (e.g. X, Instagram, GitHub, Web & App Tasks) and select the specific actions required.
+                            </p>
+                            <p>
+                              3. Fill in the campaign details: set the individual worker payout reward, specify slots (number of workers), target duration, and paste the direct link.
+                            </p>
+                            <p>
+                              4. Submit your campaign. You can pay the required budget using on-chain USDm directly, or pay in <strong>Naira (NGN) via Korapay</strong> (supporting bank transfers or cards), which automatically deposits USDm into the smart contract for you.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Accordion Item 3 */}
+                      <div className="border border-slate-100 rounded-2xl bg-white overflow-hidden shadow-sm transition-all">
+                        <button
+                          onClick={() => setOpenAccordion(openAccordion === "complete-task" ? null : "complete-task")}
+                          className="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-xs text-slate-800 hover:bg-slate-50 transition-colors focus:outline-none"
+                        >
+                          <span>💰 How to Complete Tasks & Earn</span>
+                          <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${openAccordion === "complete-task" ? "rotate-90 text-blue-500" : ""}`} />
+                        </button>
+                        {openAccordion === "complete-task" && (
+                          <div className="px-5 pb-4 text-[11px] leading-relaxed text-slate-600 border-t border-slate-50 pt-3 space-y-2">
+                            <p>
+                              1. Browse the live campaign feed on the homepage and select any task that interests you.
+                            </p>
+                            <p>
+                              2. Read the instructions and proof requirements carefully. Tap the link to open the target app or profile page.
+                            </p>
+                            <p>
+                              3. Perform the requested actions (e.g. signing up, following, subscribing). Ensure you take the necessary screenshot proof.
+                            </p>
+                            <p>
+                              4. Go back to Taskly, fill in the proof form (upload the screenshot, and/or enter any required text values), and tap <strong>Submit Proof</strong>. The campaign creator will review your proof and release the funds!
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Accordion Item 4 */}
+                      <div className="border border-slate-100 rounded-2xl bg-white overflow-hidden shadow-sm transition-all">
+                        <button
+                          onClick={() => setOpenAccordion(openAccordion === "refund" ? null : "refund")}
+                          className="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-xs text-slate-800 hover:bg-slate-50 transition-colors focus:outline-none"
+                        >
+                          <span>🔄 How to Request Escrow Refunds</span>
+                          <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${openAccordion === "refund" ? "rotate-90 text-blue-500" : ""}`} />
+                        </button>
+                        {openAccordion === "refund" && (
+                          <div className="px-5 pb-4 text-[11px] leading-relaxed text-slate-600 border-t border-slate-50 pt-3 space-y-2">
+                            <p>
+                              If a campaign you launched expires and still has remaining unfulfilled slots, you can claim your unused USDm tokens back:
+                            </p>
+                            <p>
+                              Go to the <strong>Profile</strong> tab and tap <strong>Manage Campaigns</strong>. Locate your expired campaign and tap <strong>Refund Escrow</strong>. Confirm the transaction in your connected wallet. The smart contract will immediately release the remaining budget tokens directly back to your address.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Accordion Item 5 */}
+                      <div className="border border-slate-100 rounded-2xl bg-white overflow-hidden shadow-sm transition-all">
+                        <button
+                          onClick={() => setOpenAccordion(openAccordion === "dispute" ? null : "dispute")}
+                          className="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-xs text-slate-800 hover:bg-slate-50 transition-colors focus:outline-none"
+                        >
+                          <span>⚖️ How to Open a Dispute</span>
+                          <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${openAccordion === "dispute" ? "rotate-90 text-blue-500" : ""}`} />
+                        </button>
+                        {openAccordion === "dispute" && (
+                          <div className="px-5 pb-4 text-[11px] leading-relaxed text-slate-600 border-t border-slate-50 pt-3 space-y-2">
+                            <p>
+                              If a campaign creator rejects your proof submission and you are confident you completed the actions correctly, you can open a dispute:
+                            </p>
+                            <p>
+                              Navigate to your <strong>Profile</strong> tab, scroll down to your submissions history list, and find the rejected submission. Tap the <strong>Dispute Rejection</strong> button, enter a clear description explaining your case, and submit. The platform administrators will manually review the dispute, evaluate your uploaded screenshot proof against the campaign requirements, and render a final fair verdict.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                   {/* Telegram Community & Support Invitation */}
                   <div className="bg-sky-50/50 border border-sky-100/50 rounded-2xl p-4 text-center space-y-3">
