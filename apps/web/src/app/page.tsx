@@ -384,7 +384,7 @@ const PLATFORM_ACTIONS: Record<Platform, PlatformAction[]> = {
     { value: "product_market", label: "Product Market Survey", basePrice: 0.20 }
   ],
   testing: [
-    { value: "website_signup", label: "Website Sign-up & Verification", basePrice: 0.15 },
+    { value: "website_signup", label: "Website Sign-up & Verification", basePrice: 0.07 },
     { value: "app_download", label: "App Download & Registration", basePrice: 0.25 },
     { value: "ux_feedback", label: "UX & Usability Feedback Audit", basePrice: 0.35 },
     { value: "newsletter_sub", label: "Newsletter Email Subscription", basePrice: 0.05 },
@@ -1904,8 +1904,25 @@ export default function Home() {
       // Set state to refunding
       setActiveTransaction((prev) => prev ? { ...prev, status: "refunding-escrow" } : null);
 
-      // Simulate a small delay for blockchain experience
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const escrowContractAddress = getEscrowAddress(chainId);
+      const bytes32TaskId = formatTaskIdToBytes32(taskId);
+
+      let txHash: `0x${string}` | undefined;
+
+      // Execute on-chain smart contract refund
+      if (escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000") {
+        txHash = await writeContractAsync({
+          address: escrowContractAddress,
+          abi: ESCROW_ABI,
+          functionName: "refundCampaign",
+          args: [bytes32TaskId],
+          type: "legacy",
+        });
+      } else {
+        // Fallback for mock environment
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        txHash = `0x${Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('')}` as `0x${string}`;
+      }
 
       // Update task status to "refunded"
       await updateDoc(taskRef, {
@@ -1928,11 +1945,11 @@ export default function Home() {
       setActiveTransaction((prev) => prev ? { 
         ...prev, 
         status: "success", 
-        txHash: `0x${Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('')}`
+        txHash
       } : null);
 
     } catch (err: any) {
-      console.error("Firestore refund failed:", err);
+      console.error("Smart contract refund failed:", err);
       alert("Refund failed: " + (err.message || err));
       setActiveTransaction(null);
       setPendingTxData(null);
