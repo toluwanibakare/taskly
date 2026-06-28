@@ -775,6 +775,11 @@ export default function Home() {
   const [disputingSubId, setDisputingSubId] = useState<string | null>(null);
   const [disputeReasonInput, setDisputeReasonInput] = useState<string>("");
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
+  const [visitedLink, setVisitedLink] = useState(false);
+
+  useEffect(() => {
+    setVisitedLink(false);
+  }, [selectedTask]);
 
   // Media Viewer Modal state
   const [mediaViewerUrl, setMediaViewerUrl] = useState<string | null>(null);
@@ -3808,28 +3813,47 @@ export default function Home() {
           </main>
 
           {/* Action Footer */}
-          <div className="p-4 bg-white border-t border-slate-100 flex gap-3">
-            {selectedTask.link !== "#" && (
-              <a
-                href={selectedTask.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-3 border border-slate-200 text-slate-800 rounded-xl hover:bg-slate-50 active:scale-95 transition-all flex items-center justify-center"
-              >
-                <ExternalLink className="w-5 h-5" />
-              </a>
-            )}
+          <div className="p-4 bg-white border-t border-slate-100 flex flex-col gap-3">
             {selectedTask.createdByWallet?.toLowerCase() === wagmiAddress?.toLowerCase() ? (
-              <div className="flex-1 py-3.5 bg-slate-100 text-slate-400 rounded-xl text-xs font-bold text-center border border-slate-200 flex items-center justify-center">
+              <div className="w-full py-3.5 bg-slate-100 text-slate-400 rounded-xl text-xs font-bold text-center border border-slate-200 flex items-center justify-center">
                 You created this task
               </div>
             ) : (
-              <button
-                onClick={() => handleAuthAction(() => setScreen("submit-proof"))}
-                className="flex-1 py-3.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-sm"
-              >
-                Proceed to Submission
-              </button>
+              <div className="w-full space-y-2">
+                {/* Step 1: Visit Link */}
+                {selectedTask.link !== "#" && (
+                  <a
+                    href={selectedTask.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setVisitedLink(true)}
+                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    1. Visit Campaign Link
+                  </a>
+                )}
+
+                {/* Step 2: Proceed to Submission */}
+                <button
+                  disabled={!visitedLink && selectedTask.link !== "#"}
+                  onClick={() => handleAuthAction(() => setScreen("submit-proof"))}
+                  className={`w-full py-3 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 ${
+                    visitedLink || selectedTask.link === "#"
+                      ? "bg-slate-900 text-white hover:bg-slate-800 active:scale-95"
+                      : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+                  }`}
+                >
+                  2. Proceed to Submission
+                </button>
+                
+                {/* Hint Text */}
+                {!visitedLink && selectedTask.link !== "#" && (
+                  <p className="text-[10px] text-slate-400 font-semibold text-center italic mt-1">
+                    ⚠️ You must visit the campaign link first to unlock proof submission.
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>
