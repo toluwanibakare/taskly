@@ -3622,8 +3622,7 @@ export default function Home() {
                       </div>
                     </div>
                   </div>
-                </div>
-
+                  
                   {/* Telegram Community & Support Invitation */}
                   <div className="bg-sky-50/50 border border-sky-100/50 rounded-2xl p-4 text-center space-y-3">
                     <p className="text-xs font-bold text-sky-900 leading-relaxed">
