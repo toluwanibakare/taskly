@@ -282,7 +282,7 @@ const TEMPLATE_PRESETS: Record<string, TaskTemplate> = {
   testing_app: {
     title: "Download Android App & Sign Up",
     platform: "testing",
-    type: "Application Testing",
+    type: "Web & App Tasks",
     payout: 0.40,
     description: "Download our beta Android application, create a user profile, and test the homepage features.",
     instructions: "Click the Play Store link to download/install the app.\nOpen the app and sign up using your email.\nNavigate to the dashboard and screenshot it.\nProvide the registered email address for database verification.",
@@ -293,7 +293,7 @@ const TEMPLATE_PRESETS: Record<string, TaskTemplate> = {
   testing_web: {
     title: "Beta Test Web Dashboard UI",
     platform: "testing",
-    type: "Application Testing",
+    type: "Web & App Tasks",
     payout: 0.30,
     description: "Explore our newly released web dashboard prototype, verify buttons work, and report speed.",
     instructions: "Open the web beta dashboard URL.\nCreate a test workspace/project.\nVerify that elements render correctly without layout breaks.\nScreenshot your created workspace dashboard.",
@@ -384,8 +384,11 @@ const PLATFORM_ACTIONS: Record<Platform, PlatformAction[]> = {
     { value: "product_market", label: "Product Market Survey", basePrice: 0.20 }
   ],
   testing: [
-    { value: "android_signup", label: "Android App Download & Signup", basePrice: 0.30 },
-    { value: "web_dashboard", label: "Web Dashboard Usability Test", basePrice: 0.25 }
+    { value: "website_signup", label: "Website Sign-up & Verification", basePrice: 0.15 },
+    { value: "app_download", label: "App Download & Registration", basePrice: 0.25 },
+    { value: "ux_feedback", label: "UX & Usability Feedback Audit", basePrice: 0.35 },
+    { value: "newsletter_sub", label: "Newsletter Email Subscription", basePrice: 0.05 },
+    { value: "interact_features", label: "Walkthrough App/Web Features", basePrice: 0.12 }
   ],
   github: [
     { value: "github_star", label: "Star Repository", basePrice: 0.03 },
@@ -410,8 +413,11 @@ const ACTION_INSTRUCTIONS: Record<string, string[]> = {
   follow_company: ["Open the LinkedIn Company page.", "Click the Follow button."],
   google_form: ["Click the survey link.", "Complete all required questionnaire fields honestly."],
   product_market: ["Click the market survey link.", "Fill out the 15 saving-habits questions."],
-  android_signup: ["Click Play Store link to download/install the APK.", "Register an account using your email address."],
-  web_dashboard: ["Open the web dashboard link.", "Register and create a new workspace to test UI layouts."],
+  website_signup: ["Open the website registration link.", "Fill out the form and verify your email address.", "Log in to your newly created account dashboard."],
+  app_download: ["Download and install the mobile app from the official store.", "Create a new user account.", "Log in to the app dashboard."],
+  ux_feedback: ["Open the product or website link.", "Test the primary user workflows.", "Identify any usability issues or interface friction.", "Write a detailed feedback review."],
+  newsletter_sub: ["Open the newsletter sign-up page.", "Enter your active email address.", "Confirm your subscription in the email inbox."],
+  interact_features: ["Open the app or website.", "Click through at least 3 major sections or tabs.", "Interact with a key feature (e.g. adding an item, running a search, editing a page)."],
   github_star: ["Open the repository link.", "Click the Star button at the top right."],
   github_fork: ["Open the repository link.", "Click the Fork button at the top right.", "Create the fork under your account."],
   github_follow: ["Open the GitHub profile link.", "Click the Follow button under the user avatar."]
@@ -433,8 +439,11 @@ const ACTION_PROOF_PRESETS: Record<string, string[]> = {
   follow_company: ["Screenshot of Company page showing Following", "LinkedIn profile link"],
   google_form: ["Screenshot of Google Form thank you/completion screen", "Survey completion code"],
   product_market: ["Screenshot of survey confirmation screen", "Registered survey email"],
-  android_signup: ["Screenshot of in-app dashboard showing login profile", "Signup email address"],
-  web_dashboard: ["Screenshot of created dashboard workspace", "Short usability text review"],
+  website_signup: ["Screenshot of website profile page showing your logged-in email/username", "Registered email address"],
+  app_download: ["Screenshot of mobile app profile dashboard showing account information", "Registered email address or username"],
+  ux_feedback: ["Screenshot of your detailed usability report or bug list", "Constructive usability text feedback"],
+  newsletter_sub: ["Screenshot of subscription confirmation email", "Subscribed email address"],
+  interact_features: ["Screenshot showing your interaction history or completed task action", "Short description of your walkthrough experience"],
   github_star: ["Screenshot showing the repository as Starred", "Your GitHub username"],
   github_fork: ["Screenshot of the forked repository in your profile", "Link to your forked repository", "Your GitHub username"],
   github_follow: ["Screenshot showing the 'Unfollow' button on the profile", "Your GitHub username"]
@@ -800,6 +809,7 @@ export default function Home() {
 
     let generatedTitle = "";
     const platformLabel = createTaskForm.platform === "x" ? "X" : 
+                         createTaskForm.platform === "testing" ? "Web & App Tasks" :
                          createTaskForm.platform.charAt(0).toUpperCase() + createTaskForm.platform.slice(1);
     
     if (actionLabels.length === 1) {
@@ -842,7 +852,11 @@ export default function Home() {
       title: generatedTitle,
       instructionsText: generatedInstructionsText,
       proofRequirements: generatedProofRequirements,
-      type: checkedActions.includes("follow") || checkedActions.includes("subscribe") || checkedActions.includes("follow_page") || checkedActions.includes("follow_company") ? "Social Follow" : "Social Engagement"
+      type: createTaskForm.platform === "testing" 
+        ? "Web & App Tasks" 
+        : createTaskForm.platform === "survey"
+        ? "Survey & Feedback"
+        : checkedActions.includes("follow") || checkedActions.includes("subscribe") || checkedActions.includes("follow_page") || checkedActions.includes("follow_company") ? "Social Follow" : "Social Engagement"
     }));
   }, [checkedActions, createTaskForm.platform]);
 
@@ -1164,7 +1178,7 @@ export default function Home() {
   }, [history]);
 
   // Filter chips list (includes new Facebook & LinkedIn platforms)
-  const filterChips = ["All", "Instagram", "X", "YouTube", "TikTok", "Facebook", "LinkedIn", "GitHub", "Survey", "Testing"];
+  const filterChips = ["All", "Instagram", "X", "YouTube", "TikTok", "Facebook", "LinkedIn", "GitHub", "Survey", "Web & App Tasks"];
 
   // Filtered & Sorted tasks logic
   const filteredTasks = useMemo(() => {
@@ -1199,7 +1213,14 @@ export default function Home() {
     
     // Filter
     if (activeFilter !== "All") {
-      result = result.filter((t) => t.platform.toLowerCase() === activeFilter.toLowerCase());
+      result = result.filter((t) => {
+        const platformKey = t.platform.toLowerCase();
+        const filterKey = activeFilter.toLowerCase();
+        if (filterKey === "web & app tasks") {
+          return platformKey === "testing";
+        }
+        return platformKey === filterKey;
+      });
     }
 
     // Sort
@@ -3879,7 +3900,7 @@ export default function Home() {
                   <option value="linkedin">LinkedIn</option>
                   <option value="github">GitHub</option>
                   <option value="survey">Survey</option>
-                  <option value="testing">Testing</option>
+                  <option value="testing">Web & App Tasks</option>
                 </select>
               </div>
 
