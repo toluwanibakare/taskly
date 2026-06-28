@@ -440,7 +440,7 @@ const ACTION_PROOF_PRESETS: Record<string, string[]> = {
   github_follow: ["Screenshot showing the 'Unfollow' button on the profile", "Your GitHub username"]
 };
 
-const PLATFORM_ESCROW_WALLET = process.env.NEXT_PUBLIC_ADMIN_WALLET || "0x9335E6F2eDA0d96E0B88c104d39a221DF001e475";
+const PLATFORM_ESCROW_WALLET = process.env.NEXT_PUBLIC_ADMIN_WALLET || "0xe6B3794191523dE54A03A685FDd786B313b1788C";
 const PLATFORM_FEE_PERCENTAGE = 2; // 2% platform fee
 
 const USDM_ADDRESSES: Record<number, `0x${string}`> = {
