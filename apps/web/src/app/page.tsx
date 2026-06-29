@@ -1614,16 +1614,26 @@ export default function Home() {
   // Derived user statistics from history
   const stats = useMemo(() => {
     const approved = history.filter((s) => s.status === "approved");
-    const totalEarned = approved.reduce((acc, curr) => {
+    let totalEarned = approved.reduce((acc, curr) => {
       const val = parseFloat(curr.amount.split(" ")[0]);
       return acc + (isNaN(val) ? 0 : val);
     }, 0);
+
+    // Sum referral rewards
+    referredUsers.forEach((ru) => {
+      const ruAddress = (ru.wallet_address || "").toLowerCase();
+      const hasCompletedTask = (ru.tasks_completed || 0) > 0;
+      const hasCreatedCampaign = tasks.some(t => (t.createdByWallet || "").toLowerCase() === ruAddress);
+      
+      if (hasCompletedTask) totalEarned += 0.02;
+      if (hasCreatedCampaign) totalEarned += 0.10;
+    });
 
     return {
       completed: approved.length,
       earnings: `${totalEarned.toFixed(2)} USDm`
     };
-  }, [history]);
+  }, [history, referredUsers, tasks]);
 
   // Filter chips list (includes new Facebook & LinkedIn platforms)
   const filterChips = ["All", "Instagram", "X", "YouTube", "TikTok", "Facebook", "LinkedIn", "GitHub", "Survey", "Web & App Tasks"];
@@ -3451,15 +3461,6 @@ export default function Home() {
                             <p className="text-[10px] text-slate-500 leading-relaxed mt-1 font-medium">
                               Share your private link. Earn <strong>0.02 USDm</strong> on their first completed task and <strong>0.10 USDm</strong> on their first campaign launch!
                             </p>
-                            <div className="mt-2.5 flex items-center">
-                              <button
-                                type="button"
-                                onClick={() => setShowReferralsModal(true)}
-                                className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100 hover:bg-blue-100/50 active:scale-95 transition-all"
-                              >
-                                View Referral Stats & Earnings ({referredUsers.length})
-                              </button>
-                            </div>
                           </div>
                           
                           <div className="flex gap-2">
@@ -3481,6 +3482,16 @@ export default function Home() {
                               }`}
                             >
                               {copiedRef ? "Copied!" : "Copy Link"}
+                            </button>
+                          </div>
+
+                          <div className="pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => setShowReferralsModal(true)}
+                              className="w-full py-2.5 text-center text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center justify-center gap-1 bg-blue-50/50 hover:bg-blue-100/50 rounded-xl border border-blue-100/50 active:scale-95 transition-all"
+                            >
+                              View Referral Stats & Earnings ({referredUsers.length})
                             </button>
                           </div>
                         </div>
