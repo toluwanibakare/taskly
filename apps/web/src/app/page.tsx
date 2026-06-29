@@ -672,7 +672,13 @@ export default function Home() {
       const params = new URLSearchParams(window.location.search);
       const ref = params.get("r");
       if (ref) {
+        const myOwnRef = localStorage.getItem("my_generated_ref_code");
+        if (myOwnRef && myOwnRef.toLowerCase() === ref.toLowerCase()) {
+          console.log("Self-referral check failed on same device/browser.");
+          return;
+        }
         localStorage.setItem("taskly_referrer_code", ref);
+        setShowReferralWelcome(true);
       }
     }
   }, []);
@@ -946,6 +952,7 @@ export default function Home() {
   const [pendingNotif, setPendingNotif] = useState<{ title: string; msg: string; type: "success" | "error" } | null>(null);
   const [showStreakReminder, setShowStreakReminder] = useState(false);
   const [streakMilestoneNotif, setStreakMilestoneNotif] = useState<number | null>(null);
+  const [showReferralWelcome, setShowReferralWelcome] = useState(false);
 
   useEffect(() => {
     setVisitedLink(false);
@@ -1095,24 +1102,38 @@ export default function Home() {
           const storedRefCode = localStorage.getItem("taskly_referrer_code");
           let referredBy = null;
 
-          if (storedRefCode) {
-            try {
-              const usersSnap = await getDocs(collection(db, "users"));
-              const referrerDoc = usersSnap.docs.find(d => d.data().refCode === storedRefCode);
-              if (referrerDoc) {
-                referredBy = referrerDoc.data().wallet_address;
-              }
-            } catch (e) {
-              console.error("Referrer lookup failed:", e);
-            }
-          }
-
           // Generate a random 6-character code
           const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
           let generatedCode = "";
           for (let i = 0; i < 6; i++) {
             generatedCode += chars.charAt(Math.floor(Math.random() * chars.length));
           }
+
+          if (storedRefCode) {
+            const myOwnRef = localStorage.getItem("my_generated_ref_code");
+            if (myOwnRef && myOwnRef.toLowerCase() === storedRefCode.toLowerCase()) {
+              console.log("Self-referral blocked: same device.");
+            } else if (generatedCode.toLowerCase() === storedRefCode.toLowerCase()) {
+              console.log("Self-referral blocked: same code.");
+            } else {
+              try {
+                const usersSnap = await getDocs(collection(db, "users"));
+                const referrerDoc = usersSnap.docs.find(d => d.data().refCode === storedRefCode);
+                if (referrerDoc) {
+                  const refWallet = referrerDoc.data().wallet_address;
+                  if (refWallet && refWallet.toLowerCase() !== activeAddress.toLowerCase()) {
+                    referredBy = refWallet;
+                  } else {
+                    console.log("Self-referral blocked: same wallet address.");
+                  }
+                }
+              } catch (e) {
+                console.error("Referrer lookup failed:", e);
+              }
+            }
+          }
+
+          localStorage.setItem("my_generated_ref_code", generatedCode);
 
           await setDoc(userDocRef, {
             wallet_address: activeAddress,
@@ -1128,6 +1149,11 @@ export default function Home() {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           });
+        } else {
+          const uData = docSnap.data();
+          if (uData.refCode) {
+            localStorage.setItem("my_generated_ref_code", uData.refCode);
+          }
         }
       }).catch((err) => console.error("Error creating/getting user doc:", err));
     }
@@ -1494,7 +1520,8 @@ export default function Home() {
 
   // Function to resolve platform icons (includes Facebook & LinkedIn)
   const getPlatformIcon = (platform: Platform, className = "w-5 h-5") => {
-    switch (platform) {
+    const key = (platform || "").toLowerCase();
+    switch (key) {
       case "instagram":
         return <Instagram className={`${className} text-pink-500`} />;
       case "x":
@@ -3052,7 +3079,9 @@ export default function Home() {
                             
                             {/* Streak count (Snapchat style fire emoji) */}
                             {dbUserProfile?.streakCount > 0 && (
-                              <div className="flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-600 rounded-lg text-xs font-black animate-pulse">
+                              <div className={`flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-600 rounded-lg text-xs font-black ${
+                                showStreakReminder ? "animate-pulse" : ""
+                              }`}>
                                 <span>🔥</span>
                                 <span>{dbUserProfile.streakCount}</span>
                               </div>
@@ -5836,6 +5865,45 @@ export default function Home() {
               className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 hover:brightness-105"
             >
               Keep Burning!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== REFERRAL WELCOME MODAL ===== */}
+      {showReferralWelcome && (
+        <div className="fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+          <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 text-center space-y-5 animate-scale-up">
+            <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center text-3xl bg-blue-50 border border-blue-100">
+              🎁
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-sm font-black text-slate-900 tracking-tight uppercase">
+                Referral Invite Accepted!
+              </h3>
+              <p className="text-xs text-slate-500 font-semibold leading-relaxed font-sans">
+                You just accessed Taskly using a referral link! 
+              </p>
+              <div className="bg-slate-50 p-4.5 rounded-2xl text-left border border-slate-100 space-y-2.5">
+                <p className="text-[10px] text-slate-600 font-bold leading-normal">
+                  🔥 Complete your first task: Get a bonus of <span className="text-blue-600 font-black">0.02 USDm</span> back, plus the task's payout!
+                </p>
+                <p className="text-[10px] text-slate-600 font-bold leading-normal">
+                  🚀 Launch your first campaign: Get a <span className="text-emerald-600 font-black">0.05 USDm</span> cashback reward credited directly to your balance!
+                </p>
+              </div>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider pt-2">
+                Connect your wallet to get started!
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowReferralWelcome(false)}
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+            >
+              Let's Earn!
             </button>
           </div>
         </div>
