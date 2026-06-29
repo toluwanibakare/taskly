@@ -972,6 +972,7 @@ export default function Home() {
     proofType: "screenshot" as "screenshot" | "text" | "both" | "screen-recording"
   });
   const [isReopening, setIsReopening] = useState<boolean>(false);
+  const [reopeningTaskId, setReopeningTaskId] = useState<string | null>(null);
 
   // Auto-update payout when selected actions change
   useEffect(() => {
@@ -1706,10 +1707,56 @@ export default function Home() {
       isUserCreated: true,
       proofType: createTaskForm.proofType
     };
-
     const budget = payoutValue * slotsValue;
     const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
     const total = budget + fee;
+
+    if (isReopening && reopeningTaskId) {
+      const orig = tasks.find(t => t.id === reopeningTaskId);
+      if (orig) {
+        const leftoverSlots = orig.slotsRemaining || 0;
+        const rewardAmt = parseFloat(orig.amount.replace(/[^\d.]/g, "")) || 0.05;
+        const leftoverEscrow = leftoverSlots * rewardAmt;
+        const feeToDeduct = leftoverEscrow * (PLATFORM_FEE_PERCENTAGE / 100);
+        const usableEscrow = parseFloat((leftoverEscrow - feeToDeduct).toFixed(2));
+        
+        const newBudget = parseFloat((payoutValue * slotsValue).toFixed(2));
+        if (newBudget > usableEscrow) {
+          alert(`Your new campaign budget (${newBudget.toFixed(2)} USDm) exceeds the usable escrow balance (${usableEscrow.toFixed(2)} USDm). Please reduce slots or payout to fit within your usable escrow.`);
+          return;
+        }
+
+        try {
+          setPendingTxData({ newTask });
+          await saveNewTask(newTask);
+          await updateDoc(doc(db, "tasks", orig.id), {
+            status: "reopened",
+            slots_remaining: 0,
+            updated_at: new Date().toISOString()
+          });
+          
+          setPendingTxData(null);
+          setIsReopening(false);
+          setReopeningTaskId(null);
+          
+          setActiveTransaction({
+            status: "success",
+            title: newTask.title,
+            amount: `${newBudget.toFixed(2)} USDm`,
+            txHash: undefined,
+            onClose: () => {
+              setActiveTransaction(null);
+            }
+          });
+        } catch (err: any) {
+          console.error("Reopen task failed:", err);
+          alert("Failed to reopen task: " + (err.message || err));
+          setPendingTxData(null);
+          setActiveTransaction(null);
+        }
+        return;
+      }
+    }
 
     const escrowContractAddress = getEscrowAddress(chainId);
     const hasContract = escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000";
@@ -2480,6 +2527,7 @@ export default function Home() {
     setSlotsInput(String(tk.slotsTotal || 50));
     setExpiryHours(tk.expiryHours || 24);
     setIsReopening(true);
+    setReopeningTaskId(taskId);
 
     const actions: string[] = [];
     const titleLower = tk.title.toLowerCase();
@@ -4929,6 +4977,44 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+
+              {/* Reusable Escrow Information for Reopened Campaigns */}
+              {(() => {
+                if (!isReopening || !reopeningTaskId) return null;
+                const orig = tasks.find(t => t.id === reopeningTaskId);
+                if (!orig) return null;
+                
+                const leftoverSlots = orig.slotsRemaining || 0;
+                const rewardAmt = parseFloat(orig.amount.replace(/[^\d.]/g, "")) || 0.05;
+                const leftoverEscrow = leftoverSlots * rewardAmt;
+                const feeToDeduct = leftoverEscrow * (PLATFORM_FEE_PERCENTAGE / 100);
+                const usableEscrow = parseFloat((leftoverEscrow - feeToDeduct).toFixed(2));
+                
+                return (
+                  <div className="bg-orange-50/50 border border-orange-100 rounded-2xl p-4 space-y-2.5 animate-fade-in">
+                    <div className="flex items-center gap-1.5 text-xs text-orange-800 font-extrabold uppercase tracking-wider">
+                      <span>🔄 Reusing Leftover Escrow Balance</span>
+                    </div>
+                    <div className="space-y-1.5 text-xs font-semibold text-slate-600">
+                      <div className="flex justify-between">
+                        <span>Leftover Escrow ({orig.slotsRemaining} slots):</span>
+                        <span className="font-bold">{leftoverEscrow.toFixed(2)} USDm</span>
+                      </div>
+                      <div className="flex justify-between text-orange-700">
+                        <span>Platform Fee (2% deducted):</span>
+                        <span>-{feeToDeduct.toFixed(2)} USDm</span>
+                      </div>
+                      <div className="flex justify-between border-t border-orange-100/70 pt-1.5 text-slate-900 font-bold">
+                        <span>Usable Escrow Balance:</span>
+                        <span className="text-orange-600 font-black">{usableEscrow.toFixed(2)} USDm</span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-500 leading-normal font-semibold">
+                      Reopening this campaign consumes this usable escrow balance. No additional payment is required if the new campaign budget is within this limit!
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* Local Nigerian Pricing Conversion Estimate Card */}
               <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2">
