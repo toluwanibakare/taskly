@@ -18,6 +18,7 @@ import {
   deleteDoc,
   onSnapshot, 
   query, 
+  where,
   runTransaction
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -954,6 +955,9 @@ export default function Home() {
   const [streakMilestoneNotif, setStreakMilestoneNotif] = useState<number | null>(null);
   const [showReferralWelcome, setShowReferralWelcome] = useState(false);
   const [adminDeleteTaskId, setAdminDeleteTaskId] = useState<string | null>(null);
+  const [referredUsers, setReferredUsers] = useState<any[]>([]);
+  const [showReferralsModal, setShowReferralsModal] = useState(false);
+  const [historySubScreen, setHistorySubScreen] = useState<"tasks" | "ledger">("tasks");
 
   useEffect(() => {
     setVisitedLink(false);
@@ -1336,14 +1340,172 @@ export default function Home() {
     return () => unsubscribeUser();
   }, [activeAddress]);
 
-  // Load withdrawals (Admin only)
+  // Load referred users list for active wallet address
   useEffect(() => {
-    const isAdmin = activeAddress === PLATFORM_ESCROW_WALLET.toLowerCase();
-    if (!isAdmin) {
+    if (!activeAddress) {
+      setReferredUsers([]);
+      return;
+    }
+    const q = query(collection(db, "users"), where("referredBy", "==", activeAddress.toLowerCase()));
+    const unsubscribeReferred = onSnapshot(q, (snapshot) => {
+      const users: any[] = [];
+      snapshot.forEach((doc) => {
+        users.push(doc.data());
+      });
+      setReferredUsers(users);
+    });
+    return () => unsubscribeReferred();
+  }, [activeAddress]);
+
+  // Dynamic helper to compute referral statistics
+  const getReferralStats = () => {
+    let totalEarnings = 0;
+    const details = referredUsers.map((ru) => {
+      const addressLower = (ru.wallet_address || "").toLowerCase();
+      const hasCompletedTask = (ru.tasks_completed || 0) > 0;
+      const hasCreatedCampaign = tasks.some(t => (t.createdByWallet || "").toLowerCase() === addressLower);
+      
+      let earned = 0;
+      if (hasCompletedTask) earned += 0.02;
+      if (hasCreatedCampaign) earned += 0.10;
+      
+      totalEarnings += earned;
+      return {
+        wallet: ru.wallet_address || "unknown",
+        tasksCompleted: ru.tasks_completed || 0,
+        hasCreatedCampaign,
+        earned
+      };
+    });
+    return {
+      totalEarnings: parseFloat(totalEarnings.toFixed(2)),
+      count: referredUsers.length,
+      details
+    };
+  };
+
+  // Dynamic transaction history ledger builder
+  const getTransactionLedger = () => {
+    const ledger: any[] = [];
+    const addressLower = (activeAddress || "").toLowerCase();
+
+    // 1. Task Payouts Approved (Inflows)
+    history.forEach((sub) => {
+      if (sub.status === "approved") {
+        const val = parseFloat(sub.amount.replace(/[^\d.]/g, "")) || 0;
+        ledger.push({
+          id: `payout-${sub.id}`,
+          type: "inflow",
+          title: "Task Completion Payout",
+          amount: val,
+          date: sub.date || new Date().toISOString().split("T")[0],
+          meta: sub.taskTitle,
+          status: "completed"
+        });
+      }
+    });
+
+    // 2. Referral Rewards (Inflows)
+    referredUsers.forEach((ru) => {
+      const ruAddress = (ru.wallet_address || "").toLowerCase();
+      const hasCompleted = (ru.tasks_completed || 0) > 0;
+      const hasCreated = tasks.some(t => (t.createdByWallet || "").toLowerCase() === ruAddress);
+
+      if (hasCompleted) {
+        ledger.push({
+          id: `ref-task-${ruAddress}`,
+          type: "inflow",
+          title: "Referral Bonus (First Task)",
+          amount: 0.02,
+          date: ru.created_at ? ru.created_at.split("T")[0] : new Date().toISOString().split("T")[0],
+          meta: `Friend: ${formatAddress(ruAddress)}`,
+          status: "completed"
+        });
+      }
+      if (hasCreated) {
+        ledger.push({
+          id: `ref-camp-${ruAddress}`,
+          type: "inflow",
+          title: "Referral Bonus (First Campaign)",
+          amount: 0.10,
+          date: ru.created_at ? ru.created_at.split("T")[0] : new Date().toISOString().split("T")[0],
+          meta: `Friend: ${formatAddress(ruAddress)}`,
+          status: "completed"
+        });
+      }
+    });
+
+    // 3. Campaigns Created/Funded (Outflows)
+    tasks.forEach((t) => {
+      if ((t.createdByWallet || "").toLowerCase() === addressLower) {
+        const amt = parseFloat(t.amount.replace(/[^\d.]/g, "")) || 0.05;
+        const slots = t.slotsTotal || 0;
+        const budget = amt * slots;
+        const fee = budget * 0.02;
+        const totalCost = budget + fee;
+
+        ledger.push({
+          id: `campaign-${t.id}`,
+          type: "outflow",
+          title: t.status === "reopened" ? "Reopened Campaign Escrow" : "Launched Campaign Escrow",
+          amount: totalCost,
+          date: t.expiresAt ? new Date(new Date(t.expiresAt).getTime() - (t.expiryHours || 24) * 3600 * 1000).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          meta: t.title,
+          status: t.status === "pending_payment" ? "pending" : "completed"
+        });
+      }
+    });
+
+    // 4. Withdrawals Requested (Outflows)
+    withdrawals.forEach((w) => {
+      if ((w.wallet_address || "").toLowerCase() === addressLower) {
+        const val = parseFloat(w.amount.replace(/[^\d.]/g, "")) || 0;
+        ledger.push({
+          id: `withdrawal-${w.id || w.created_at}`,
+          type: "outflow",
+          title: "Withdrawal Request",
+          amount: val,
+          date: w.created_at ? w.created_at.split("T")[0] : new Date().toISOString().split("T")[0],
+          meta: w.status === "completed" ? `Tx: ${formatAddress(w.transaction_hash)}` : "Awaiting Admin Release",
+          status: w.status // "pending" | "completed" | "rejected"
+        });
+      }
+    });
+
+    // Sort chronologically (newest first)
+    ledger.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // Compute totals
+    let totalInflow = 0;
+    let totalOutflow = 0;
+
+    ledger.forEach((item) => {
+      if (item.status === "completed" || item.status === "approved" || item.status === "active") {
+        if (item.type === "inflow") totalInflow += item.amount;
+        if (item.type === "outflow") totalOutflow += item.amount;
+      }
+    });
+
+    return {
+      items: ledger,
+      totalInflow: parseFloat(totalInflow.toFixed(2)),
+      totalOutflow: parseFloat(totalOutflow.toFixed(2)),
+      netBalance: parseFloat((totalInflow - totalOutflow).toFixed(2))
+    };
+  };
+
+  // Load withdrawals (Admin loads all, regular users load their own)
+  useEffect(() => {
+    if (!activeAddress) {
       setWithdrawals([]);
       return;
     }
-    const unsubscribeWithdrawals = onSnapshot(collection(db, "withdrawals"), (snapshot) => {
+    const isAdmin = activeAddress.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase();
+    const q = isAdmin 
+      ? collection(db, "withdrawals")
+      : query(collection(db, "withdrawals"), where("wallet_address", "==", activeAddress.toLowerCase()));
+
+    const unsubscribeWithdrawals = onSnapshot(q, (snapshot) => {
       const loaded: any[] = [];
       snapshot.forEach((d) => {
         loaded.push(d.data());
@@ -2920,22 +3082,35 @@ export default function Home() {
             {/* TAB: TASK HISTORY */}
             {activeTab === "history" && (
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                    Task History
-                  </h2>
-                  <p className="text-slate-500 text-sm font-medium mt-1">
-                    Track the status of your task submissions
-                  </p>
-                </div>
+                {historySubScreen === "tasks" ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                          Task History
+                        </h2>
+                        <p className="text-slate-500 text-xs font-semibold mt-0.5">
+                          Track the status of your task submissions
+                        </p>
+                      </div>
+                      {isUserConnected && (
+                        <button
+                          type="button"
+                          onClick={() => setHistorySubScreen("ledger")}
+                          className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100/50 rounded-xl text-[10px] font-extrabold flex items-center gap-1 active:scale-95 transition-all"
+                        >
+                          📊 Transaction Ledger
+                        </button>
+                      )}
+                    </div>
 
-                {!isUserConnected ? (
-                  renderConnectPrompt(
-                    "Access Task History",
-                    "Connect your wallet to view your submitted proofs, tracking statuses, and earned rewards."
-                  )
-                ) : (
-                  <div className="space-y-4">
+                    {!isUserConnected ? (
+                      renderConnectPrompt(
+                        "Access Task History",
+                        "Connect your wallet to view your submitted proofs, tracking statuses, and earned rewards."
+                      )
+                    ) : (
+                      <div className="space-y-4">
                     {history.map((item) => {
                       const statusConfig = {
                         pending: {
@@ -3050,8 +3225,107 @@ export default function Home() {
                     })}
                   </div>
                 )}
+              </>
+            ) : (
+              <div className="space-y-6 animate-fade-in">
+                {/* Header */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setHistorySubScreen("tasks")}
+                    className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors border border-slate-100 bg-white shadow-sm active:scale-95 flex items-center justify-center flex-shrink-0"
+                  >
+                    <ArrowLeft className="w-4 h-4 text-slate-800" />
+                  </button>
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900 tracking-tight font-sans">
+                      Transaction Ledger
+                    </h2>
+                    <span className="text-xs text-slate-400 font-semibold block">Full cash-flow breakdown</span>
+                  </div>
+                </div>
+
+                {/* Summary statistics */}
+                {(() => {
+                  const ledger = getTransactionLedger();
+                  return (
+                    <>
+                      <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-5 grid grid-cols-3 gap-4 text-center">
+                        <div className="space-y-1">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Total Inflow</span>
+                          <span className="text-xs font-black text-emerald-600">
+                            +{formatCurrencyVal(ledger.totalInflow)}
+                          </span>
+                        </div>
+                        <div className="space-y-1 border-l border-slate-100">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Total Outflow</span>
+                          <span className="text-xs font-black text-rose-600">
+                            -{formatCurrencyVal(ledger.totalOutflow)}
+                          </span>
+                        </div>
+                        <div className="space-y-1 border-l border-slate-100">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Net Balance</span>
+                          <span className={`text-xs font-black ${ledger.netBalance >= 0 ? "text-blue-600" : "text-rose-600"}`}>
+                            {ledger.netBalance >= 0 ? "+" : ""}{formatCurrencyVal(ledger.netBalance)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Transaction Items list */}
+                      <div className="space-y-3.5">
+                        {ledger.items.length > 0 ? (
+                          ledger.items.map((item, idx) => (
+                            <div
+                              key={item.id || idx}
+                              className="bg-white p-4 border border-slate-100 shadow-sm rounded-2xl flex items-center justify-between gap-3 animate-fade-in"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className={`p-2.5 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                  item.type === "inflow" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50/70 text-rose-600"
+                                }`}>
+                                  {item.type === "inflow" ? "📈" : "📉"}
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="text-xs font-black text-slate-900 truncate">
+                                    {item.title}
+                                  </h4>
+                                  <p className="text-[9px] text-slate-400 font-bold mt-0.5 truncate">
+                                    {item.meta} • {item.date}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="text-right flex-shrink-0 space-y-1">
+                                <span className={`text-xs font-black block ${
+                                  item.type === "inflow" ? "text-emerald-600" : "text-rose-600"
+                                }`}>
+                                  {item.type === "inflow" ? "+" : "-"}{formatCurrencyVal(item.amount)}
+                                </span>
+                                <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                                  item.status === "completed" || item.status === "approved" || item.status === "active"
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : item.status === "pending"
+                                    ? "bg-amber-50 text-amber-700 animate-pulse"
+                                    : "bg-slate-50 text-slate-400"
+                                }`}>
+                                  {item.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
+                            <p className="text-slate-400 text-xs font-semibold">No transactions recorded yet.</p>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
+          </div>
+        )}
 
             {/* TAB: PROFILE & CREATOR DASHBOARD NESTED ROUTER */}
             {activeTab === "profile" && (
@@ -3181,6 +3455,15 @@ export default function Home() {
                             <p className="text-[10px] text-slate-500 leading-relaxed mt-1 font-medium">
                               Share your private link. Earn <strong>0.02 USDm</strong> on their first completed task and <strong>0.10 USDm</strong> on their first campaign launch!
                             </p>
+                            <div className="mt-2.5 flex items-center">
+                              <button
+                                type="button"
+                                onClick={() => setShowReferralsModal(true)}
+                                className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100 hover:bg-blue-100/50 active:scale-95 transition-all"
+                              >
+                                👥 View Referral Stats & Earnings ({referredUsers.length})
+                              </button>
+                            </div>
                           </div>
                           
                           <div className="flex gap-2">
@@ -6016,6 +6299,88 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* ===== REFERRALS TRACKING MODAL ===== */}
+      {showReferralsModal && (() => {
+        const stats = getReferralStats();
+        return (
+          <div className="fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+            <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 flex flex-col max-h-[85vh] animate-scale-up">
+              {/* Header */}
+              <div className="flex justify-between items-center pb-4 border-b border-slate-100 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">👥</span>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 tracking-tight">Referral Ledger</h3>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Real-time statistics</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowReferralsModal(false)}
+                  className="text-xs font-bold text-slate-400 hover:text-slate-600 bg-slate-50 border border-slate-100 p-1.5 rounded-lg active:scale-95 transition-all"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Total Stats Summary Cards */}
+              <div className="grid grid-cols-2 gap-3 py-4 flex-shrink-0">
+                <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl text-center">
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Total Referrals</span>
+                  <span className="text-xl font-black text-slate-800 mt-1 block">{stats.count}</span>
+                </div>
+                <div className="bg-blue-50/30 border border-blue-100/50 p-3 rounded-2xl text-center">
+                  <span className="text-[9px] text-blue-500 font-bold uppercase tracking-wider block">Referral Earnings</span>
+                  <span className="text-xl font-black text-blue-600 mt-1 block">
+                    {formatCurrencyVal(stats.totalEarnings)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Referred Users List */}
+              <div className="flex-grow overflow-y-auto space-y-3 pr-1 py-1 scrollbar-none min-h-[150px]">
+                {stats.details.length > 0 ? (
+                  stats.details.map((ru, idx) => (
+                    <div key={idx} className="bg-white border border-slate-100 p-3 rounded-2xl space-y-2 shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-mono font-bold text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                          {formatAddress(ru.wallet)}
+                        </span>
+                        <span className="text-xs font-black text-emerald-600">
+                          +{formatCurrencyVal(ru.earned)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                        <span className={`px-2 py-0.5 rounded ${ru.tasksCompleted > 0 ? "bg-blue-50 text-blue-700 border border-blue-100/30" : "bg-slate-50 text-slate-400"}`}>
+                          ✅ Task Done: {ru.tasksCompleted > 0 ? "YES" : "NO"}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded ${ru.hasCreatedCampaign ? "bg-emerald-50 text-emerald-700 border border-emerald-100/30" : "bg-slate-50 text-slate-400"}`}>
+                          🚀 Campaign: {ru.hasCreatedCampaign ? "YES" : "NO"}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-slate-400 text-xs font-semibold">
+                    No referred users yet. Share your link to start earning!
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom Action */}
+              <button
+                type="button"
+                onClick={() => setShowReferralsModal(false)}
+                className="w-full py-3.5 mt-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex-shrink-0"
+              >
+                Close Ledger
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ===== ADMIN DELETE CAMPAIGN CONFIRMATION MODAL ===== */}
       {adminDeleteTaskId && (
