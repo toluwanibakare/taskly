@@ -1647,6 +1647,7 @@ export default function Home() {
       payout_currency: "USDm"
     };
 
+    try {
       await setDoc(doc(db, "tasks", newTask.id), taskData);
 
       // Genesis Creator Badge & Referral Reward Logic
