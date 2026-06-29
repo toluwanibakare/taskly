@@ -1151,7 +1151,15 @@ export default function Home() {
           });
         } else {
           const uData = docSnap.data();
-          if (uData.refCode) {
+          if (!uData.refCode) {
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            let generatedCode = "";
+            for (let i = 0; i < 6; i++) {
+              generatedCode += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            await updateDoc(userDocRef, { refCode: generatedCode });
+            localStorage.setItem("my_generated_ref_code", generatedCode);
+          } else {
             localStorage.setItem("my_generated_ref_code", uData.refCode);
           }
         }
@@ -3518,7 +3526,7 @@ export default function Home() {
                                     </div>
                                   </div>
                                   {pendingSubmissions > 0 && (
-                                    <span className="px-2 py-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full">
+                                    <span className="px-2 py-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full flex-shrink-0 whitespace-nowrap">
                                       {pendingSubmissions} new
                                     </span>
                                   )}
@@ -4257,10 +4265,10 @@ export default function Home() {
                               1. Copy your private referral link from your <strong>Profile</strong> page.
                             </p>
                             <p>
-                              2. Earn <strong>0.02 USDm</strong> when your referred friend completes their first approved task.
+                              2. Referrer Reward: Earn <strong>0.02 USDm</strong> when your referred friend completes their first approved task, and <strong>0.10 USDm</strong> when they launch their first campaign!
                             </p>
                             <p>
-                              3. Earn <strong>0.10 USDm</strong> when your referred friend funds and launches their first campaign!
+                              3. Invited Friend Reward: The referred user gets a <strong>0.02 USDm</strong> bonus on their first approved task, and a <strong>0.05 USDm</strong> cashback bonus on their first campaign launch!
                             </p>
                           </div>
                         )}
