@@ -959,6 +959,8 @@ export default function Home() {
   const [referredUsers, setReferredUsers] = useState<any[]>([]);
   const [showReferralsModal, setShowReferralsModal] = useState(false);
   const [historySubScreen, setHistorySubScreen] = useState<"tasks" | "ledger">("tasks");
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmountInput, setWithdrawAmountInput] = useState<number>(1.00);
 
   useEffect(() => {
     setVisitedLink(false);
