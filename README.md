@@ -6,11 +6,16 @@ To enable accessibility for non-crypto users, Taskly integrates Naira (NGN) fiat
 
 ## Features
 
-- Smart Contract Escrow: Secure campaign funding and worker payouts using the TasklyEscrow solidity contract.
-- Automated Fiat In-Ramp: Seamless Naira deposits via Korapay that automatically trigger on-chain USDm campaign funding.
-- Mobile Web Optimized: Designed for responsive mobile use, including integrated support for Opera MiniPay containers.
-- Gas Fee Optimization: Off-chain reward accrual with batch withdrawals to minimize network gas costs for workers.
-- Manual Wallet Connections: Support for paste-in Celo addresses allowing earners without injected Web3 browser extensions to complete tasks and receive payouts.
+- **Smart Contract Escrow:** Secure campaign funding and worker payouts using the TasklyEscrow Solidity contract on Celo Mainnet.
+- **Gamification System:** Engaging reputation tracking featuring:
+  - **XP & Levels:** Every user starts at 500 XP. Earn +10 XP on approvals, lose -10 XP on rejections. A 24-hour lockout triggers at 3 consecutive rejections or <200 XP.
+  - **Achievement Badges:** 6 distinct platform visual accomplishments (e.g. *Genesis Creator*, *Speed Run*, *Sold Out*).
+  - **Daily Streaks (🔥):** Daily task completion counter to incentivize earner retention.
+- **Short Referral Links:** Invite-and-earn system using short, private 6-character referral links. Referrers earn 0.02 USDm when referred users complete their first task and 0.10 USDm when referred creators launch a campaign.
+- **Automated Fiat In-Ramp:** Seamless Naira deposits via Korapay that automatically trigger on-chain USDm campaign funding.
+- **Mobile Web Optimized:** Designed for responsive mobile use, including integrated support for Opera MiniPay containers.
+- **Gas Fee Optimization:** Off-chain reward accrual with batch withdrawals to minimize network gas costs for workers.
+- **Manual Wallet Connections:** Support for paste-in Celo addresses allowing earners without injected Web3 browser extensions to complete tasks and receive payouts.
 
 ## Tech Stack and Tools
 

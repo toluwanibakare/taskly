@@ -449,6 +449,72 @@ const ACTION_PROOF_PRESETS: Record<string, string[]> = {
   github_follow: ["Screenshot showing the 'Unfollow' button on the profile", "Your GitHub username"]
 };
 
+const BADGES_METADATA: Record<string, { name: string; description: string; icon: (color: string) => React.ReactNode }> = {
+  genesis_creator: {
+    name: "Genesis Creator",
+    description: "First non-admin user to launch a campaign on Celo Mainnet",
+    icon: (color: string) => (
+      <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#DBEAFE"} />
+        <path d="M32 16L40 28H24L32 16Z" fill={color === "gray" ? "#94A3B8" : "#2563EB"} />
+        <circle cx="32" cy="40" r="8" fill={color === "gray" ? "#64748B" : "#3B82F6"} />
+      </svg>
+    )
+  },
+  sold_out: {
+    name: "Sold Out",
+    description: "First creator to get all slots filled in a campaign",
+    icon: (color: string) => (
+      <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#D1FAE5"} />
+        <path d="M18 32L28 42L46 22" stroke={color === "gray" ? "#94A3B8" : "#059669"} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  },
+  task_machine: {
+    name: "Task Machine",
+    description: "Complete 20 tasks in a single day",
+    icon: (color: string) => (
+      <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#FCE7F3"} />
+        <path d="M32 16V48M16 32H48" stroke={color === "gray" ? "#94A3B8" : "#DB2777"} strokeWidth="6" strokeLinecap="round" />
+        <circle cx="32" cy="32" r="12" fill={color === "gray" ? "#64748B" : "#EC4899"} />
+      </svg>
+    )
+  },
+  speed_run: {
+    name: "Speed Run",
+    description: "Submit proof within 3 minutes of opening a task",
+    icon: (color: string) => (
+      <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#FEF3C7"} />
+        <circle cx="32" cy="32" r="16" stroke={color === "gray" ? "#94A3B8" : "#D97706"} strokeWidth="4" />
+        <path d="M32 20V32L40 36" stroke={color === "gray" ? "#64748B" : "#F59E0B"} strokeWidth="4" strokeLinecap="round" />
+      </svg>
+    )
+  },
+  pioneer_earner: {
+    name: "Pioneer Earner",
+    description: "Reach a total earnings of 10.00 USDm",
+    icon: (color: string) => (
+      <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#F3E8FF"} />
+        <path d="M32 16L36.5 27H48L39 34L42 45L32 38L22 45L25 34L16 27H27.5L32 16Z" fill={color === "gray" ? "#94A3B8" : "#7C3AED"} />
+      </svg>
+    )
+  },
+  first_payout: {
+    name: "First Withdraw",
+    description: "First worker to request and complete a payout withdrawal",
+    icon: (color: string) => (
+      <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#FFF7ED"} />
+        <path d="M22 40V24H42V40M18 20H46M32 28V36M28 32H36" stroke={color === "gray" ? "#94A3B8" : "#EA580C"} strokeWidth="4" strokeLinecap="round" />
+      </svg>
+    )
+  }
+};
+
 const PLATFORM_ESCROW_WALLET = process.env.NEXT_PUBLIC_ADMIN_WALLET || "0xe6B3794191523dE54A03A685FDd786B313b1788C";
 const PLATFORM_FEE_PERCENTAGE = 2; // 2% platform fee
 
@@ -600,6 +666,17 @@ export default function Home() {
   // "home" | "history" | "profile" | "about"
   const [activeTab, setActiveTab] = useState<"home" | "history" | "profile" | "about">("home");
 
+  // Capture referral code from URL query parameters
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("r");
+      if (ref) {
+        localStorage.setItem("taskly_referrer_code", ref);
+      }
+    }
+  }, []);
+
   // Profile Sub-Screen for Creator Dashboard
   // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-withdrawals"
   const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals">("profile-main");
@@ -726,6 +803,7 @@ export default function Home() {
 
   // Firestore user balance and withdrawals
   const [dbUserBalance, setDbUserBalance] = useState<number>(0);
+  const [dbUserProfile, setDbUserProfile] = useState<any>(null);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
 
   // Format amount based on user currency preference
@@ -776,6 +854,7 @@ export default function Home() {
   const [disputeReasonInput, setDisputeReasonInput] = useState<string>("");
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const [visitedLink, setVisitedLink] = useState(false);
+  const [showBadgesModal, setShowBadgesModal] = useState(false);
 
   useEffect(() => {
     setVisitedLink(false);
@@ -919,18 +998,47 @@ export default function Home() {
   useEffect(() => {
     if (activeAddress) {
       const userDocRef = doc(db, "users", activeAddress);
-      getDoc(userDocRef).then((docSnap) => {
+      getDoc(userDocRef).then(async (docSnap) => {
         if (!docSnap.exists()) {
-          setDoc(userDocRef, {
+          // Check local storage for referral code
+          const storedRefCode = localStorage.getItem("taskly_referrer_code");
+          let referredBy = null;
+
+          if (storedRefCode) {
+            try {
+              const usersSnap = await getDocs(collection(db, "users"));
+              const referrerDoc = usersSnap.docs.find(d => d.data().refCode === storedRefCode);
+              if (referrerDoc) {
+                referredBy = referrerDoc.data().wallet_address;
+              }
+            } catch (e) {
+              console.error("Referrer lookup failed:", e);
+            }
+          }
+
+          // Generate a random 6-character code
+          const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+          let generatedCode = "";
+          for (let i = 0; i < 6; i++) {
+            generatedCode += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+
+          await setDoc(userDocRef, {
             wallet_address: activeAddress,
             total_earnings: 0,
             tasks_completed: 0,
             total_submissions: 0,
+            xp: 500,
+            streakCount: 0,
+            consecutiveRejections: 0,
+            badges: {},
+            refCode: generatedCode,
+            referredBy: referredBy || null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
-          }).catch((err) => console.error("Error creating user doc:", err));
+          });
         }
-      }).catch((err) => console.error("Error getting user doc:", err));
+      }).catch((err) => console.error("Error creating/getting user doc:", err));
     }
   }, [activeAddress]);
 
@@ -1067,14 +1175,35 @@ export default function Home() {
   useEffect(() => {
     if (!activeAddress) {
       setDbUserBalance(0);
+      setDbUserProfile(null);
       return;
     }
     const userDocRef = doc(db, "users", activeAddress);
-    const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
+    const unsubscribeUser = onSnapshot(userDocRef, async (docSnap) => {
       if (docSnap.exists()) {
-        setDbUserBalance(docSnap.data().balance || 0);
+        const uData = docSnap.data();
+        setDbUserBalance(uData.balance || 0);
+
+        // Check if suspended, and if the lock period has expired (auto XP boost/reset)
+        if (uData.lockUntil) {
+          const lockTime = new Date(uData.lockUntil).getTime();
+          if (Date.now() >= lockTime) {
+            const oldXp = uData.xp || 500;
+            const newXp = Math.max(350, oldXp + 50);
+            await updateDoc(userDocRef, {
+              lockUntil: null,
+              consecutiveRejections: 0,
+              xp: newXp,
+              updated_at: new Date().toISOString()
+            });
+            return;
+          }
+        }
+
+        setDbUserProfile(uData);
       } else {
         setDbUserBalance(0);
+        setDbUserProfile(null);
       }
     });
     return () => unsubscribeUser();
@@ -1127,10 +1256,32 @@ export default function Home() {
             });
 
             if (tk) {
+              const newSlotsRemaining = Math.max(0, tk.slotsRemaining - 1);
               await updateDoc(taskRef, {
-                slots_remaining: Math.max(0, tk.slotsRemaining - 1),
+                slots_remaining: newSlotsRemaining,
                 updated_at: new Date().toISOString()
               });
+              if (newSlotsRemaining === 0) {
+                const creatorWallet = tk.createdByWallet;
+                if (creatorWallet) {
+                  const creatorUserRef = doc(db, "users", creatorWallet.toLowerCase());
+                  const creatorSnap = await getDoc(creatorUserRef);
+                  if (creatorSnap.exists()) {
+                    const cData = creatorSnap.data();
+                    const currentBadges = cData.badges || {};
+                    if (!currentBadges.sold_out) {
+                      const tasksSnap = await getDocs(collection(db, "tasks"));
+                      const soldOutNonAdminTasks = tasksSnap.docs.filter(
+                        (d) => d.data().slots_remaining === 0 && d.id !== tk.id && d.data().createdByWallet?.toLowerCase() !== PLATFORM_ESCROW_WALLET.toLowerCase()
+                      );
+                      if (soldOutNonAdminTasks.length === 0) {
+                        currentBadges.sold_out = new Date().toISOString();
+                        await updateDoc(creatorUserRef, { badges: currentBadges });
+                      }
+                    }
+                  }
+                }
+              }
             }
 
             if (payoutVal > 0) {
@@ -1157,6 +1308,7 @@ export default function Home() {
               }, { merge: true });
             });
 
+            await updateWorkerGamification(sub.workerAddress, true, sub.date);
           } catch (err) {
             console.error(`Auto-approval failed for submission ${sub.id}:`, err);
           }
@@ -1495,8 +1647,58 @@ export default function Home() {
       payout_currency: "USDm"
     };
 
-    try {
       await setDoc(doc(db, "tasks", newTask.id), taskData);
+
+      // Genesis Creator Badge & Referral Reward Logic
+      try {
+        if (activeAddress) {
+          const userDocRef = doc(db, "users", activeAddress.toLowerCase());
+          const userSnap = await getDoc(userDocRef);
+          
+          if (userSnap.exists()) {
+            const uData = userSnap.data();
+            const tasksSnap = await getDocs(collection(db, "tasks"));
+            
+            // 1. Genesis Creator Badge Check
+            if (activeAddress.toLowerCase() !== PLATFORM_ESCROW_WALLET.toLowerCase()) {
+              const nonAdminTasks = tasksSnap.docs.filter(
+                (d) => d.data().createdByWallet?.toLowerCase() !== PLATFORM_ESCROW_WALLET.toLowerCase() && d.id !== newTask.id
+              );
+              if (nonAdminTasks.length === 0) {
+                const currentBadges = uData.badges || {};
+                if (!currentBadges.genesis_creator) {
+                  currentBadges.genesis_creator = new Date().toISOString();
+                  await updateDoc(userDocRef, { badges: currentBadges });
+                }
+              }
+            }
+
+            // 2. Referral Payout Check (First task launch)
+            if (uData.referredBy) {
+              const advertiserTasks = tasksSnap.docs.filter(
+                (d) => d.data().createdByWallet?.toLowerCase() === activeAddress.toLowerCase() && d.id !== newTask.id
+              );
+              if (advertiserTasks.length === 0) {
+                const referrerRef = doc(db, "users", uData.referredBy.toLowerCase());
+                await runTransaction(db, async (trans) => {
+                  const refSnap = await trans.get(referrerRef);
+                  if (refSnap.exists()) {
+                    const refBalance = refSnap.data().balance || 0;
+                    const refEarnings = refSnap.data().total_earnings || 0;
+                    trans.set(referrerRef, {
+                      balance: parseFloat((refBalance + 0.10).toFixed(2)),
+                      total_earnings: parseFloat((refEarnings + 0.10).toFixed(2)),
+                      updated_at: new Date().toISOString()
+                    }, { merge: true });
+                  }
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error in Genesis/Referral checks on task creation:", err);
+      }
 
       await setDoc(doc(db, "payments", `pay-${newTask.id}-${Date.now()}`), {
         task_id: newTask.id,
@@ -1654,10 +1856,32 @@ export default function Home() {
       });
 
       if (tk) {
+        const newSlotsRemaining = Math.max(0, tk.slotsRemaining - 1);
         await updateDoc(taskRef, {
-          slots_remaining: Math.max(0, tk.slotsRemaining - 1),
+          slots_remaining: newSlotsRemaining,
           updated_at: new Date().toISOString()
         });
+        if (newSlotsRemaining === 0) {
+          const creatorWallet = tk.createdByWallet;
+          if (creatorWallet) {
+            const creatorUserRef = doc(db, "users", creatorWallet.toLowerCase());
+            const creatorSnap = await getDoc(creatorUserRef);
+            if (creatorSnap.exists()) {
+              const cData = creatorSnap.data();
+              const currentBadges = cData.badges || {};
+              if (!currentBadges.sold_out) {
+                const tasksSnap = await getDocs(collection(db, "tasks"));
+                const soldOutNonAdminTasks = tasksSnap.docs.filter(
+                  (d) => d.data().slots_remaining === 0 && d.id !== tk.id && d.data().createdByWallet?.toLowerCase() !== PLATFORM_ESCROW_WALLET.toLowerCase()
+                );
+                if (soldOutNonAdminTasks.length === 0) {
+                  currentBadges.sold_out = new Date().toISOString();
+                  await updateDoc(creatorUserRef, { badges: currentBadges });
+                }
+              }
+            }
+          }
+        }
       }
 
       if (payoutVal > 0) {
@@ -1687,6 +1911,7 @@ export default function Home() {
               updated_at: new Date().toISOString()
             }, { merge: true });
           });
+          await updateWorkerGamification(workerWallet, true, subDocSnap.data().date);
         }
       }
 
@@ -1727,6 +1952,10 @@ export default function Home() {
   const handleRejectSubmission = async (subId: string, category: string, reason: string) => {
     try {
       const subRef = doc(db, "submissions", subId);
+      const subDocSnap = await getDoc(subRef);
+      if (!subDocSnap.exists()) return;
+      const workerWallet = subDocSnap.data().wallet_address;
+
       await updateDoc(subRef, {
         status: "rejected",
         rejection_category: category,
@@ -1734,6 +1963,11 @@ export default function Home() {
         reviewed_at: new Date().toISOString(),
         reviewer_wallet: wagmiAddress?.toLowerCase() || "unknown"
       });
+
+      if (workerWallet) {
+        await updateWorkerGamification(workerWallet, false, subDocSnap.data().date);
+      }
+
       setRejectingSubId(null);
       setRejectingTaskId(null);
     } catch (err) {
@@ -1755,6 +1989,139 @@ export default function Home() {
       alert("Your dispute has been logged successfully. The platform administrator will verify the details.");
     } catch (err) {
       console.error("Firestore dispute submission failed:", err);
+    }
+  };
+
+  const handleSelectTask = (task: Task) => {
+    setSelectedTask(task);
+    if (activeAddress) {
+      localStorage.setItem(`opened_task_${activeAddress.toLowerCase()}`, Date.now().toString());
+    }
+    setScreen("task-details");
+  };
+
+  const updateWorkerGamification = async (workerWallet: string, isApproval: boolean, submissionTime: string) => {
+    try {
+      const workerRef = doc(db, "users", workerWallet.toLowerCase());
+      await runTransaction(db, async (transaction) => {
+        const workerSnap = await transaction.get(workerRef);
+        if (!workerSnap.exists()) return;
+
+        const data = workerSnap.data();
+        let xp = data.xp !== undefined ? data.xp : 500;
+        let consecutiveRejections = data.consecutiveRejections !== undefined ? data.consecutiveRejections : 0;
+        let streakCount = data.streakCount !== undefined ? data.streakCount : 0;
+        let lastCompletedDate = data.lastCompletedDate || "";
+        let lockUntil = data.lockUntil || null;
+        let totalEarnings = data.total_earnings || 0;
+        let balance = data.balance || 0;
+        let tasksCompleted = data.tasks_completed || 0;
+        const badges = data.badges || {};
+
+        if (isApproval) {
+          xp += 10;
+          consecutiveRejections = 0;
+
+          // Streak update logic
+          const todayStr = new Date().toISOString().split('T')[0];
+          if (lastCompletedDate) {
+            const lastDate = new Date(lastCompletedDate);
+            const todayDate = new Date(todayStr);
+            const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 1) {
+              streakCount += 1;
+            } else if (diffDays > 1) {
+              streakCount = 1;
+            }
+          } else {
+            streakCount = 1;
+          }
+          lastCompletedDate = todayStr;
+
+          // Check speed_run badge
+          const openedKey = `opened_task_${workerWallet.toLowerCase()}`;
+          const openedAtStr = typeof window !== "undefined" ? localStorage.getItem(openedKey) : null;
+          if (openedAtStr) {
+            const openedTime = parseInt(openedAtStr, 10);
+            const subTime = new Date(submissionTime).getTime();
+            if (subTime - openedTime < 3 * 60 * 1000 && !badges.speed_run) {
+              badges.speed_run = new Date().toISOString();
+            }
+            if (typeof window !== "undefined") {
+              localStorage.removeItem(openedKey);
+            }
+          }
+
+          // Check task machine badge (20 tasks completed in a day)
+          const todayDateStr = new Date().toISOString().split('T')[0];
+          let completedToday = data.completedTodayCount || 0;
+          let completedTodayDate = data.completedTodayDate || "";
+          if (completedTodayDate === todayDateStr) {
+            completedToday += 1;
+          } else {
+            completedToday = 1;
+            completedTodayDate = todayDateStr;
+          }
+          if (completedToday >= 20 && !badges.task_machine) {
+            badges.task_machine = new Date().toISOString();
+          }
+
+          // Check Pioneer Earner (total_earnings >= 10.0)
+          if (totalEarnings >= 10.0 && !badges.pioneer_earner) {
+            badges.pioneer_earner = new Date().toISOString();
+          }
+
+          // Referral Reward: If worker completed their first task (tasksCompleted was 0 prior to this one, so tasksCompleted + 1 = 1)
+          if (tasksCompleted === 0 && data.referredBy) {
+            const referrerRef = doc(db, "users", data.referredBy.toLowerCase());
+            const referrerSnap = await transaction.get(referrerRef);
+            if (referrerSnap.exists()) {
+              const refBalance = referrerSnap.data().balance || 0;
+              const refEarnings = referrerSnap.data().total_earnings || 0;
+              transaction.set(referrerRef, {
+                balance: parseFloat((refBalance + 0.02).toFixed(2)),
+                total_earnings: parseFloat((refEarnings + 0.02).toFixed(2)),
+                updated_at: new Date().toISOString()
+              }, { merge: true });
+            }
+          }
+
+          transaction.set(workerRef, {
+            xp,
+            consecutiveRejections,
+            streakCount,
+            lastCompletedDate,
+            completedTodayCount: completedToday,
+            completedTodayDate,
+            badges,
+            updated_at: new Date().toISOString()
+          }, { merge: true });
+
+        } else {
+          // Rejection logic
+          xp = Math.max(0, xp - 10);
+          consecutiveRejections += 1;
+
+          if (consecutiveRejections >= 3) {
+            lockUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+          }
+
+          if (xp < 200) {
+            lockUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+          }
+
+          transaction.set(workerRef, {
+            xp,
+            consecutiveRejections,
+            lockUntil,
+            updated_at: new Date().toISOString()
+          }, { merge: true });
+        }
+      });
+    } catch (e) {
+      console.error("Error updating worker gamification stats:", e);
     }
   };
 
@@ -2263,8 +2630,7 @@ export default function Home() {
                             setActiveTab("profile");
                             setProfileSubScreen("manage-submissions");
                           } else {
-                            setSelectedTask(task);
-                            setScreen("task-details");
+                            handleSelectTask(task);
                           }
                         })}
                         className="bg-white p-5 rounded-2xl border border-slate-100/80 shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300 group cursor-pointer relative overflow-hidden"
@@ -2336,8 +2702,7 @@ export default function Home() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleAuthAction(() => {
-                                  setSelectedTask(task);
-                                  setScreen("task-details");
+                                  handleSelectTask(task);
                                 });
                               }}
                               className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all"
@@ -2561,6 +2926,84 @@ export default function Home() {
                                 Logout
                               </button>
                             )}
+                          </div>
+                        </div>
+
+                        {/* XP, Level, Streaks and Badges Card */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 animate-fade-in">
+                          {/* Level & Streak Row */}
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg">
+                                Level {Math.floor((dbUserProfile?.xp || 500) / 100)}
+                              </span>
+                              <span className="text-[11px] text-slate-500 font-semibold">
+                                {dbUserProfile?.xp || 500} XP
+                              </span>
+                            </div>
+                            
+                            {/* Streak count (Snapchat style fire emoji) */}
+                            {dbUserProfile?.streakCount > 0 && (
+                              <div className="flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-600 rounded-lg text-xs font-black animate-pulse">
+                                <span>🔥</span>
+                                <span>{dbUserProfile.streakCount} Day Streak</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Level Progress Bar */}
+                          <div className="space-y-1">
+                            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-gradient-to-r from-blue-600 to-emerald-500 rounded-full transition-all duration-500"
+                                style={{ width: `${(dbUserProfile?.xp || 500) % 100}%` }}
+                              />
+                            </div>
+                            <div className="flex justify-between text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                              <span>Next Level</span>
+                              <span>{100 - ((dbUserProfile?.xp || 500) % 100)} XP to go</span>
+                            </div>
+                          </div>
+
+                          {/* Achievements Badges Trigger Button */}
+                          <button
+                            type="button"
+                            onClick={() => setShowBadgesModal(true)}
+                            className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 active:scale-95 text-slate-800 rounded-xl text-xs font-bold transition-all border border-slate-100 flex items-center justify-center gap-2"
+                          >
+                            <span>🏆</span>
+                            View Achievements & Badges
+                          </button>
+                        </div>
+
+                        {/* Referral Link Card */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3 animate-fade-in">
+                          <div>
+                            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
+                              Invite & Earn Stablecoins
+                            </span>
+                            <p className="text-[10px] text-slate-500 leading-relaxed mt-1 font-medium">
+                              Share your private link. Earn <strong>0.02 USDm</strong> on their first completed task and <strong>0.10 USDm</strong> on their first campaign launch!
+                            </p>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <div className="flex-1 bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-100 text-xs font-mono text-slate-600 select-all overflow-x-auto whitespace-nowrap scrollbar-none">
+                              {typeof window !== "undefined" ? `${window.location.origin}/?r=${dbUserProfile?.refCode || ""}` : `/?r=${dbUserProfile?.refCode || ""}`}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (typeof window !== "undefined") {
+                                  const link = `${window.location.origin}/?r=${dbUserProfile?.refCode || ""}`;
+                                  navigator.clipboard.writeText(link);
+                                  alert("Referral link copied to clipboard!");
+                                }
+                              }}
+                              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm"
+                            >
+                              Copy Link
+                            </button>
                           </div>
                         </div>
 
@@ -3625,6 +4068,87 @@ export default function Home() {
                           </div>
                         )}
                       </div>
+
+                      {/* Accordion Item 6 */}
+                      <div className="border border-slate-100 rounded-2xl bg-white overflow-hidden shadow-sm transition-all">
+                        <button
+                          onClick={() => setOpenAccordion(openAccordion === "xp-level" ? null : "xp-level")}
+                          className="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-xs text-slate-800 hover:bg-slate-50 transition-colors focus:outline-none"
+                        >
+                          <span>⭐ How do XP & Levels work?</span>
+                          <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${openAccordion === "xp-level" ? "rotate-90 text-blue-500" : ""}`} />
+                        </button>
+                        {openAccordion === "xp-level" && (
+                          <div className="px-5 pb-4 text-[11px] leading-relaxed text-slate-600 border-t border-slate-50 pt-3 space-y-2">
+                            <p>
+                              Taskly uses an **XP (Experience Points)** reputation score to verify quality work:
+                            </p>
+                            <p>
+                              1. Every new user starts with **500 XP** (Level 5).
+                            </p>
+                            <p>
+                              2. Each approved submission grants you **+10 XP**. Each rejected submission deducts **-10 XP**.
+                            </p>
+                            <p>
+                              3. **Suspension warning:** If you get **3 rejections in a row**, or your total XP drops below **200 XP**, your account is temporarily locked for **24 hours**. 
+                            </p>
+                            <p>
+                              4. Once the 24-hour cool-down expires, your XP is boosted back up to **350 XP** for a fresh start!
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Accordion Item 7 */}
+                      <div className="border border-slate-100 rounded-2xl bg-white overflow-hidden shadow-sm transition-all">
+                        <button
+                          onClick={() => setOpenAccordion(openAccordion === "refer-earn" ? null : "refer-earn")}
+                          className="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-xs text-slate-800 hover:bg-slate-50 transition-colors focus:outline-none"
+                        >
+                          <span>🎁 How does the Invite & Earn program work?</span>
+                          <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${openAccordion === "refer-earn" ? "rotate-90 text-blue-500" : ""}`} />
+                        </button>
+                        {openAccordion === "refer-earn" && (
+                          <div className="px-5 pb-4 text-[11px] leading-relaxed text-slate-600 border-t border-slate-50 pt-3 space-y-2">
+                            <p>
+                              You can earn extra passive stablecoins by inviting friends to Taskly:
+                            </p>
+                            <p>
+                              1. Copy your private referral link from your **Profile** page.
+                            </p>
+                            <p>
+                              2. Earn **0.02 USDm** when your referred friend completes their first approved task.
+                            </p>
+                            <p>
+                              3. Earn **0.10 USDm** when your referred friend funds and launches their first campaign!
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Accordion Item 8 */}
+                      <div className="border border-slate-100 rounded-2xl bg-white overflow-hidden shadow-sm transition-all">
+                        <button
+                          onClick={() => setOpenAccordion(openAccordion === "badges-streaks" ? null : "badges-streaks")}
+                          className="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-xs text-slate-800 hover:bg-slate-50 transition-colors focus:outline-none"
+                        >
+                          <span>🏆 What are Achievement Badges & Streaks?</span>
+                          <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${openAccordion === "badges-streaks" ? "rotate-90 text-blue-500" : ""}`} />
+                        </button>
+                        {openAccordion === "badges-streaks" && (
+                          <div className="px-5 pb-4 text-[11px] leading-relaxed text-slate-600 border-t border-slate-50 pt-3 space-y-2">
+                            <p>
+                              Showcase your dedication with visual credentials on your profile:
+                            </p>
+                            <p>
+                              * **Daily Streaks (🔥):** Completing tasks on consecutive days increases your streak counter. Don't miss a day or the fire reset!
+                            </p>
+                            <p>
+                              * **Achievement Badges (🏆):** Collect 6 unique visual achievements (such as *Genesis Creator*, *Speed Run*, or *Sold Out*). Acquired achievements light up in vibrant colors, while locked achievements remain in grayscale.
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
@@ -3814,47 +4338,55 @@ export default function Home() {
 
           {/* Action Footer */}
           <div className="p-4 bg-white border-t border-slate-100 flex flex-col gap-3">
-            {selectedTask.createdByWallet?.toLowerCase() === wagmiAddress?.toLowerCase() ? (
-              <div className="w-full py-3.5 bg-slate-100 text-slate-400 rounded-xl text-xs font-bold text-center border border-slate-200 flex items-center justify-center">
-                You created this task
-              </div>
-            ) : (
-              <div className="w-full space-y-2">
-                {/* Step 1: Visit Link */}
-                {selectedTask.link !== "#" && (
-                  <a
-                    href={selectedTask.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setVisitedLink(true)}
-                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    1. Visit Campaign Link
-                  </a>
-                )}
+            {(() => {
+              const isSuspended = !!(dbUserProfile && dbUserProfile.lockUntil && new Date(dbUserProfile.lockUntil).getTime() > Date.now());
+              return selectedTask.createdByWallet?.toLowerCase() === wagmiAddress?.toLowerCase() ? (
+                <div className="w-full py-3.5 bg-slate-100 text-slate-400 rounded-xl text-xs font-bold text-center border border-slate-200 flex items-center justify-center">
+                  You created this task
+                </div>
+              ) : (
+                <div className="w-full space-y-2">
+                  {/* Step 1: Visit Link */}
+                  {selectedTask.link !== "#" && (
+                    <a
+                      href={selectedTask.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setVisitedLink(true)}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      1. Visit Campaign Link
+                    </a>
+                  )}
 
-                {/* Step 2: Proceed to Submission */}
-                <button
-                  disabled={!visitedLink && selectedTask.link !== "#"}
-                  onClick={() => handleAuthAction(() => setScreen("submit-proof"))}
-                  className={`w-full py-3 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 ${
-                    visitedLink || selectedTask.link === "#"
-                      ? "bg-slate-900 text-white hover:bg-slate-800 active:scale-95"
-                      : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
-                  }`}
-                >
-                  2. Proceed to Submission
-                </button>
-                
-                {/* Hint Text */}
-                {!visitedLink && selectedTask.link !== "#" && (
-                  <p className="text-[10px] text-slate-400 font-semibold text-center italic mt-1">
-                    ⚠️ You must visit the campaign link first to unlock proof submission.
-                  </p>
-                )}
-              </div>
-            )}
+                  {/* Step 2: Proceed to Submission */}
+                  <button
+                    disabled={isSuspended || (!visitedLink && selectedTask.link !== "#")}
+                    onClick={() => handleAuthAction(() => setScreen("submit-proof"))}
+                    className={`w-full py-3 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 ${
+                      !isSuspended && (visitedLink || selectedTask.link === "#")
+                        ? "bg-slate-900 text-white hover:bg-slate-800 active:scale-95"
+                        : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+                    }`}
+                  >
+                    2. Proceed to Submission
+                  </button>
+                  
+                  {/* Hint / Warning Text */}
+                  {isSuspended && (
+                    <p className="text-[10px] text-red-500 font-bold text-center mt-1 leading-relaxed">
+                      🚫 Submission locked until {new Date(dbUserProfile.lockUntil).toLocaleString()} due to consecutive rejections or low XP.
+                    </p>
+                  )}
+                  {!isSuspended && !visitedLink && selectedTask.link !== "#" && (
+                    <p className="text-[10px] text-slate-400 font-semibold text-center italic mt-1">
+                      ⚠️ You must visit the campaign link first to unlock proof submission.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -5007,6 +5539,27 @@ export default function Home() {
                             txHash,
                             paidAt: new Date().toISOString()
                           });
+
+                          try {
+                            const withdrawalsSnap = await getDocs(collection(db, "withdrawals"));
+                            const completedWithdrawals = withdrawalsSnap.docs.filter(d => d.data().status === "completed" && d.id !== pendingTxData.withdrawal.id);
+                            if (completedWithdrawals.length === 0) {
+                              const recipientWallet = pendingTxData.withdrawal.wallet_address;
+                              if (recipientWallet) {
+                                const recipientUserRef = doc(db, "users", recipientWallet.toLowerCase());
+                                const recipientSnap = await getDoc(recipientUserRef);
+                                if (recipientSnap.exists()) {
+                                  const currentBadges = recipientSnap.data().badges || {};
+                                  if (!currentBadges.first_payout) {
+                                    currentBadges.first_payout = new Date().toISOString();
+                                    await updateDoc(recipientUserRef, { badges: currentBadges });
+                                  }
+                                }
+                              }
+                            }
+                          } catch (err) {
+                            console.error("Error in first_payout badge award check:", err);
+                          }
                         }
 
                         setActiveTransaction((prev) => prev ? { 
@@ -5197,6 +5750,78 @@ export default function Home() {
                 Submit Dispute
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== BADGES / ACHIEVEMENTS MODAL ===== */}
+      {showBadgesModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 space-y-6 animate-scale-up max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-1.5">
+                  <span>🏆</span> Achievements & Badges
+                </h3>
+                <p className="text-[10px] text-slate-500 font-semibold leading-relaxed font-sans uppercase tracking-wider">
+                  Complete milestones to unlock unique collectible visual proofs!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBadgesModal(false)}
+                className="p-1 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1 space-y-4 scrollbar-thin">
+              {Object.keys(BADGES_METADATA).map((key) => {
+                const badge = BADGES_METADATA[key];
+                const unlockedAt = dbUserProfile?.badges?.[key];
+                const isUnlocked = !!unlockedAt;
+
+                return (
+                  <div 
+                    key={key} 
+                    className={`p-4 rounded-2xl border transition-all flex items-center gap-4 ${
+                      isUnlocked 
+                        ? "bg-slate-50/50 border-slate-200/80 shadow-sm" 
+                        : "bg-white border-slate-100 opacity-60"
+                    }`}
+                  >
+                    {/* Badge Icon */}
+                    <div className="flex-shrink-0">
+                      {badge.icon(isUnlocked ? "color" : "gray")}
+                    </div>
+
+                    {/* Badge Info */}
+                    <div className="flex-1 min-w-0">
+                      <h4 className={`text-xs font-bold ${isUnlocked ? "text-slate-900" : "text-slate-400"}`}>
+                        {badge.name}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 font-medium leading-normal mt-0.5">
+                        {badge.description}
+                      </p>
+                      {isUnlocked && (
+                        <span className="inline-block mt-1 text-[9px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-md font-bold">
+                          🎉 Acquired: {new Date(unlockedAt).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowBadgesModal(false)}
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 mt-2"
+            >
+              Close Window
+            </button>
           </div>
         </div>
       )}
