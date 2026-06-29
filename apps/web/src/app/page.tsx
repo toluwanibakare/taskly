@@ -1690,7 +1690,7 @@ export default function Home() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
 
-    const taskId = doc(collection(db, "tasks")).id;
+    const taskId = (isReopening && reopeningTaskId) ? reopeningTaskId : doc(collection(db, "tasks")).id;
     const newTask: Task = {
       id: taskId,
       platform: createTaskForm.platform,
@@ -1728,10 +1728,12 @@ export default function Home() {
 
         try {
           setPendingTxData({ newTask });
-          await saveNewTask(newTask);
           await updateDoc(doc(db, "tasks", orig.id), {
-            status: "reopened",
-            slots_remaining: 0,
+            status: "active",
+            slots_remaining: slotsValue,
+            total_slots: (orig.slotsTotal || 0) + slotsValue,
+            expires_at: new Date(Date.now() + expiryHours * 3600 * 1000).toISOString(),
+            expiry_hours: expiryHours,
             updated_at: new Date().toISOString()
           });
           
@@ -4802,6 +4804,7 @@ export default function Home() {
                 </label>
                 <select
                   value={createTaskForm.platform}
+                  disabled={isReopening}
                   onChange={(e) => {
                     const nextPlatform = e.target.value as Platform;
                     const actions = PLATFORM_ACTIONS[nextPlatform] || [];
@@ -4812,7 +4815,7 @@ export default function Home() {
                       platform: nextPlatform,
                     }));
                   }}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-slate-400 transition-colors uppercase tracking-wider"
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-slate-400 transition-colors uppercase tracking-wider disabled:opacity-60"
                 >
                   <option value="x">X (Twitter)</option>
                   <option value="instagram">Instagram</option>
@@ -4842,11 +4845,12 @@ export default function Home() {
                           isChecked
                             ? "border-blue-500 bg-blue-50/20 text-blue-900"
                             : "border-slate-100 hover:border-slate-200 text-slate-700"
-                        }`}
+                        } ${isReopening ? "opacity-60 cursor-not-allowed" : ""}`}
                       >
                         <input
                           type="checkbox"
                           checked={isChecked}
+                          disabled={isReopening}
                           onChange={() => {
                             setCheckedActions((prev) => {
                               if (prev.includes(action.value)) {
@@ -4857,7 +4861,7 @@ export default function Home() {
                               }
                             });
                           }}
-                          className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                          className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 disabled:opacity-50"
                         />
                         <div className="flex-1 flex justify-between items-center text-xs">
                           <span className="font-bold">{action.label}</span>
@@ -4881,8 +4885,9 @@ export default function Home() {
                   required
                   placeholder="e.g. Subscribe to YouTube Channel"
                   value={createTaskForm.title}
+                  disabled={isReopening}
                   onChange={(e) => setCreateTaskForm({ ...createTaskForm, title: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400"
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400 disabled:opacity-60"
                 />
               </div>
 
@@ -4895,8 +4900,9 @@ export default function Home() {
                   <div className="flex items-center border border-slate-200 rounded-xl bg-white overflow-hidden px-1">
                     <button
                       type="button"
+                      disabled={isReopening}
                       onClick={() => adjustPayout(-0.01)}
-                      className="px-3.5 py-3.5 hover:bg-slate-50 active:scale-95 transition-all border-r border-slate-100 flex items-center justify-center flex-shrink-0"
+                      className="px-3.5 py-3.5 hover:bg-slate-50 active:scale-95 transition-all border-r border-slate-100 flex items-center justify-center flex-shrink-0 disabled:opacity-50"
                     >
                       <Minus className="w-3.5 h-3.5 text-slate-600" />
                     </button>
@@ -4906,6 +4912,7 @@ export default function Home() {
                         step="0.01"
                         min="0.01"
                         value={payoutInput}
+                        disabled={isReopening}
                         onChange={(e) => {
                           const valStr = e.target.value;
                           setPayoutInput(valStr);
@@ -4919,14 +4926,15 @@ export default function Home() {
                           setPayoutValue(val);
                           setPayoutInput(val.toFixed(2));
                         }}
-                        className="w-full text-center text-xs font-bold focus:outline-none bg-transparent py-3"
+                        className="w-full text-center text-xs font-bold focus:outline-none bg-transparent py-3 disabled:opacity-60"
                       />
                       <span className="text-[10px] font-bold text-slate-400 mr-2 flex-shrink-0">USDm</span>
                     </div>
                     <button
                       type="button"
+                      disabled={isReopening}
                       onClick={() => adjustPayout(0.01)}
-                      className="px-3.5 py-3.5 hover:bg-slate-50 active:scale-95 transition-all border-l border-slate-100 flex items-center justify-center flex-shrink-0"
+                      className="px-3.5 py-3.5 hover:bg-slate-50 active:scale-95 transition-all border-l border-slate-100 flex items-center justify-center flex-shrink-0 disabled:opacity-50"
                     >
                       <Plus className="w-3.5 h-3.5 text-slate-600" />
                     </button>
@@ -5078,10 +5086,11 @@ export default function Home() {
                     createTaskForm.title.toLowerCase().includes("like")
                   )}
                   rows={2}
+                  disabled={isReopening}
                   placeholder="Explain the purpose of this task to workers..."
                   value={createTaskForm.description}
                   onChange={(e) => setCreateTaskForm({ ...createTaskForm, description: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400 resize-none"
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400 resize-none disabled:opacity-60"
                 />
               </div>
 
@@ -5092,10 +5101,11 @@ export default function Home() {
                 </label>
                 <textarea
                   rows={3}
+                  disabled={isReopening}
                   placeholder="e.g. Click link&#10;Follow @example&#10;Screenshot your follow status"
                   value={createTaskForm.instructionsText}
                   onChange={(e) => setCreateTaskForm({ ...createTaskForm, instructionsText: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400 resize-none"
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400 resize-none disabled:opacity-60"
                 />
               </div>
 
@@ -5116,7 +5126,8 @@ export default function Home() {
                       setCreateTaskForm({ ...createTaskForm, proofRequirements: val });
                     }
                   }}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-slate-400 transition-colors"
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-slate-400 transition-colors disabled:opacity-60"
+                  disabled={isReopening}
                 >
                   {(() => {
                     const presets = getProofPresetOptions(createTaskForm.platform, checkedActions);
@@ -5144,8 +5155,9 @@ export default function Home() {
                   required
                   placeholder="e.g. Screenshot showing following status"
                   value={createTaskForm.proofRequirements}
+                  disabled={isReopening}
                   onChange={(e) => setCreateTaskForm({ ...createTaskForm, proofRequirements: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400"
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400 disabled:opacity-60"
                 />
               </div>
 
@@ -5158,8 +5170,9 @@ export default function Home() {
                   type="url"
                   placeholder="https://example.com/target"
                   value={createTaskForm.link}
+                  disabled={isReopening}
                   onChange={(e) => setCreateTaskForm({ ...createTaskForm, link: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400"
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400 disabled:opacity-60"
                 />
               </div>
             </main>
