@@ -6374,7 +6374,6 @@ export default function Home() {
                   </div>
                 )}
               </div>
-
               {/* Bottom Action */}
               <button
                 type="button"
@@ -6387,6 +6386,108 @@ export default function Home() {
           </div>
         );
       })()}
+
+      {/* ===== CUSTOM WITHDRAWAL MODAL ===== */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+          <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 flex flex-col space-y-5 animate-scale-up">
+            {/* Header */}
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-slate-900 text-white rounded-lg">
+                  <Wallet className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 tracking-tight">Withdraw Earnings</h3>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Connected: {formatAddress(wagmiAddress)}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWithdrawModal(false)}
+                className="text-xs font-bold text-slate-400 hover:text-slate-600 bg-slate-50 border border-slate-100 p-1.5 rounded-lg active:scale-95 transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Input Amount Display & Max Button */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Withdrawal Amount (USDm)
+              </label>
+              <div className="flex items-center border border-slate-200 rounded-2xl bg-white overflow-hidden p-1.5 gap-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  min={1.00}
+                  max={dbUserBalance}
+                  value={withdrawAmountInput}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setWithdrawAmountInput(Math.min(dbUserBalance, val));
+                  }}
+                  className="flex-1 px-3 py-2 bg-transparent text-sm font-black text-slate-900 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setWithdrawAmountInput(dbUserBalance)}
+                  className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 text-xs font-bold rounded-xl active:scale-95 transition-all"
+                >
+                  MAX
+                </button>
+              </div>
+            </div>
+
+            {/* Slider (Lever) */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                <span>Min: 1.00 USDm</span>
+                <span>Max: {dbUserBalance.toFixed(2)} USDm</span>
+              </div>
+              <input
+                type="range"
+                min={1.00}
+                max={Math.max(1.00, dbUserBalance)}
+                step={0.01}
+                value={withdrawAmountInput}
+                onChange={(e) => setWithdrawAmountInput(parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+            </div>
+
+            {/* Warning / Notes */}
+            <p className="text-[9px] text-slate-400 leading-normal font-semibold">
+              Payouts are processed off-chain from our secure escrow multi-sig onto Celo. Requests usually resolve in under 24 hours.
+            </p>
+
+            {/* Submit Action */}
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowWithdrawModal(false)}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (withdrawAmountInput < 1.00) {
+                    alert("Minimum withdrawal is 1.00 USDm.");
+                    return;
+                  }
+                  await handleRequestWithdrawal(withdrawAmountInput);
+                  setShowWithdrawModal(false);
+                }}
+                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+              >
+                Withdraw
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== ADMIN DELETE CAMPAIGN CONFIRMATION MODAL ===== */}
       {adminDeleteTaskId && (
