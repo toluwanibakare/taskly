@@ -53,7 +53,8 @@ import {
   Undo2,
   RefreshCw,
   LogOut,
-  TrendingUp
+  TrendingUp,
+  Receipt
 } from "lucide-react";
 
 // Platform Type definition
@@ -3097,9 +3098,10 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => setHistorySubScreen("ledger")}
-                          className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100/50 rounded-xl text-[10px] font-extrabold flex items-center gap-1 active:scale-95 transition-all"
+                          className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100/50 rounded-xl text-[10px] font-extrabold flex items-center gap-1.5 active:scale-95 transition-all"
                         >
-                          📊 Transaction Ledger
+                          <Receipt className="w-3.5 h-3.5" />
+                          Transactions
                         </button>
                       )}
                     </div>
@@ -3239,7 +3241,7 @@ export default function Home() {
                   </button>
                   <div>
                     <h2 className="text-xl font-bold text-slate-900 tracking-tight font-sans">
-                      Transaction Ledger
+                      Transactions
                     </h2>
                     <span className="text-xs text-slate-400 font-semibold block">Full cash-flow breakdown</span>
                   </div>
@@ -3283,7 +3285,7 @@ export default function Home() {
                                 <div className={`p-2.5 rounded-xl flex items-center justify-center flex-shrink-0 ${
                                   item.type === "inflow" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50/70 text-rose-600"
                                 }`}>
-                                  {item.type === "inflow" ? "📈" : "📉"}
+                                  <Receipt className="w-4 h-4" />
                                 </div>
                                 <div className="min-w-0">
                                   <h4 className="text-xs font-black text-slate-900 truncate">
@@ -3461,7 +3463,7 @@ export default function Home() {
                                 onClick={() => setShowReferralsModal(true)}
                                 className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100 hover:bg-blue-100/50 active:scale-95 transition-all"
                               >
-                                👥 View Referral Stats & Earnings ({referredUsers.length})
+                                View Referral Stats & Earnings ({referredUsers.length})
                               </button>
                             </div>
                           </div>
@@ -6309,9 +6311,8 @@ export default function Home() {
               {/* Header */}
               <div className="flex justify-between items-center pb-4 border-b border-slate-100 flex-shrink-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">👥</span>
                   <div>
-                    <h3 className="text-sm font-black text-slate-900 tracking-tight">Referral Ledger</h3>
+                    <h3 className="text-sm font-black text-slate-900 tracking-tight">Referrals</h3>
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Real-time statistics</span>
                   </div>
                 </div>
@@ -6354,10 +6355,10 @@ export default function Home() {
                       
                       <div className="flex gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-wider">
                         <span className={`px-2 py-0.5 rounded ${ru.tasksCompleted > 0 ? "bg-blue-50 text-blue-700 border border-blue-100/30" : "bg-slate-50 text-slate-400"}`}>
-                          ✅ Task Done: {ru.tasksCompleted > 0 ? "YES" : "NO"}
+                          Task Done: {ru.tasksCompleted > 0 ? "YES" : "NO"}
                         </span>
                         <span className={`px-2 py-0.5 rounded ${ru.hasCreatedCampaign ? "bg-emerald-50 text-emerald-700 border border-emerald-100/30" : "bg-slate-50 text-slate-400"}`}>
-                          🚀 Campaign: {ru.hasCreatedCampaign ? "YES" : "NO"}
+                          Campaign: {ru.hasCreatedCampaign ? "YES" : "NO"}
                         </span>
                       </div>
                     </div>
