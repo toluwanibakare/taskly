@@ -2697,7 +2697,7 @@ export default function Home() {
               Built by TMB
             </a>
             <span className="text-xs text-slate-300 block mt-1 font-medium">
-              v1.0.0
+              v1.2.1
             </span>
           </div>
         </div>
