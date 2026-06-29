@@ -832,6 +832,42 @@ export default function Home() {
     }
   }, [history, activeAddress]);
 
+  useEffect(() => {
+    if (!activeAddress || !dbUserProfile) return;
+    const streakCount = dbUserProfile.streakCount || 0;
+    const lastCompleted = dbUserProfile.lastCompletedDate || "";
+
+    if (streakCount > 0) {
+      // 1. Check Streak Milestone Celebrations
+      const keyMilestone = `notified_streak_milestone_${activeAddress.toLowerCase()}_${streakCount}`;
+      const alreadyShownMilestone = localStorage.getItem(keyMilestone);
+
+      if (!alreadyShownMilestone) {
+        // Pop up milestone notification
+        setStreakMilestoneNotif(streakCount);
+        localStorage.setItem(keyMilestone, "true");
+      }
+
+      // 2. Check Streak Loss Reminders
+      const todayStr = new Date().toISOString().split("T")[0];
+      if (lastCompleted && lastCompleted !== todayStr) {
+        // Last submission was yesterday or earlier, and they have an active streak. 
+        // Ensure they haven't submitted anything today yet (to keep it alive).
+        const hasSubmissionToday = history.some(sub => sub.date === todayStr);
+        if (!hasSubmissionToday) {
+          // Show the top alert warning banner
+          setShowStreakReminder(true);
+        } else {
+          setShowStreakReminder(false);
+        }
+      } else {
+        setShowStreakReminder(false);
+      }
+    } else {
+      setShowStreakReminder(false);
+    }
+  }, [dbUserProfile, history, activeAddress]);
+
   // Web3 Transaction Overlay state
   interface ActiveTransaction {
     status: "confirm-deposit" | "naira-checkout" | "sending-escrow" | "confirm-release" | "releasing-escrow" | "confirm-refund" | "refunding-escrow" | "confirm-reopen" | "reopening-campaign" | "confirm-withdrawal" | "processing-withdrawal" | "success";
@@ -907,6 +943,8 @@ export default function Home() {
   const [showBadgesModal, setShowBadgesModal] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
   const [pendingNotif, setPendingNotif] = useState<{ title: string; msg: string; type: "success" | "error" } | null>(null);
+  const [showStreakReminder, setShowStreakReminder] = useState(false);
+  const [streakMilestoneNotif, setStreakMilestoneNotif] = useState<number | null>(null);
 
   useEffect(() => {
     setVisitedLink(false);
@@ -2589,6 +2627,22 @@ export default function Home() {
           <header className="h-14 bg-white/80 backdrop-blur-md sticky top-0 z-45 border-b border-slate-100 flex items-center justify-center px-4">
             <TasklyLogo className="w-6 h-6" />
           </header>
+
+          {showStreakReminder && (
+            <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2.5 text-[10px] font-bold flex items-center justify-between shadow-md animate-fade-in z-40 sticky top-14">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="animate-pulse">🔥</span>
+                <span className="truncate">Don't lose your {dbUserProfile?.streakCount}-day streak! Submit a task today.</span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowStreakReminder(false)}
+                className="ml-2 text-white/80 hover:text-white font-extrabold focus:outline-none"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           <main className="flex-1 px-4 pt-6">
             {/* TAB: AVAILABLE TASKS (HOME) */}
@@ -5750,6 +5804,37 @@ export default function Home() {
               className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
             >
               Great, thanks!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== STREAK MILESTONE CELEBRATION MODAL ===== */}
+      {streakMilestoneNotif !== null && (
+        <div className="fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+          <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 text-center space-y-5 animate-scale-up">
+            <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center text-3xl bg-orange-50 border border-orange-100 animate-bounce">
+              🔥
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-sm font-black text-slate-900 tracking-tight uppercase">
+                Streak Milestone Unlocked!
+              </h3>
+              <p className="text-2xl font-black text-orange-600 font-mono">
+                {streakMilestoneNotif} Day Streak
+              </p>
+              <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                Incredible dedication! You have successfully completed tasks on {streakMilestoneNotif} consecutive days. Keep it hot!
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setStreakMilestoneNotif(null)}
+              className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 hover:brightness-105"
+            >
+              Keep Burning!
             </button>
           </div>
         </div>
