@@ -3469,7 +3469,7 @@ export default function Home() {
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="p-2 bg-slate-50 rounded-lg">
-                                    {getPlatformIcon(t.platform, "w-4.5 h-4.5")}
+                                    {getPlatformIcon(t.platform, "w-5 h-5")}
                                   </div>
                                   <div className="flex-grow">
                                     <h3 className="text-xs font-bold text-slate-900 line-clamp-1">{t.title}</h3>
@@ -3857,7 +3857,7 @@ export default function Home() {
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="p-2 bg-slate-50 rounded-lg">
-                                      {getPlatformIcon(t.platform, "w-4.5 h-4.5")}
+                                      {getPlatformIcon(t.platform, "w-5 h-5")}
                                     </div>
                                     <div className="flex-grow">
                                       <h3 className="text-xs font-bold text-slate-900 line-clamp-1">{t.title}</h3>
