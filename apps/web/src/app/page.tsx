@@ -782,6 +782,56 @@ export default function Home() {
       });
   }, [creatorSubmissions, tasks, activeAddress]);
 
+  useEffect(() => {
+    if (!activeAddress || history.length === 0) return;
+    const key = `notified_submissions_${activeAddress.toLowerCase()}`;
+    const stored = localStorage.getItem(key);
+    
+    if (!stored) {
+      // First time connecting: seed current statuses so we only notify on FUTURE changes
+      const seed: Record<string, string> = {};
+      history.forEach((sub) => {
+        seed[sub.id] = sub.status;
+      });
+      localStorage.setItem(key, JSON.stringify(seed));
+      return;
+    }
+
+    try {
+      const notified = JSON.parse(stored);
+      let updated = false;
+
+      for (const sub of history) {
+        const prevStatus = notified[sub.id];
+        
+        if (sub.status !== "pending" && prevStatus !== sub.status) {
+          if (sub.status === "approved") {
+            setPendingNotif({
+              title: sub.taskTitle,
+              msg: "Your submission just got approved! You earned +10 XP.",
+              type: "success"
+            });
+          } else if (sub.status === "rejected") {
+            setPendingNotif({
+              title: sub.taskTitle,
+              msg: "Your submission was rejected. -10 XP.",
+              type: "error"
+            });
+          }
+          notified[sub.id] = sub.status;
+          updated = true;
+          break; // Show one notification at a time to prevent UI cluttering
+        }
+      }
+
+      if (updated) {
+        localStorage.setItem(key, JSON.stringify(notified));
+      }
+    } catch (e) {
+      console.error("Error processing notification check:", e);
+    }
+  }, [history, activeAddress]);
+
   // Web3 Transaction Overlay state
   interface ActiveTransaction {
     status: "confirm-deposit" | "naira-checkout" | "sending-escrow" | "confirm-release" | "releasing-escrow" | "confirm-refund" | "refunding-escrow" | "confirm-reopen" | "reopening-campaign" | "confirm-withdrawal" | "processing-withdrawal" | "success";
@@ -856,6 +906,7 @@ export default function Home() {
   const [visitedLink, setVisitedLink] = useState(false);
   const [showBadgesModal, setShowBadgesModal] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
+  const [pendingNotif, setPendingNotif] = useState<{ title: string; msg: string; type: "success" | "error" } | null>(null);
 
   useEffect(() => {
     setVisitedLink(false);
@@ -2948,7 +2999,7 @@ export default function Home() {
                             {dbUserProfile?.streakCount > 0 && (
                               <div className="flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-600 rounded-lg text-xs font-black animate-pulse">
                                 <span>🔥</span>
-                                <span>{dbUserProfile.streakCount} Day Streak</span>
+                                <span>{dbUserProfile.streakCount}</span>
                               </div>
                             )}
                           </div>
@@ -5667,6 +5718,39 @@ export default function Home() {
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* ===== XP STATUS NOTIFICATION MODAL ===== */}
+      {pendingNotif && (
+        <div className="fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+          <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 text-center space-y-5 animate-scale-up">
+            <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center text-xl bg-slate-50 border border-slate-100">
+              {pendingNotif.type === "success" ? "🎉" : "⚠️"}
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-sm font-black text-slate-900 tracking-tight uppercase">
+                {pendingNotif.type === "success" ? "Submission Approved!" : "Submission Rejected"}
+              </h3>
+              <p className="text-xs text-slate-500 font-bold font-mono px-2 py-1 bg-slate-50 rounded-lg inline-block max-w-full truncate">
+                {pendingNotif.title}
+              </p>
+              <p className={`text-xs font-semibold leading-relaxed ${
+                pendingNotif.type === "success" ? "text-emerald-600" : "text-rose-600"
+              }`}>
+                {pendingNotif.msg}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setPendingNotif(null)}
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+            >
+              Great, thanks!
+            </button>
           </div>
         </div>
       )}
