@@ -832,41 +832,6 @@ export default function Home() {
     }
   }, [history, activeAddress]);
 
-  useEffect(() => {
-    if (!activeAddress || !dbUserProfile) return;
-    const streakCount = dbUserProfile.streakCount || 0;
-    const lastCompleted = dbUserProfile.lastCompletedDate || "";
-
-    if (streakCount > 0) {
-      // 1. Check Streak Milestone Celebrations
-      const keyMilestone = `notified_streak_milestone_${activeAddress.toLowerCase()}_${streakCount}`;
-      const alreadyShownMilestone = localStorage.getItem(keyMilestone);
-
-      if (!alreadyShownMilestone) {
-        // Pop up milestone notification
-        setStreakMilestoneNotif(streakCount);
-        localStorage.setItem(keyMilestone, "true");
-      }
-
-      // 2. Check Streak Loss Reminders
-      const todayStr = new Date().toISOString().split("T")[0];
-      if (lastCompleted && lastCompleted !== todayStr) {
-        // Last submission was yesterday or earlier, and they have an active streak. 
-        // Ensure they haven't submitted anything today yet (to keep it alive).
-        const hasSubmissionToday = history.some(sub => sub.date === todayStr);
-        if (!hasSubmissionToday) {
-          // Show the top alert warning banner
-          setShowStreakReminder(true);
-        } else {
-          setShowStreakReminder(false);
-        }
-      } else {
-        setShowStreakReminder(false);
-      }
-    } else {
-      setShowStreakReminder(false);
-    }
-  }, [dbUserProfile, history, activeAddress]);
 
   // Web3 Transaction Overlay state
   interface ActiveTransaction {
@@ -912,6 +877,42 @@ export default function Home() {
 
   // Checked checklist actions for the selected platform
   const [checkedActions, setCheckedActions] = useState<string[]>(["follow"]);
+
+  useEffect(() => {
+    if (!activeAddress || !dbUserProfile) return;
+    const streakCount = dbUserProfile.streakCount || 0;
+    const lastCompleted = dbUserProfile.lastCompletedDate || "";
+
+    if (streakCount > 0) {
+      // 1. Check Streak Milestone Celebrations
+      const keyMilestone = `notified_streak_milestone_${activeAddress.toLowerCase()}_${streakCount}`;
+      const alreadyShownMilestone = localStorage.getItem(keyMilestone);
+
+      if (!alreadyShownMilestone) {
+        // Pop up milestone notification
+        setStreakMilestoneNotif(streakCount);
+        localStorage.setItem(keyMilestone, "true");
+      }
+
+      // 2. Check Streak Loss Reminders
+      const todayStr = new Date().toISOString().split("T")[0];
+      if (lastCompleted && lastCompleted !== todayStr) {
+        // Last submission was yesterday or earlier, and they have an active streak. 
+        // Ensure they haven't submitted anything today yet (to keep it alive).
+        const hasSubmissionToday = history.some(sub => sub.date === todayStr);
+        if (!hasSubmissionToday) {
+          // Show the top alert warning banner
+          setShowStreakReminder(true);
+        } else {
+          setShowStreakReminder(false);
+        }
+      } else {
+        setShowStreakReminder(false);
+      }
+    } else {
+      setShowStreakReminder(false);
+    }
+  }, [dbUserProfile, history, activeAddress]);
 
   // Helper to compute combined base price of selected actions
   const getBasePrice = (platform: Platform, checked: string[]) => {
