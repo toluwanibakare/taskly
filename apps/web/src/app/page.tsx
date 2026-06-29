@@ -953,6 +953,7 @@ export default function Home() {
   const [showStreakReminder, setShowStreakReminder] = useState(false);
   const [streakMilestoneNotif, setStreakMilestoneNotif] = useState<number | null>(null);
   const [showReferralWelcome, setShowReferralWelcome] = useState(false);
+  const [adminDeleteTaskId, setAdminDeleteTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     setVisitedLink(false);
@@ -3996,7 +3997,7 @@ export default function Home() {
                                       
                                       <button
                                         type="button"
-                                        onClick={() => handleDeleteCampaign(t.id)}
+                                        onClick={() => setAdminDeleteTaskId(t.id)}
                                         className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100/50 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-1"
                                       >
                                         Delete Campaign
@@ -6012,6 +6013,51 @@ export default function Home() {
             >
               Let's Earn!
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== ADMIN DELETE CAMPAIGN CONFIRMATION MODAL ===== */}
+      {adminDeleteTaskId && (
+        <div className="fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+          <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 text-center space-y-5 animate-scale-up">
+            <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center text-xl bg-rose-50 border border-rose-100 text-rose-600">
+              ⚠️
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-sm font-black text-slate-950 tracking-tight uppercase">
+                Delete Campaign?
+              </h3>
+              <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                Are you sure you want to delete this campaign? This action is permanent, will erase it from Firestore, and cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setAdminDeleteTaskId(null)}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await deleteDoc(doc(db, "tasks", adminDeleteTaskId));
+                    alert("Campaign deleted successfully from Firestore.");
+                  } catch (err: any) {
+                    alert("Failed to delete campaign: " + err.message);
+                  }
+                  setAdminDeleteTaskId(null);
+                }}
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+              >
+                Confirm Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
