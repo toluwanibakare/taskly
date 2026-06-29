@@ -3252,9 +3252,9 @@ export default function Home() {
                   const ledger = getTransactionLedger();
                   return (
                     <>
-                      <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-5 grid grid-cols-3 gap-4 text-center">
+                      <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-5 grid grid-cols-2 gap-4 text-center">
                         <div className="space-y-1">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Total Inflow</span>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Total Earnings</span>
                           <span className="text-xs font-black text-emerald-600">
                             +{formatCurrencyVal(ledger.totalInflow)}
                           </span>
@@ -3263,12 +3263,6 @@ export default function Home() {
                           <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Total Outflow</span>
                           <span className="text-xs font-black text-rose-600">
                             -{formatCurrencyVal(ledger.totalOutflow)}
-                          </span>
-                        </div>
-                        <div className="space-y-1 border-l border-slate-100">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Net Balance</span>
-                          <span className={`text-xs font-black ${ledger.netBalance >= 0 ? "text-blue-600" : "text-rose-600"}`}>
-                            {ledger.netBalance >= 0 ? "+" : ""}{formatCurrencyVal(ledger.netBalance)}
                           </span>
                         </div>
                       </div>
