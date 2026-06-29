@@ -452,7 +452,7 @@ const ACTION_PROOF_PRESETS: Record<string, string[]> = {
 const BADGES_METADATA: Record<string, { name: string; description: string; icon: (color: string) => React.ReactNode }> = {
   genesis_creator: {
     name: "Genesis Creator",
-    description: "First non-admin user to launch a campaign on Celo Mainnet",
+    description: "First user to launch a campaign on Celo Mainnet",
     icon: (color: string) => (
       <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#DBEAFE"} />
@@ -855,6 +855,7 @@ export default function Home() {
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const [visitedLink, setVisitedLink] = useState(false);
   const [showBadgesModal, setShowBadgesModal] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
 
   useEffect(() => {
     setVisitedLink(false);
@@ -2998,12 +2999,15 @@ export default function Home() {
                                 if (typeof window !== "undefined") {
                                   const link = `${window.location.origin}/?r=${dbUserProfile?.refCode || ""}`;
                                   navigator.clipboard.writeText(link);
-                                  alert("Referral link copied to clipboard!");
+                                  setCopiedRef(true);
+                                  setTimeout(() => setCopiedRef(false), 2000);
                                 }
                               }}
-                              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm"
+                              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm ${
+                                copiedRef ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"
+                              }`}
                             >
-                              Copy Link
+                              {copiedRef ? "Copied!" : "Copy Link"}
                             </button>
                           </div>
                         </div>
@@ -4082,19 +4086,19 @@ export default function Home() {
                         {openAccordion === "xp-level" && (
                           <div className="px-5 pb-4 text-[11px] leading-relaxed text-slate-600 border-t border-slate-50 pt-3 space-y-2">
                             <p>
-                              Taskly uses an **XP (Experience Points)** reputation score to verify quality work:
+                              Taskly uses an <strong>XP (Experience Points)</strong> reputation score to verify quality work:
                             </p>
                             <p>
-                              1. Every new user starts with **500 XP** (Level 5).
+                              1. Every new user starts with <strong>500 XP</strong> (Level 5).
                             </p>
                             <p>
-                              2. Each approved submission grants you **+10 XP**. Each rejected submission deducts **-10 XP**.
+                              2. Each approved submission grants you <strong>+10 XP</strong>. Each rejected submission deducts <strong>-10 XP</strong>.
                             </p>
                             <p>
-                              3. **Suspension warning:** If you get **3 rejections in a row**, or your total XP drops below **200 XP**, your account is temporarily locked for **24 hours**. 
+                              3. <strong>Suspension warning:</strong> If you get <strong>3 rejections in a row</strong>, or your total XP drops below <strong>200 XP</strong>, your account is temporarily locked for <strong>24 hours</strong>. 
                             </p>
                             <p>
-                              4. Once the 24-hour cool-down expires, your XP is boosted back up to **350 XP** for a fresh start!
+                              4. Once the 24-hour cool-down expires, your XP is boosted back up to <strong>350 XP</strong> for a fresh start!
                             </p>
                           </div>
                         )}
@@ -4115,13 +4119,13 @@ export default function Home() {
                               You can earn extra passive stablecoins by inviting friends to Taskly:
                             </p>
                             <p>
-                              1. Copy your private referral link from your **Profile** page.
+                              1. Copy your private referral link from your <strong>Profile</strong> page.
                             </p>
                             <p>
-                              2. Earn **0.02 USDm** when your referred friend completes their first approved task.
+                              2. Earn <strong>0.02 USDm</strong> when your referred friend completes their first approved task.
                             </p>
                             <p>
-                              3. Earn **0.10 USDm** when your referred friend funds and launches their first campaign!
+                              3. Earn <strong>0.10 USDm</strong> when your referred friend funds and launches their first campaign!
                             </p>
                           </div>
                         )}
@@ -4142,10 +4146,10 @@ export default function Home() {
                               Showcase your dedication with visual credentials on your profile:
                             </p>
                             <p>
-                              * **Daily Streaks (🔥):** Completing tasks on consecutive days increases your streak counter. Don't miss a day or the fire reset!
+                              • <strong>Daily Streaks (🔥):</strong> Completing tasks on consecutive days increases your streak counter. Don't miss a day or the fire resets!
                             </p>
                             <p>
-                              * **Achievement Badges (🏆):** Collect 6 unique visual achievements (such as *Genesis Creator*, *Speed Run*, or *Sold Out*). Acquired achievements light up in vibrant colors, while locked achievements remain in grayscale.
+                              • <strong>Achievement Badges (🏆):</strong> Collect 6 unique visual achievements (such as <strong>Genesis Creator</strong>, <strong>Speed Run</strong>, or <strong>Sold Out</strong>). Acquired achievements light up in vibrant colors, while locked achievements remain in grayscale.
                             </p>
                           </div>
                         )}
@@ -4154,26 +4158,54 @@ export default function Home() {
                   </div>
                   
                   {/* Telegram Community & Support Invitation */}
-                  <div className="bg-sky-50/50 border border-sky-100/50 rounded-2xl p-4 text-center space-y-3">
-                    <p className="text-xs font-bold text-sky-900 leading-relaxed">
-                      Join our Telegram channel or contact support directly if you need assistance!
-                    </p>
-                    <div className="flex flex-col gap-2">
+                  <div className="bg-white border border-slate-100 rounded-2xl p-5 text-center space-y-4 shadow-sm">
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                        Connect & Get Support
+                      </h4>
+                      <p className="text-[10px] text-slate-500 font-medium">
+                        Join our updates channel, ask questions, or follow our social handle!
+                      </p>
+                    </div>
+                    
+                    <div className="flex justify-center items-center gap-4">
+                      {/* Telegram Updates */}
                       <a
                         href="https://t.me/taskly_updates"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                        className="w-10 h-10 bg-sky-50 text-sky-600 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-sky-100/50 shadow-sm"
+                        title="Telegram Updates"
                       >
-                        Join Telegram Channel
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15.82-1.07 4.8-1.55 7.15-.2.95-.55 1.27-.88 1.3-.73.07-1.29-.48-2-.95-1.12-.74-1.75-1.19-2.83-1.9-1.25-.82-.44-1.28.27-2.02.19-.19 3.42-3.13 3.48-3.4.01-.03.01-.15-.06-.21s-.18-.04-.26-.02c-.11.02-1.88 1.19-5.32 3.52-.5.35-.96.52-1.37.51-.45-.01-1.32-.26-1.97-.47-.8-.26-1.43-.4-1.37-.85.03-.23.35-.47.95-.71 3.71-1.61 6.19-2.67 7.42-3.18 3.52-1.46 4.25-1.71 4.73-1.72.11 0 .35.03.5.16.13.11.17.26.18.37.01.08.02.26.01.43z"/>
+                        </svg>
                       </a>
+
+                      {/* WhatsApp Support Chat */}
                       <a
                         href="https://wa.me/12272143646"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                        className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-emerald-100/50 shadow-sm"
+                        title="WhatsApp Support"
                       >
-                        Contact Support
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01C17.18 3.03 14.69 2 12.04 2zm5.8 14.17c-.24.68-1.2 1.23-1.66 1.28-.46.05-.91.07-2.93-.72-2.58-1.02-4.24-3.65-4.37-3.82-.13-.17-1.07-1.43-1.07-2.73 0-1.3.68-1.94.92-2.2.24-.26.54-.33.72-.33h.52c.16 0 .37-.02.57.45.2.49.68 1.66.74 1.79.06.13.1.28.02.44s-.12.26-.24.4l-.4.49c-.12.15-.26.31-.11.57.15.26.68 1.12 1.46 1.81.99.88 1.83 1.15 2.09 1.28.26.13.41.11.57-.07.16-.18.68-.79.86-1.06.18-.27.36-.23.6-.14s1.53.72 1.79.85c.26.13.43.2.49.31.06.11.06.63-.18 1.31z"/>
+                        </svg>
+                      </a>
+
+                      {/* X / Twitter Support */}
+                      <a
+                        href="https://x.com/taskly_app"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-10 h-10 bg-slate-50 text-slate-800 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-slate-100/50 shadow-sm"
+                        title="Follow X Handle"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
                       </a>
                     </div>
                   </div>
