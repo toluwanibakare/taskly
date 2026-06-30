@@ -1465,9 +1465,12 @@ export default function Home() {
 
   // Alert popup triggers for contest registration on app load
   useEffect(() => {
-    if (!activeAddress || !contestConfig || contestConfig.status === "idle") return;
+    if (!activeAddress || !contestConfig || contestConfig.status === "idle") {
+      setShowContestPopup(false);
+      return;
+    }
     if (dbUserProfile && !dbUserProfile.contestRegistered) {
-      const dismissed = sessionStorage.getItem("taskly_contest_alert_dismissed");
+      const dismissed = sessionStorage.getItem(`taskly_contest_${contestConfig.status}_dismissed`);
       if (!dismissed) {
         setShowContestPopup(true);
       }
@@ -2780,7 +2783,9 @@ try {
         updated_at: new Date().toISOString()
       });
       setShowContestPopup(false);
-      sessionStorage.setItem("taskly_contest_alert_dismissed", "true");
+      if (contestConfig) {
+        sessionStorage.setItem(`taskly_contest_${contestConfig.status}_dismissed`, "true");
+      }
       alert("🎉 You are successfully registered for the Referral Contest! Start referring to earn bounties!");
     } catch (err: any) {
       console.error("Failed to register for contest:", err);
@@ -6862,7 +6867,7 @@ try {
                 type="button"
                 onClick={() => {
                   setShowContestPopup(false);
-                  sessionStorage.setItem("taskly_contest_alert_dismissed", "true");
+                  sessionStorage.setItem(`taskly_contest_${contestConfig.status}_dismissed`, "true");
                 }}
                 className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all active:scale-95"
               >
