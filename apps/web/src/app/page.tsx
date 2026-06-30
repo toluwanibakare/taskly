@@ -3592,29 +3592,53 @@ try {
                         </div>
 
                         {/* Wallet Balance Card */}
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
-                          <div>
-                            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
-                              Withdrawable Balance
-                            </span>
-                            <span className="text-2xl font-black text-slate-950 block mt-1">
-                              {formatCurrency(`${dbUserBalance.toFixed(2)} USDm`)}
-                            </span>
-                          </div>
-                          
-                          <button
-                            type="button"
-                            onClick={handleRequestWithdrawal}
-                            disabled={dbUserBalance < 1.00}
-                            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 ${
-                              dbUserBalance >= 1.00 
-                                ? "bg-slate-900 text-white hover:bg-slate-800" 
-                                : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
-                            }`}
-                          >
-                            Withdraw Earnings
-                          </button>
-                        </div>
+                        {(() => {
+                          const totalEarningsNum = parseFloat(stats.earnings.split(" ")[0]) || 0;
+                          const isWithdrawableUnlocked = totalEarningsNum >= 1.00;
+                          const displayedWithdrawableBalance = isWithdrawableUnlocked ? dbUserBalance : 0.00;
+                          const canWithdraw = isWithdrawableUnlocked && dbUserBalance >= 1.00;
+
+                          return (
+                            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
+                                    Withdrawable Balance
+                                  </span>
+                                  <span className="text-2xl font-black text-slate-950 block mt-1">
+                                    {formatCurrency(`${displayedWithdrawableBalance.toFixed(2)} USDm`)}
+                                  </span>
+                                </div>
+                                
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setWithdrawAmountInput(1.00);
+                                    setShowWithdrawModal(true);
+                                  }}
+                                  disabled={!canWithdraw}
+                                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 ${
+                                    canWithdraw 
+                                      ? "bg-slate-900 text-white hover:bg-slate-800" 
+                                      : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                                  }`}
+                                >
+                                  Withdraw Earnings
+                                </button>
+                              </div>
+                              {!isWithdrawableUnlocked && (
+                                <p className="text-[10px] text-amber-600 font-bold bg-amber-50/50 border border-amber-100/50 p-2.5 rounded-xl leading-normal">
+                                  ⚠️ Withdrawable amount is locked at 0.00 USDm until your total platform earnings reach 1.00 USDm. Keep earning to unlock withdrawals!
+                                </p>
+                              )}
+                              {isWithdrawableUnlocked && dbUserBalance < 1.00 && (
+                                <p className="text-[10px] text-slate-500 font-semibold bg-slate-50 border border-slate-100 p-2.5 rounded-xl leading-normal">
+                                  ℹ️ Minimum withdrawal amount is 1.00 USDm. Earn more tasks or referrals to build your withdrawable balance.
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 gap-4">
