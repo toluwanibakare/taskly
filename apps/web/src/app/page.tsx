@@ -3750,15 +3750,16 @@ try {
                           {/* Contest Box */}
                           {contestConfig && contestConfig.status !== "idle" && (
                             <div className="border-t border-slate-100 pt-3 mt-1.5 space-y-3.5">
-                              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 space-y-2">
+                              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 space-y-3">
                                 <div className="flex justify-between items-start">
                                   <div>
                                     <span className="text-[10px] font-black text-slate-800 uppercase tracking-wide block">
                                       🏆 {contestConfig.status === "coming_soon" ? "Referral Contest Coming Soon" : "Active Referral Contest"}
                                     </span>
-                                    <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                      Prize Pool: {contestConfig.prizePool} USDm Bounty
-                                    </span>
+                                    <div className="flex flex-col gap-0.5 mt-1 font-semibold text-[9px] text-slate-400">
+                                      <span>Prize Pool: {contestConfig.prizePool} USDm Bounty</span>
+                                      <span>Registered Slots: {contestLeaderboard.length} users</span>
+                                    </div>
                                   </div>
                                   {contestConfig.status === "active" && (
                                     <span className="px-2.5 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[8px] font-black uppercase tracking-wider">
@@ -3787,6 +3788,16 @@ try {
                                     Join Contest
                                   </button>
                                 )}
+
+                                {/* Contest Rules */}
+                                <div className="border-t border-slate-200/60 pt-2.5 space-y-1.5">
+                                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-wide block">Contest Rules:</span>
+                                  <ul className="text-[8.5px] text-slate-500 font-semibold list-disc list-inside space-y-1 leading-normal">
+                                    <li>Top 4 referrers split the {contestConfig.prizePool} USDm bounty pool equally (${(contestConfig.prizePool / 4).toFixed(2)} USDm each).</li>
+                                    <li>Only referrals completed after the contest starts count toward your score.</li>
+                                    <li>Earn +0.02 USDm for task completions, and +0.10 USDm for campaign creations by invitees.</li>
+                                  </ul>
+                                </div>
                               </div>
 
                               {/* Contest Leaderboard */}
