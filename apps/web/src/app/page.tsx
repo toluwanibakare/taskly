@@ -54,7 +54,8 @@ import {
   RefreshCw,
   LogOut,
   TrendingUp,
-  Receipt
+  Receipt,
+  Trophy
 } from "lucide-react";
 
 // Platform Type definition
@@ -686,8 +687,8 @@ export default function Home() {
   }, []);
 
   // Profile Sub-Screen for Creator Dashboard
-  // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-withdrawals"
-  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals">("profile-main");
+  // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-withdrawals" | "admin-contest"
+  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest">("profile-main");
 
   // Selected task for Details and Submission
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -963,6 +964,11 @@ export default function Home() {
   const [historySubScreen, setHistorySubScreen] = useState<"tasks" | "ledger">("tasks");
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmountInput, setWithdrawAmountInput] = useState<number>(1.00);
+  const [contestConfig, setContestConfig] = useState<{ status: "idle" | "coming_soon" | "active"; startTime: string | null; endTime: string | null; prizePool: number; winnersCount: number; durationDays: number } | null>(null);
+  const [contestLeaderboard, setContestLeaderboard] = useState<any[]>([]);
+  const [showContestPopup, setShowContestPopup] = useState(false);
+  const [adminContestPrize, setAdminContestPrize] = useState(20);
+  const [adminContestDuration, setAdminContestDuration] = useState(7);
 
   useEffect(() => {
     setVisitedLink(false);
@@ -1417,6 +1423,56 @@ export default function Home() {
     });
     return () => unsubscribeReferred();
   }, [activeAddress]);
+
+  // Real-time synchronization of global Referral Contest configuration
+  useEffect(() => {
+    const docRef = doc(db, "metadata", "referral_contest");
+    const unsubscribeContest = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as any;
+        setContestConfig(data);
+      } else {
+        setContestConfig({
+          status: "idle",
+          startTime: null,
+          endTime: null,
+          prizePool: 20,
+          winnersCount: 4,
+          durationDays: 7
+        });
+      }
+    });
+    return () => unsubscribeContest();
+  }, []);
+
+  // Real-time synchronization of contest leaderboard participants
+  useEffect(() => {
+    if (!contestConfig || contestConfig.status === "idle") {
+      setContestLeaderboard([]);
+      return;
+    }
+    const q = query(collection(db, "users"), where("contestRegistered", "==", true));
+    const unsubscribeLeaderboard = onSnapshot(q, (snapshot) => {
+      const participants: any[] = [];
+      snapshot.forEach((docSnap) => {
+        participants.push(docSnap.data());
+      });
+      participants.sort((a, b) => (b.contestReferralEarnings || 0) - (a.contestReferralEarnings || 0));
+      setContestLeaderboard(participants);
+    });
+    return () => unsubscribeLeaderboard();
+  }, [contestConfig]);
+
+  // Alert popup triggers for contest registration on app load
+  useEffect(() => {
+    if (!activeAddress || !contestConfig || contestConfig.status === "idle") return;
+    if (dbUserProfile && !dbUserProfile.contestRegistered) {
+      const dismissed = sessionStorage.getItem("taskly_contest_alert_dismissed");
+      if (!dismissed) {
+        setShowContestPopup(true);
+      }
+    }
+  }, [activeAddress, contestConfig, dbUserProfile]);
 
   // Dynamic helper to compute referral statistics
   const getReferralStats = () => {
@@ -2095,11 +2151,28 @@ export default function Home() {
                   if (refSnap.exists()) {
                     const refBalance = refSnap.data().balance || 0;
                     const refEarnings = refSnap.data().total_earnings || 0;
-                    trans.set(referrerRef, {
+
+                    const contestConfigRef = doc(db, "metadata", "referral_contest");
+                    const contestConfigSnap = await trans.get(contestConfigRef);
+                    let incrementContestEarnings = false;
+                    if (contestConfigSnap.exists()) {
+                      const cData = contestConfigSnap.data();
+                      if (cData.status === "active" && refSnap.data().contestRegistered) {
+                        incrementContestEarnings = true;
+                      }
+                    }
+
+                    const updatePayload: any = {
                       balance: parseFloat((refBalance + 0.10).toFixed(2)),
                       total_earnings: parseFloat((refEarnings + 0.10).toFixed(2)),
                       updated_at: new Date().toISOString()
-                    }, { merge: true });
+                    };
+                    if (incrementContestEarnings) {
+                      const currentContestEarnings = refSnap.data().contestReferralEarnings || 0;
+                      updatePayload.contestReferralEarnings = parseFloat((currentContestEarnings + 0.10).toFixed(2));
+                    }
+
+                    trans.set(referrerRef, updatePayload, { merge: true });
                   }
                 });
               }
@@ -2529,11 +2602,28 @@ try {
             if (referrerSnap.exists()) {
               const refBalance = referrerSnap.data().balance || 0;
               const refEarnings = referrerSnap.data().total_earnings || 0;
-              transaction.set(referrerRef, {
+
+              const contestConfigRef = doc(db, "metadata", "referral_contest");
+              const contestConfigSnap = await transaction.get(contestConfigRef);
+              let incrementContestEarnings = false;
+              if (contestConfigSnap.exists()) {
+                const cData = contestConfigSnap.data();
+                if (cData.status === "active" && referrerSnap.data().contestRegistered) {
+                  incrementContestEarnings = true;
+                }
+              }
+
+              const updatePayload: any = {
                 balance: parseFloat((refBalance + 0.02).toFixed(2)),
                 total_earnings: parseFloat((refEarnings + 0.02).toFixed(2)),
                 updated_at: new Date().toISOString()
-              }, { merge: true });
+              };
+              if (incrementContestEarnings) {
+                const currentContestEarnings = referrerSnap.data().contestReferralEarnings || 0;
+                updatePayload.contestReferralEarnings = parseFloat((currentContestEarnings + 0.02).toFixed(2));
+              }
+
+              transaction.set(referrerRef, updatePayload, { merge: true });
             }
           }
 
@@ -2673,6 +2763,68 @@ try {
     } catch (err: any) {
       console.error("Withdrawal request failed:", err);
       alert("Failed to submit withdrawal request: " + err.message);
+    }
+  };
+
+  // Worker Action: Register/Join active Referral Contest
+  const handleRegisterForContest = async () => {
+    if (!activeAddress) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+    try {
+      const userRef = doc(db, "users", activeAddress.toLowerCase());
+      await updateDoc(userRef, {
+        contestRegistered: true,
+        contestReferralEarnings: 0,
+        updated_at: new Date().toISOString()
+      });
+      setShowContestPopup(false);
+      sessionStorage.setItem("taskly_contest_alert_dismissed", "true");
+      alert("🎉 You are successfully registered for the Referral Contest! Start referring to earn bounties!");
+    } catch (err: any) {
+      console.error("Failed to register for contest:", err);
+      alert("Registration failed: " + err.message);
+    }
+  };
+
+  // Admin Action: Update global Referral Contest settings & status
+  const handleUpdateContestConfig = async (status: "idle" | "coming_soon" | "active") => {
+    try {
+      const docRef = doc(db, "metadata", "referral_contest");
+      let startTime = null;
+      let endTime = null;
+
+      if (status === "active") {
+        startTime = new Date().toISOString();
+        endTime = new Date(Date.now() + adminContestDuration * 24 * 60 * 60 * 1000).toISOString();
+      }
+
+      await setDoc(docRef, {
+        status,
+        startTime,
+        endTime,
+        prizePool: adminContestPrize,
+        winnersCount: 4,
+        durationDays: adminContestDuration
+      }, { merge: true });
+
+      // If turning off/resetting, clear contest status on users
+      if (status === "idle") {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const batchPromises = usersSnap.docs
+          .filter(d => d.data().contestRegistered || d.data().contestReferralEarnings)
+          .map(d => updateDoc(doc(db, "users", d.id), {
+            contestRegistered: false,
+            contestReferralEarnings: 0
+          }));
+        await Promise.all(batchPromises);
+      }
+
+      alert(`Referral Contest status successfully updated to: ${status.toUpperCase()}`);
+    } catch (err: any) {
+      console.error("Failed to update contest:", err);
+      alert("Failed to update contest: " + err.message);
     }
   };
 
@@ -3589,6 +3741,93 @@ try {
                               View Referral Stats & Earnings ({referredUsers.length})
                             </button>
                           </div>
+
+                          {/* Contest Box */}
+                          {contestConfig && contestConfig.status !== "idle" && (
+                            <div className="border-t border-slate-100 pt-3 mt-1.5 space-y-3.5">
+                              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 space-y-2">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-wide block">
+                                      🏆 {contestConfig.status === "coming_soon" ? "Referral Contest Coming Soon" : "Active Referral Contest"}
+                                    </span>
+                                    <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
+                                      Prize Pool: {contestConfig.prizePool} USDm Bounty
+                                    </span>
+                                  </div>
+                                  {contestConfig.status === "active" && (
+                                    <span className="px-2.5 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[8px] font-black uppercase tracking-wider">
+                                      {(() => {
+                                        if (!contestConfig.endTime) return "";
+                                        const diff = new Date(contestConfig.endTime).getTime() - Date.now();
+                                        if (diff <= 0) return "Ended";
+                                        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                                        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                        return `${days}d ${hours}h left`;
+                                      })()}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {dbUserProfile?.contestRegistered ? (
+                                  <div className="text-[9px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-100/30 p-2 rounded-xl text-center">
+                                    ✓ You are registered for this contest!
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={handleRegisterForContest}
+                                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-bold active:scale-95 transition-all shadow-sm"
+                                  >
+                                    Join Contest
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Contest Leaderboard */}
+                              {contestConfig.status === "active" && (
+                                <div className="space-y-2.5">
+                                  <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                    <span>Leaderboard Ranking</span>
+                                    <span className="text-[8px]">Updates daily at 11:00 PM WAT</span>
+                                  </div>
+
+                                  <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-0.5 scrollbar-none">
+                                    {contestLeaderboard.length > 0 ? (
+                                      contestLeaderboard.slice(0, 10).map((participant, index) => {
+                                        const isCurrentUser = participant.wallet_address?.toLowerCase() === activeAddress?.toLowerCase();
+                                        return (
+                                          <div
+                                            key={participant.wallet_address || index}
+                                            className={`flex items-center justify-between p-2.5 rounded-xl border text-[10px] font-bold ${
+                                              isCurrentUser
+                                                ? "bg-blue-50/40 border-blue-100 text-blue-700"
+                                                : "bg-white border-slate-100 text-slate-700 shadow-sm"
+                                            }`}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-slate-400 font-mono">#{index + 1}</span>
+                                              <span className="font-mono">
+                                                {formatAddress(participant.wallet_address || "")}
+                                                {isCurrentUser && <span className="ml-1 text-[9px] font-sans font-black">(You)</span>}
+                                              </span>
+                                            </div>
+                                            <span className={isCurrentUser ? "text-blue-700" : "text-slate-900"}>
+                                              {formatCurrencyVal(participant.contestReferralEarnings || 0)}
+                                            </span>
+                                          </div>
+                                        );
+                                      })
+                                    ) : (
+                                      <div className="text-center py-6 text-[10px] text-slate-400 font-semibold bg-slate-50 rounded-xl border border-slate-100">
+                                        No participants registered yet.
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Wallet Balance Card */}
@@ -3976,6 +4215,21 @@ try {
                                     <span className="text-xs font-bold text-slate-800">Withdrawals</span>
                                     <span className="text-[9px] text-slate-400 font-medium">
                                       {withdrawals.filter(w => w.status === "pending").length} pending
+                                    </span>
+                                  </button>
+
+                                  {/* Referral Contest */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setProfileSubScreen("admin-contest")}
+                                    className="p-3.5 bg-white border border-slate-100 rounded-xl hover:border-blue-200 hover:bg-blue-50/50 transition-all flex flex-col items-center gap-2 active:scale-95"
+                                  >
+                                    <div className="p-2 bg-blue-50 rounded-lg">
+                                      <Trophy className="w-5 h-5 text-blue-500" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-800">Contest</span>
+                                    <span className="text-[9px] text-slate-400 font-medium">
+                                      {contestConfig ? contestConfig.status.toUpperCase() : "IDLE"}
                                     </span>
                                   </button>
 
@@ -4570,6 +4824,134 @@ try {
                               <p className="text-slate-400 text-xs font-semibold">No withdrawals requested currently</p>
                             </div>
                           )}
+                        </div>
+                      </div>
+                    )}
+                    {/* PROFILE: REFERRAL CONTEST DASHBOARD FOR ADMINISTRATOR */}
+                    {profileSubScreen === "admin-contest" && (
+                      <div className="space-y-6 animate-fade-in">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setProfileSubScreen("profile-main")}
+                            className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                          >
+                            <ArrowLeft className="w-5 h-5 text-slate-800" />
+                          </button>
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900 font-sans">
+                              Referral Contest Settings
+                            </h2>
+                            <span className="text-xs text-slate-400 font-semibold block">
+                              Configure live bounties, duration, and distribute prizes to top referrers
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Config Panel */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                          <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">Configure Contest</h3>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                Prize Pool (USDm)
+                              </label>
+                              <input
+                                type="number"
+                                min={1}
+                                value={adminContestPrize}
+                                onChange={(e) => setAdminContestPrize(parseInt(e.target.value) || 0)}
+                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                Duration (Days)
+                              </label>
+                              <input
+                                type="number"
+                                min={1}
+                                value={adminContestDuration}
+                                onChange={(e) => setAdminContestDuration(parseInt(e.target.value) || 0)}
+                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2.5 pt-2 border-t border-slate-50">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                              Contest Operations (Current Status: <strong className="text-blue-600">{contestConfig?.status.toUpperCase() || "IDLE"}</strong>)
+                            </span>
+                            
+                            <div className="grid grid-cols-3 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateContestConfig("coming_soon")}
+                                className="py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-bold active:scale-95 transition-all shadow-sm"
+                              >
+                                Set Coming Soon
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateContestConfig("active")}
+                                className="py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-bold active:scale-95 transition-all shadow-sm"
+                              >
+                                Start Active
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateContestConfig("idle")}
+                                className="py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 rounded-xl text-[10px] font-bold active:scale-95 transition-all"
+                              >
+                                End & Reset
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Top 4 Winners Distribution Box */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                          <div className="flex justify-between items-center pb-2 border-b border-slate-50">
+                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">Top 4 Winners (Unmasked)</h3>
+                            <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg">
+                              Prizes: 4 x ${(adminContestPrize / 4).toFixed(2)} USDm
+                            </span>
+                          </div>
+
+                          <div className="space-y-3">
+                            {contestLeaderboard.length > 0 ? (
+                              contestLeaderboard.slice(0, 4).map((winner, index) => (
+                                <div key={winner.wallet_address || index} className="bg-slate-50 border border-slate-100 p-3 rounded-2xl flex items-center justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800">
+                                      <span className="text-blue-500 font-mono">#{index + 1}</span>
+                                      <span className="font-mono select-all truncate text-[11px]">
+                                        {winner.wallet_address}
+                                      </span>
+                                    </div>
+                                    <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">
+                                      Earned: {formatCurrencyVal(winner.contestReferralEarnings || 0)}
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(winner.wallet_address);
+                                      alert("Copied wallet address to clipboard!");
+                                    }}
+                                    className="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-blue-200 text-slate-600 hover:text-blue-600 rounded-lg text-[9px] font-bold transition-all"
+                                  >
+                                    Copy
+                                  </button>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-center py-6 text-xs text-slate-400 font-semibold bg-slate-50 rounded-xl border border-slate-100">
+                                No participants in the contest yet.
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -6454,6 +6836,46 @@ try {
             >
               Keep Burning!
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== REFERRAL CONTEST WELCOME MODAL ===== */}
+      {showContestPopup && contestConfig && contestConfig.status !== "idle" && (
+        <div className="fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+          <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 text-center space-y-5 animate-scale-up">
+            <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center text-3xl bg-blue-50 border border-blue-100">
+              🏆
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-sm font-black text-slate-900 tracking-tight uppercase">
+                {contestConfig.status === "coming_soon" ? "Referral Contest Coming Soon!" : "Referral Contest Is Active!"}
+              </h3>
+              <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                Secure your slot today! Stand a chance to earn from the <strong className="text-emerald-600">{contestConfig.prizePool} USDm</strong> bounty pool. Top {contestConfig.winnersCount} referrers get credited at the end!
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowContestPopup(false);
+                  sessionStorage.setItem("taskly_contest_alert_dismissed", "true");
+                }}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all active:scale-95"
+              >
+                Maybe Later
+              </button>
+              <button
+                type="button"
+                onClick={handleRegisterForContest}
+                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+              >
+                Join Contest
+              </button>
+            </div>
           </div>
         </div>
       )}
