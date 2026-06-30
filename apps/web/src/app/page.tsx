@@ -1426,7 +1426,7 @@ export default function Home() {
 
   // Real-time synchronization of global Referral Contest configuration
   useEffect(() => {
-    const docRef = doc(db, "metadata", "referral_contest");
+    const docRef = doc(db, "admin", "referral_contest");
     const unsubscribeContest = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as any;
@@ -2155,7 +2155,7 @@ export default function Home() {
                     const refBalance = refSnap.data().balance || 0;
                     const refEarnings = refSnap.data().total_earnings || 0;
 
-                    const contestConfigRef = doc(db, "metadata", "referral_contest");
+                    const contestConfigRef = doc(db, "admin", "referral_contest");
                     const contestConfigSnap = await trans.get(contestConfigRef);
                     let incrementContestEarnings = false;
                     if (contestConfigSnap.exists()) {
@@ -2606,7 +2606,7 @@ try {
               const refBalance = referrerSnap.data().balance || 0;
               const refEarnings = referrerSnap.data().total_earnings || 0;
 
-              const contestConfigRef = doc(db, "metadata", "referral_contest");
+              const contestConfigRef = doc(db, "admin", "referral_contest");
               const contestConfigSnap = await transaction.get(contestConfigRef);
               let incrementContestEarnings = false;
               if (contestConfigSnap.exists()) {
@@ -2796,7 +2796,7 @@ try {
   // Admin Action: Update global Referral Contest settings & status
   const handleUpdateContestConfig = async (status: "idle" | "coming_soon" | "active") => {
     try {
-      const docRef = doc(db, "metadata", "referral_contest");
+      const docRef = doc(db, "admin", "referral_contest");
       let startTime = null;
       let endTime = null;
 
