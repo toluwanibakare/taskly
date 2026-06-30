@@ -720,7 +720,9 @@ export default function Home() {
   const [totalUsersCount, setTotalUsersCount] = useState<number>(0);
   const [onchainTxCount, setOnchainTxCount] = useState<number>(0);
   const [onchainUsersCount, setOnchainUsersCount] = useState<number>(0);
+  const [onchainFeesCollected, setOnchainFeesCollected] = useState<number>(0);
   const [isLoadingOnchainStats, setIsLoadingOnchainStats] = useState<boolean>(false);
+  const [isLoadingOnchainFees, setIsLoadingOnchainFees] = useState<boolean>(false);
 
   const escrowContractAddress = getEscrowAddress(chainId);
   const usdmAddress = getUsdmAddress(chainId);
@@ -1302,8 +1304,64 @@ export default function Home() {
 
     if (screen === "main" && activeTab === "profile") {
       fetchOnchainStats();
+      fetchOnchainFees();
     }
   }, [screen, activeTab, wagmiAddress, chainId]);
+
+  // Fetch On-Chain Fees Collected (2% platform fee from escrow contract transactions)
+  const fetchOnchainFees = async () => {
+    if (wagmiAddress?.toLowerCase() !== PLATFORM_ESCROW_WALLET.toLowerCase()) return;
+    
+    setIsLoadingOnchainFees(true);
+    try {
+      const explorerUrl = chainId === 42220 
+        ? "https://celo.blockscout.com" 
+        : "https://celo-sepolia.blockscout.com";
+      const contractAddress = getEscrowAddress(chainId);
+      
+      if (contractAddress && contractAddress !== "0x0000000000000000000000000000000000000000") {
+        // Fetch all transactions to the escrow contract
+        const res = await fetch(`${explorerUrl}/api/v2/addresses/${contractAddress}/transactions`);
+        if (res.ok) {
+          const json = await res.json();
+          const items = json.items || [];
+          
+          // Calculate total USDm volume from createCampaign and fundCampaign transactions
+          // We'll identify campaign creation/funding by the method selector
+          // createCampaign: 0x... (we need to check actual method signatures)
+          // For now, sum all incoming USDm transfers to the contract
+          
+          let totalVolume = 0;
+          
+          // Also fetch token transfers to the contract
+          const tokenTransfersRes = await fetch(`${explorerUrl}/api/v2/addresses/${contractAddress}/token-transfers`);
+          if (tokenTransfersRes.ok) {
+            const tokenJson = await tokenTransfersRes.json();
+            const tokenItems = tokenJson.items || [];
+            
+            const usdmAddress = getUsdmAddress(chainId).toLowerCase();
+            
+            for (const transfer of tokenItems) {
+              // Only count incoming USDm transfers (to the escrow contract)
+              if (transfer.to?.hash?.toLowerCase() === contractAddress.toLowerCase() && 
+                  transfer.token?.address?.toLowerCase() === usdmAddress) {
+                const value = parseFloat(formatEther(BigInt(transfer.total?.value || transfer.value || "0")));
+                totalVolume += value;
+              }
+            }
+          }
+          
+          // Platform fee is 2% of total volume
+          const feesCollected = totalVolume * (PLATFORM_FEE_PERCENTAGE / 100);
+          setOnchainFeesCollected(parseFloat(feesCollected.toFixed(2)));
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching live on-chain fees:", err);
+    } finally {
+      setIsLoadingOnchainFees(false);
+    }
+  };
 
   // Real-time listener for current user document to track balance
   useEffect(() => {
@@ -2122,53 +2180,56 @@ export default function Home() {
       return;
     }
 
-    try {
-      setIsSubmittingProof(true);
-      let fileUrl = "";
+try {
+        setIsSubmittingProof(true);
+        let fileUrl = "";
 
-      if (proofForm.screenshot) {
-        const fileRef = ref(storage, `proofs/screenshots/sub-${Date.now()}-${proofForm.screenshot.name}`);
-        const uploadResult = await uploadBytes(fileRef, proofForm.screenshot);
-        fileUrl = await getDownloadURL(uploadResult.ref);
-      } 
-      else if (proofForm.screenRecording) {
-        const fileRef = ref(storage, `proofs/recordings/sub-${Date.now()}-${proofForm.screenRecording.name}`);
-        const uploadResult = await uploadBytes(fileRef, proofForm.screenRecording);
-        fileUrl = await getDownloadURL(uploadResult.ref);
+        if (proofForm.screenshot) {
+          const fileRef = ref(storage, `proofs/screenshots/sub-${Date.now()}-${proofForm.screenshot.name}`);
+          const uploadResult = await uploadBytes(fileRef, proofForm.screenshot);
+          fileUrl = await getDownloadURL(uploadResult.ref);
+        } 
+        else if (proofForm.screenRecording) {
+          const fileRef = ref(storage, `proofs/recordings/sub-${Date.now()}-${proofForm.screenRecording.name}`);
+          const uploadResult = await uploadBytes(fileRef, proofForm.screenRecording);
+          fileUrl = await getDownloadURL(uploadResult.ref);
+        }
+
+        const submissionId = existingSubmission ? existingSubmission.id : `sub-${Date.now()}`;
+        const submissionData = {
+          task_id: selectedTask.id,
+          wallet_address: wagmiAddress.toLowerCase(),
+          proof_url: fileUrl,
+          proof_text: proofForm.proofLink || "",
+          proof_type: selectedTask.proofType || "screenshot",
+          status: "pending",
+          submitted_at: new Date().toISOString(),
+          transaction_hash: "",
+          rejection_category: "",
+          rejection_reason: "",
+          dispute_reason: "",
+          disputed_at: ""
+        };
+
+        await setDoc(doc(db, "submissions", submissionId), submissionData);
+
+        // Update streak immediately on submission (not waiting for approval)
+        await updateStreakOnSubmission(wagmiAddress.toLowerCase());
+
+        setProofForm({
+          screenshot: null,
+          screenRecording: null,
+          proofLink: ""
+        });
+
+        setIsSubmittingProof(false);
+        setScreen("success-celebration");
+
+      } catch (err: any) {
+        setIsSubmittingProof(false);
+        console.error("Firestore submission failed:", err);
+        alert("Error submitting proof: " + (err.message || err));
       }
-
-      const submissionId = existingSubmission ? existingSubmission.id : `sub-${Date.now()}`;
-      const submissionData = {
-        task_id: selectedTask.id,
-        wallet_address: wagmiAddress.toLowerCase(),
-        proof_url: fileUrl,
-        proof_text: proofForm.proofLink || "",
-        proof_type: selectedTask.proofType || "screenshot",
-        status: "pending",
-        submitted_at: new Date().toISOString(),
-        transaction_hash: "",
-        rejection_category: "",
-        rejection_reason: "",
-        dispute_reason: "",
-        disputed_at: ""
-      };
-
-      await setDoc(doc(db, "submissions", submissionId), submissionData);
-
-      setProofForm({
-        screenshot: null,
-        screenRecording: null,
-        proofLink: ""
-      });
-
-      setIsSubmittingProof(false);
-      setScreen("success-celebration");
-
-    } catch (err: any) {
-      setIsSubmittingProof(false);
-      console.error("Firestore submission failed:", err);
-      alert("Error submitting proof: " + (err.message || err));
-    }
   };
 
   // Creator Action: Approve Worker Submission (triggers escrow release transaction)
@@ -2352,6 +2413,60 @@ export default function Home() {
     setScreen("task-details");
   };
 
+  // Update streak immediately when user submits proof (not waiting for approval)
+  const updateStreakOnSubmission = async (workerWallet: string) => {
+    try {
+      const workerRef = doc(db, "users", workerWallet.toLowerCase());
+      await runTransaction(db, async (transaction) => {
+        const workerSnap = await transaction.get(workerRef);
+        if (!workerSnap.exists()) return;
+
+        const data = workerSnap.data();
+        let streakCount = data.streakCount !== undefined ? data.streakCount : 0;
+        let lastCompletedDate = data.lastCompletedDate || "";
+        let completedTodayCount = data.completedTodayCount || 0;
+        let completedTodayDate = data.completedTodayDate || "";
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        
+        // Update streak
+        if (lastCompletedDate) {
+          const lastDate = new Date(lastCompletedDate);
+          const todayDate = new Date(todayStr);
+          const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays === 1) {
+            streakCount += 1;
+          } else if (diffDays > 1) {
+            streakCount = 1;
+          }
+        } else {
+          streakCount = 1;
+        }
+        lastCompletedDate = todayStr;
+
+        // Update completed today count
+        if (completedTodayDate === todayStr) {
+          completedTodayCount += 1;
+        } else {
+          completedTodayCount = 1;
+          completedTodayDate = todayStr;
+        }
+
+        transaction.set(workerRef, {
+          streakCount,
+          lastCompletedDate,
+          completedTodayCount,
+          completedTodayDate,
+          updated_at: new Date().toISOString()
+        }, { merge: true });
+      });
+    } catch (e) {
+      console.error("Error updating streak on submission:", e);
+    }
+  };
+
   const updateWorkerGamification = async (workerWallet: string, isApproval: boolean, submissionTime: string) => {
     try {
       const workerRef = doc(db, "users", workerWallet.toLowerCase());
@@ -2373,24 +2488,6 @@ export default function Home() {
         if (isApproval) {
           xp += 10;
           consecutiveRejections = 0;
-
-          // Streak update logic
-          const todayStr = new Date().toISOString().split('T')[0];
-          if (lastCompletedDate) {
-            const lastDate = new Date(lastCompletedDate);
-            const todayDate = new Date(todayStr);
-            const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            if (diffDays === 1) {
-              streakCount += 1;
-            } else if (diffDays > 1) {
-              streakCount = 1;
-            }
-          } else {
-            streakCount = 1;
-          }
-          lastCompletedDate = todayStr;
 
           // Check speed_run badge
           const openedKey = `opened_task_${workerWallet.toLowerCase()}`;
@@ -2443,10 +2540,6 @@ export default function Home() {
           transaction.set(workerRef, {
             xp,
             consecutiveRejections,
-            streakCount,
-            lastCompletedDate,
-            completedTodayCount: completedToday,
-            completedTodayDate,
             badges,
             updated_at: new Date().toISOString()
           }, { merge: true });
@@ -3633,177 +3726,248 @@ export default function Home() {
                         </button>
                         {/* Platform Developer Admin Panel Settings Card - Admin Only */}
                         {wagmiAddress?.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase() && (
-                          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 mt-4 animate-fade-in">
-                            <div className="flex items-center gap-2 text-slate-900">
-                              <SlidersHorizontal className="w-5 h-5 text-emerald-600" />
-                              <span className="text-sm font-extrabold">Platform Admin Settings</span>
+                          <div className="mt-4 animate-fade-in space-y-4">
+                            {/* Admin Header */}
+                            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-950 p-5 rounded-2xl text-white shadow-lg">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2.5 bg-emerald-500/20 rounded-xl">
+                                    <SlidersHorizontal className="w-5 h-5 text-emerald-400" />
+                                  </div>
+                                  <div>
+                                    <h3 className="text-lg font-extrabold tracking-tight">Platform Admin Panel</h3>
+                                    <p className="text-slate-300 text-xs mt-0.5 font-medium">Developer controls & real-time analytics</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-[9px] font-bold uppercase tracking-wider">
+                                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                                    Live
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                            
-                            <div className="space-y-3 font-medium text-xs text-slate-600">
-                              <div>
-                                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">
-                                  Developer Escrow Wallet
-                                </span>
-                                <span className="text-slate-800 font-bold block mt-0.5 font-mono select-all truncate">
-                                  {PLATFORM_ESCROW_WALLET}
-                                </span>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-4 pt-3 border-t border-slate-50">
-                                <div>
-                                  <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">
-                                    Fees Earned (2%)
-                                  </span>
-                                  <span className="text-emerald-600 font-black text-sm block mt-0.5">
-                                    {platformAdminStats.feesCollected.toFixed(2)} USDm
-                                  </span>
-                                  <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                    ~₦{Math.round(platformAdminStats.feesCollected * USDM_TO_NGN_RATE).toLocaleString()}
-                                  </span>
-                                </div>
-                                
-                                <div>
-                                  <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">
-                                    Locked in Escrow
-                                  </span>
-                                  <span className="text-blue-600 font-black text-sm block mt-0.5">
-                                    {rawEscrowBalance !== undefined && rawEscrowBalance !== null 
-                                      ? parseFloat(formatEther(rawEscrowBalance as bigint)).toString() 
-                                      : liveLockedEscrow.toFixed(2)} USDm
-                                  </span>
-                                  <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                    ~₦{Math.round(liveLockedEscrow * USDM_TO_NGN_RATE).toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
 
-                              <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-50 text-center bg-slate-50 rounded-xl p-3">
-                                <div>
-                                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">
-                                    Total Users
-                                  </span>
-                                  <span className="text-slate-800 font-black text-xs block mt-0.5">
-                                    {totalUsersCount}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">
-                                    Tasks Created
-                                  </span>
-                                  <span className="text-slate-800 font-black text-xs block mt-0.5">
-                                    {tasks.length}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">
-                                    Tasks Completed
-                                  </span>
-                                  <span className="text-slate-800 font-black text-xs block mt-0.5">
-                                    {tasks.filter(t => t.slotsRemaining <= 0 || t.status === "completed").length}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-2 text-center bg-slate-100/50 rounded-xl p-3 mt-1">
-                                <div>
-                                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">
-                                    On-Chain Users
-                                  </span>
-                                  <span className="text-slate-800 font-black text-xs block mt-0.5 flex items-center justify-center gap-1">
-                                    {isLoadingOnchainStats ? (
-                                      <span className="inline-block w-3 h-3 border-2 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></span>
-                                    ) : (
-                                      onchainUsersCount
-                                    )}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">
-                                    On-Chain Transactions
-                                  </span>
-                                  <span className="text-slate-800 font-black text-xs block mt-0.5 flex items-center justify-center gap-1">
-                                    {isLoadingOnchainStats ? (
-                                      <span className="inline-block w-3 h-3 border-2 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></span>
-                                    ) : (
-                                      onchainTxCount
-                                    )}
-                                  </span>
-                                </div>
-                              </div>
-                              
-                              {/* Disputes management button */}
-                              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <div className="relative">
-                                    <AlertCircle className="w-4.5 h-4.5 text-orange-500" />
-                                    {creatorSubmissions.filter(s => s.status === "disputed").length > 0 && (
-                                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center text-[7px] font-bold text-white">
-                                        {creatorSubmissions.filter(s => s.status === "disputed").length}
+                            {/* Key Metrics Grid */}
+                            <div className="grid grid-cols-2 gap-3">
+                              {/* Fees Earned Card */}
+                              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-2xl -translate-x-4 translate-y-4"></div>
+                                <div className="relative flex items-center justify-between">
+                                  <div>
+                                    <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Fees Earned (2%)</span>
+                                    <span className="text-emerald-600 font-black text-xl block mt-1">
+                                      {isLoadingOnchainFees ? (
+                                        <span className="inline-block w-5 h-5 border-2 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></span>
+                                      ) : (
+                                        onchainFeesCollected.toFixed(2)
+                                      )} USDm
+                                    </span>
+                                    <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
+                                      ~₦{Math.round(onchainFeesCollected * USDM_TO_NGN_RATE).toLocaleString()}
+                                    </span>
+                                    {onchainFeesCollected > 0 && platformAdminStats.feesCollected > 0 && (
+                                      <span className="text-[8px] text-blue-600 font-bold block mt-1 flex items-center gap-1">
+                                        <Info className="w-2.5 h-2.5" />
+                                        Firestore: {platformAdminStats.feesCollected.toFixed(2)} USDm
                                       </span>
                                     )}
                                   </div>
-                                  <span className="text-xs font-bold text-slate-800">
-                                    Pending Disputes ({creatorSubmissions.filter(s => s.status === "disputed").length})
-                                  </span>
+                                  <div className="p-2.5 bg-emerald-50 rounded-xl">
+                                    <TrendingUp className="w-5 h-5 text-emerald-600" />
+                                  </div>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => setProfileSubScreen("admin-disputes")}
-                                  className="px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-1 shadow-sm active:scale-95"
-                                >
-                                  Manage
-                                  <ChevronRight className="w-3.5 h-3.5" />
-                                </button>
                               </div>
 
-                              {/* Campaigns management button */}
-                              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <ClipboardList className="w-4.5 h-4.5 text-blue-500" />
-                                  <span className="text-xs font-bold text-slate-800">
-                                    All Platform Campaigns ({tasks.length})
-                                  </span>
+                              {/* Locked in Escrow Card */}
+                              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl -translate-x-4 translate-y-4"></div>
+                                <div className="relative flex items-center justify-between">
+                                  <div>
+                                    <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Locked in Escrow</span>
+                                    <span className="text-blue-600 font-black text-xl block mt-1">
+                                      {rawEscrowBalance !== undefined && rawEscrowBalance !== null 
+                                        ? parseFloat(formatEther(rawEscrowBalance as bigint)).toFixed(2)
+                                        : liveLockedEscrow.toFixed(2)} USDm
+                                    </span>
+                                    <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
+                                      ~₦{Math.round(liveLockedEscrow * USDM_TO_NGN_RATE).toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div className="p-2.5 bg-blue-50 rounded-xl">
+                                    <Wallet className="w-5 h-5 text-blue-600" />
+                                  </div>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => setProfileSubScreen("admin-campaigns")}
-                                  className="px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-1 shadow-sm active:scale-95"
-                                >
-                                  Manage
-                                  <ChevronRight className="w-3.5 h-3.5" />
-                                </button>
                               </div>
 
-                              {/* Withdrawals management button */}
-                              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Wallet className="w-4.5 h-4.5 text-emerald-500" />
-                                  <span className="text-xs font-bold text-slate-800">
-                                    Pending Withdrawals ({withdrawals.filter(w => w.status === "pending").length})
-                                  </span>
+                              {/* Total Users Card */}
+                              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-full blur-2xl -translate-x-4 translate-y-4"></div>
+                                <div className="relative flex items-center justify-between">
+                                  <div className="text-center">
+                                    <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Total Users</span>
+                                    <span className="text-slate-800 font-black text-2xl block mt-1">
+                                      {totalUsersCount}
+                                    </span>
+                                  </div>
+                                  <div className="p-2.5 bg-purple-50 rounded-xl">
+                                    <User className="w-5 h-5 text-purple-600" />
+                                  </div>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => setProfileSubScreen("admin-withdrawals")}
-                                  className="px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-1 shadow-sm active:scale-95"
-                                >
-                                  Manage
-                                  <ChevronRight className="w-3.5 h-3.5" />
-                                </button>
                               </div>
-                              
-                              {/* Database Purge / Reset Button */}
-                              <div className="pt-3.5 border-t border-slate-100/80 flex items-center justify-between">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                  System Actions
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={handleResetDatabase}
-                                  className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-1"
-                                >
-                                  Reset Platform Data
-                                </button>
+
+                              {/* Tasks Created Card */}
+                              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-16 h-16 bg-orange-500/10 rounded-full blur-2xl -translate-x-4 translate-y-4"></div>
+                                <div className="relative flex items-center justify-between">
+                                  <div className="text-center">
+                                    <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Tasks Created</span>
+                                    <span className="text-slate-800 font-black text-2xl block mt-1">
+                                      {tasks.length}
+                                    </span>
+                                  </div>
+                                  <div className="p-2.5 bg-orange-50 rounded-xl">
+                                    <ClipboardList className="w-5 h-5 text-orange-600" />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Secondary Metrics Row */}
+                            <div className="grid grid-cols-2 gap-3">
+                              {/* Tasks Completed Card */}
+                              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-2xl -translate-x-4 translate-y-4"></div>
+                                <div className="relative flex items-center justify-between">
+                                  <div className="text-center">
+                                    <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Tasks Completed</span>
+                                    <span className="text-slate-800 font-black text-2xl block mt-1">
+                                      {tasks.filter(t => t.slotsRemaining <= 0 || t.status === "completed").length}
+                                    </span>
+                                  </div>
+                                  <div className="p-2.5 bg-emerald-50 rounded-xl">
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* On-Chain Activity Card */}
+                              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-16 h-16 bg-cyan-500/10 rounded-full blur-2xl -translate-x-4 translate-y-4"></div>
+                                <div className="relative flex items-center justify-between">
+                                  <div className="text-center">
+                                    <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">On-Chain Activity</span>
+                                    <div className="flex items-center justify-center gap-4 mt-1">
+                                      <div>
+                                        <span className="text-slate-800 font-black text-xl block">
+                                          {isLoadingOnchainStats ? (
+                                            <span className="inline-block w-5 h-5 border-2 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></span>
+                                          ) : (
+                                            onchainUsersCount
+                                          )}
+                                        </span>
+                                        <span className="text-[9px] text-slate-400 font-bold block">Users</span>
+                                      </div>
+                                      <div className="border-l border-slate-200 pl-4">
+                                        <span className="text-slate-800 font-black text-xl block">
+                                          {isLoadingOnchainStats ? (
+                                            <span className="inline-block w-5 h-5 border-2 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></span>
+                                          ) : (
+                                            onchainTxCount
+                                          )}
+                                        </span>
+                                        <span className="text-[9px] text-slate-400 font-bold block">Txs</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="p-2.5 bg-cyan-50 rounded-xl">
+                                    <Cpu className="w-5 h-5 text-cyan-600" />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Developer Info Card */}
+                            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                              <div className="flex items-center justify-between mb-4 pt-4 border-t border-slate-50">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Developer Escrow Wallet</span>
+                                </div>
+                              </div>
+                              <div className="bg-slate-50 rounded-xl p-3 font-mono text-sm text-slate-800 select-all truncate flex items-center gap-2">
+                                <Wallet className="w-4 h-4 text-slate-400" />
+                                {PLATFORM_ESCROW_WALLET}
+                              </div>
+                            </div>
+
+                            {/* Management Actions Grid */}
+                            <div className="space-y-2">
+                              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-3">Management Actions</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {/* Disputes */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setProfileSubScreen("admin-disputes")}
+                                    className="p-3.5 bg-white border border-slate-100 rounded-xl hover:border-orange-200 hover:bg-orange-50/50 transition-all flex flex-col items-center gap-2 active:scale-95 relative group"
+                                  >
+                                    <div className="relative p-2 bg-orange-50 rounded-lg">
+                                      <AlertCircle className="w-5 h-5 text-orange-500" />
+                                      {creatorSubmissions.filter(s => s.status === "disputed").length > 0 && (
+                                        <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-orange-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white ring-2 ring-white">
+                                          {creatorSubmissions.filter(s => s.status === "disputed").length}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-800">Disputes</span>
+                                    <span className="text-[9px] text-slate-400 font-medium">
+                                      {creatorSubmissions.filter(s => s.status === "disputed").length} pending
+                                    </span>
+                                  </button>
+
+                                  {/* Campaigns */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setProfileSubScreen("admin-campaigns")}
+                                    className="p-3.5 bg-white border border-slate-100 rounded-xl hover:border-blue-200 hover:bg-blue-50/50 transition-all flex flex-col items-center gap-2 active:scale-95"
+                                  >
+                                    <div className="p-2 bg-blue-50 rounded-lg">
+                                      <ClipboardList className="w-5 h-5 text-blue-500" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-800">Campaigns</span>
+                                    <span className="text-[9px] text-slate-400 font-medium">
+                                      {tasks.length} total
+                                    </span>
+                                  </button>
+
+                                  {/* Withdrawals */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setProfileSubScreen("admin-withdrawals")}
+                                    className="p-3.5 bg-white border border-slate-100 rounded-xl hover:border-emerald-200 hover:bg-emerald-50/50 transition-all flex flex-col items-center gap-2 active:scale-95"
+                                  >
+                                    <div className="p-2 bg-emerald-50 rounded-lg">
+                                      <Wallet className="w-5 h-5 text-emerald-500" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-800">Withdrawals</span>
+                                    <span className="text-[9px] text-slate-400 font-medium">
+                                      {withdrawals.filter(w => w.status === "pending").length} pending
+                                    </span>
+                                  </button>
+
+                                  {/* System Reset */}
+                                  <button
+                                    type="button"
+                                    onClick={handleResetDatabase}
+                                    className="p-3.5 bg-white border border-rose-100 rounded-xl hover:border-rose-200 hover:bg-rose-50/50 transition-all flex flex-col items-center gap-2 active:scale-95 text-rose-600"
+                                  >
+                                    <div className="p-2 bg-rose-50 rounded-lg">
+                                      <RotateCw className="w-5 h-5 text-rose-500" />
+                                    </div>
+                                    <span className="text-xs font-bold">Reset Data</span>
+                                    <span className="text-[9px] font-medium">System purge</span>
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
