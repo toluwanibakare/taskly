@@ -6565,7 +6565,7 @@ try {
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-900 tracking-tight">Withdraw Earnings</h3>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Connected: {formatAddress(wagmiAddress)}</span>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Connected: {formatAddress(wagmiAddress || "")}</span>
                 </div>
               </div>
               <button
