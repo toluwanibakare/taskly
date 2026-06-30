@@ -2639,24 +2639,24 @@ try {
   };
 
   // Worker Action: Request Withdrawal of earned balance
-  const handleRequestWithdrawal = async () => {
+  const handleRequestWithdrawal = async (amountToWithdraw: number) => {
     if (!wagmiAddress) {
       alert("Please connect your wallet first.");
       return;
     }
-    if (dbUserBalance < 1.00) {
+    if (amountToWithdraw < 1.00) {
       alert("Minimum withdrawable amount is 1 USDm.");
       return;
     }
-    if (!window.confirm(`Are you sure you want to withdraw ${dbUserBalance.toFixed(2)} USDm? This will request a payout to your connected wallet address ${wagmiAddress}.`)) {
+    if (amountToWithdraw > dbUserBalance) {
+      alert("Withdrawable amount exceeds your current balance.");
       return;
     }
 
     try {
-      const amountToWithdraw = dbUserBalance;
       const userDocRef = doc(db, "users", wagmiAddress.toLowerCase());
       await updateDoc(userDocRef, {
-        balance: 0,
+        balance: parseFloat((dbUserBalance - amountToWithdraw).toFixed(2)),
         updated_at: new Date().toISOString()
       });
 
