@@ -2237,6 +2237,8 @@ export default function Home() {
       slots_remaining: newTask.slotsRemaining,
       proof_type: newTask.proofType || "screenshot",
       task_link: newTask.link,
+      instructions: newTask.instructions,
+      proof_requirements: newTask.proofRequirements,
       status: newTask.status || "active",
       created_by_wallet: activeAddress || "unknown",
       expires_at: new Date(Date.now() + (newTask.expiryHours || 24) * 3600 * 1000).toISOString(),
