@@ -4364,15 +4364,17 @@ try {
                                   <button
                                     type="button"
                                     onClick={() => setProfileSubScreen("admin-contract")}
-                                    className="p-3.5 bg-white border border-slate-100 rounded-xl hover:border-purple-200 hover:bg-purple-50/50 transition-all flex flex-col items-center gap-2 active:scale-95"
+                                    className="col-span-2 p-3.5 bg-white border border-slate-100 rounded-xl hover:border-purple-200 hover:bg-purple-50/50 transition-all flex flex-row items-center justify-center gap-3 active:scale-95"
                                   >
                                     <div className="p-2 bg-purple-50 rounded-lg">
                                       <FileText className="w-5 h-5 text-purple-500" />
                                     </div>
-                                    <span className="text-xs font-bold text-slate-800">Contract</span>
-                                    <span className="text-[9px] text-slate-400 font-medium">
-                                      {escrowContractAddress !== "0x0000000000000000000000000000000000000000" ? "Active" : "Unavailable"}
-                                    </span>
+                                    <div className="text-left">
+                                      <span className="text-xs font-bold text-slate-800 block">Contract Settings</span>
+                                      <span className="text-[9px] text-slate-400 font-medium">
+                                        {escrowContractAddress !== "0x0000000000000000000000000000000000000000" ? "Escrow deployed · Set owner to admin wallet" : "Not deployed on this network"}
+                                      </span>
+                                    </div>
                                   </button>
                                 </div>
                               </div>
@@ -5091,6 +5093,8 @@ try {
                         escrowAddress={escrowContractAddress}
                         adminWallet={PLATFORM_ESCROW_WALLET}
                         writeContractAsync={writeContractAsync}
+                        isConnected={isConnected}
+                        onConnect={openConnectModal}
                         onBack={() => setProfileSubScreen("profile-main")}
                       />
                     )}
@@ -7721,39 +7725,52 @@ try {
   );
 }
 
-function ContractSettings({ escrowAddress, adminWallet, writeContractAsync, onBack }: {
+function ContractSettings({ escrowAddress, adminWallet, writeContractAsync, isConnected, onConnect, onBack }: {
   escrowAddress: `0x${string}`;
   adminWallet: string;
   writeContractAsync: any;
+  isConnected?: boolean;
+  onConnect?: (() => void) | undefined;
   onBack: () => void;
 }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMsg, setUpdateMsg] = useState<string | null>(null);
 
   const handleUpdateOwner = async () => {
+    if (!isConnected) {
+      if (onConnect) onConnect();
+      else alert("Please connect your wallet first.");
+      return;
+    }
     if (!escrowAddress || escrowAddress === "0x0000000000000000000000000000000000000000") {
       alert("Escrow contract not deployed on this network");
       return;
     }
     setIsUpdating(true);
-    setUpdateMsg(null);
+    setUpdateMsg("Check your wallet — confirm the transaction to proceed...");
     try {
-      await writeContractAsync({
+      const txPromise = writeContractAsync({
         address: escrowAddress,
         abi: ESCROW_ABI,
         functionName: "updateOwner",
         args: [adminWallet as `0x${string}`],
         type: "legacy",
       });
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 90000)
+      );
+      await Promise.race([txPromise, timeout]);
       setUpdateMsg("Owner updated successfully! Fees will now be sent to the admin wallet.");
     } catch (err: any) {
       const msg = err?.message || "";
-      if (msg.includes("rejected")) {
-        setUpdateMsg("Transaction was rejected.");
+      if (msg === "timeout") {
+        setUpdateMsg("No response from wallet. Make sure your wallet is connected and try again.");
+      } else if (msg.includes("rejected")) {
+        setUpdateMsg("Transaction was rejected in wallet.");
       } else if (msg.includes("Only owner")) {
         setUpdateMsg("You are not the current owner. Only the current contract owner can update ownership.");
       } else {
-        setUpdateMsg("Failed to update owner: " + msg.slice(0, 100));
+        setUpdateMsg("Failed: " + msg.slice(0, 100));
       }
     } finally {
       setIsUpdating(false);
