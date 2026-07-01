@@ -901,7 +901,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!activeAddress || !dbUserProfile) return;
-    const streakCount = dbUserProfile.streakCount || 0;
+    const streakCount = effectiveStreakCount;
     const lastCompleted = dbUserProfile.lastCompletedDate || "";
 
     if (streakCount > 0) {
@@ -967,6 +967,18 @@ export default function Home() {
   const [pendingNotif, setPendingNotif] = useState<{ title: string; msg: string; type: "success" | "error" } | null>(null);
   const [showStreakReminder, setShowStreakReminder] = useState(false);
   const [streakMilestoneNotif, setStreakMilestoneNotif] = useState<number | null>(null);
+
+  const effectiveStreakCount = useMemo(() => {
+    const raw = dbUserProfile?.streakCount || 0;
+    const lastDate = dbUserProfile?.lastCompletedDate || "";
+    if (raw > 0 && lastDate) {
+      const today = new Date().toISOString().split('T')[0];
+      const diffTime = Math.abs(new Date(today).getTime() - new Date(lastDate).getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays > 1) return 0;
+    }
+    return raw;
+  }, [dbUserProfile?.streakCount, dbUserProfile?.lastCompletedDate]);
   const [showReferralWelcome, setShowReferralWelcome] = useState(false);
   const [adminDeleteTaskId, setAdminDeleteTaskId] = useState<string | null>(null);
   const [referredUsers, setReferredUsers] = useState<any[]>([]);
@@ -3265,7 +3277,7 @@ try {
             <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2.5 text-[10px] font-bold flex items-center justify-between shadow-md animate-fade-in z-40 sticky top-14">
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="animate-pulse">🔥</span>
-                <span className="truncate">Don't lose your {dbUserProfile?.streakCount}-day streak! Submit a task today.</span>
+                <span className="truncate">Don't lose your {effectiveStreakCount}-day streak! Submit a task today.</span>
               </div>
               <button 
                 type="button" 
@@ -3897,12 +3909,12 @@ try {
                             </div>
                             
                             {/* Streak count (Snapchat style fire emoji) */}
-                            {dbUserProfile?.streakCount > 0 && (
+                            {effectiveStreakCount > 0 && (
                               <div className={`flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-600 rounded-lg text-xs font-black ${
                                 showStreakReminder ? "animate-pulse" : ""
                               }`}>
                                 <span>🔥</span>
-                                <span>{dbUserProfile.streakCount}</span>
+                                <span>{effectiveStreakCount}</span>
                               </div>
                             )}
                           </div>
