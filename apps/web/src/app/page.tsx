@@ -7740,25 +7740,6 @@ function ContractSettings({ escrowAddress, adminWallet, writeContractAsync, onBa
 }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMsg, setUpdateMsg] = useState<string | null>(null);
-  const [currentOwner, setCurrentOwner] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!escrowAddress || escrowAddress === "0x0000000000000000000000000000000000000000") return;
-    const fetchOwner = async () => {
-      try {
-        const res = await fetch(`https://celo.blockscout.com/api/v2/smart-contracts/${escrowAddress}`);
-        if (res.ok) {
-          const json = await res.json();
-          const abiStr = json.abi;
-          // Not ideal - use wagmi readContract instead
-        }
-      } catch {}
-      // Fallback: use wagmi via readContract - but we can't use hooks here outside component
-      // Just show the admin wallet as reference
-      setCurrentOwner(null);
-    };
-    fetchOwner();
-  }, [escrowAddress]);
 
   const handleUpdateOwner = async () => {
     if (!escrowAddress || escrowAddress === "0x0000000000000000000000000000000000000000") {
@@ -7826,8 +7807,10 @@ function ContractSettings({ escrowAddress, adminWallet, writeContractAsync, onBa
         <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-[11px] text-amber-800 font-medium space-y-1">
           <p>
             <strong>Fee flow:</strong> When a campaign is created, the escrow contract automatically sends the 2% platform fee 
-            to its <code className="bg-amber-100 px-1 rounded">owner</code>. If the current owner is not this admin wallet, 
-            fees go to the deployer instead.
+            to its <code className="bg-amber-100 px-1 rounded">owner</code>. The <strong>user creating the task pays the gas</strong> for this transfer as part of the same transaction — the admin never pays gas for fee collection.
+          </p>
+          <p className="pt-1">
+            <strong>Next step:</strong> Click the button below to set the owner to your admin wallet. This is a <strong>one-time</strong> blockchain transaction. After this, every new campaign automatically sends fees here.
           </p>
         </div>
 
