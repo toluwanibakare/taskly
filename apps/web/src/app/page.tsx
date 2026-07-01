@@ -80,6 +80,7 @@ interface Task {
   createdByWallet?: string;
   status?: string;
   expiresAt?: string;
+  updatedAt?: string;
 }
 
 interface TaskTemplate {
@@ -1225,6 +1226,7 @@ export default function Home() {
           createdByWallet: data.created_by_wallet,
           status: data.status || "active",
           expiresAt: data.expires_at || null,
+          updatedAt: data.updated_at || null,
         });
       });
       setTasks(loadedTasks);
@@ -1555,7 +1557,7 @@ export default function Home() {
       }
     });
 
-    // 3. Campaigns Created/Funded (Outflows)
+    // 3. Campaigns Created/Funded (Outflows & Escrow Refunds)
     tasks.forEach((t) => {
       if ((t.createdByWallet || "").toLowerCase() === addressLower) {
         const amt = parseFloat(t.amount.replace(/[^\d.]/g, "")) || 0.05;
@@ -1573,20 +1575,36 @@ export default function Home() {
           meta: t.title,
           status: t.status === "pending_payment" ? "pending" : "completed"
         });
+
+        if (t.status === "refunded") {
+          const slotsLeft = t.slotsRemaining || 0;
+          const refundAmount = amt * slotsLeft;
+          
+          ledger.push({
+            id: `refund-${t.id}`,
+            type: "inflow",
+            title: "Escrow Refund (Unclaimed Slots)",
+            amount: refundAmount,
+            date: t.updatedAt ? t.updatedAt.split("T")[0] : new Date().toISOString().split("T")[0],
+            meta: `Refund for: ${t.title}`,
+            status: "completed"
+          });
+        }
       }
     });
 
     // 4. Withdrawals Requested (Outflows)
     withdrawals.forEach((w) => {
-      if ((w.wallet_address || "").toLowerCase() === addressLower) {
-        const val = parseFloat(w.amount.replace(/[^\d.]/g, "")) || 0;
+      const wWorker = (w.workerAddress || w.wallet_address || "").toLowerCase();
+      if (wWorker === addressLower) {
+        const val = typeof w.amount === "number" ? w.amount : (parseFloat(w.amount.replace(/[^\d.]/g, "")) || 0);
         ledger.push({
-          id: `withdrawal-${w.id || w.created_at}`,
+          id: `withdrawal-${w.id || w.createdAt || w.created_at}`,
           type: "outflow",
           title: "Withdrawal Request",
           amount: val,
-          date: w.created_at ? w.created_at.split("T")[0] : new Date().toISOString().split("T")[0],
-          meta: w.status === "completed" ? `Tx: ${formatAddress(w.transaction_hash)}` : "Awaiting Admin Release",
+          date: w.createdAt ? w.createdAt.split("T")[0] : (w.created_at ? w.created_at.split("T")[0] : new Date().toISOString().split("T")[0]),
+          meta: w.status === "completed" ? `Tx: ${formatAddress(w.transaction_hash || "")}` : "Awaiting Admin Release",
           status: w.status // "pending" | "completed" | "rejected"
         });
       }
@@ -3627,7 +3645,7 @@ try {
                           </button>
                         </div>
 
-                        {/* Wallet Info Card */}
+                        {/* 1. Wallet Info Card */}
                         <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 p-6 rounded-2xl text-white shadow-md space-y-4">
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-slate-400 font-bold tracking-widest uppercase">
@@ -3655,7 +3673,114 @@ try {
                           </div>
                         </div>
 
-                        {/* XP, Level, Streaks and Badges Card */}
+                        {/* 2. Wallet Balance Card */}
+                        {(() => {
+                          const totalEarningsNum = parseFloat(stats.earnings.split(" ")[0]) || 0;
+                          const isWithdrawableUnlocked = totalEarningsNum >= 1.00;
+                          const displayedWithdrawableBalance = isWithdrawableUnlocked ? dbUserBalance : 0.00;
+                          const canWithdraw = isWithdrawableUnlocked && dbUserBalance >= 1.00;
+
+                          return (
+                            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
+                                    Withdrawable Balance
+                                  </span>
+                                  <span className="text-2xl font-black text-slate-950 block mt-1">
+                                    {formatCurrency(`${displayedWithdrawableBalance.toFixed(2)} USDm`)}
+                                  </span>
+                                </div>
+                                
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setWithdrawAmountInput(1.00);
+                                    setShowWithdrawModal(true);
+                                  }}
+                                  disabled={!canWithdraw}
+                                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 ${
+                                    canWithdraw 
+                                      ? "bg-slate-900 text-white hover:bg-slate-800" 
+                                      : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                                  }`}
+                                >
+                                  Withdraw Earnings
+                                </button>
+                              </div>
+                              {!isWithdrawableUnlocked && (
+                                <p className="text-[10px] text-amber-600 font-bold bg-amber-50/50 border border-amber-100/50 p-2.5 rounded-xl leading-normal">
+                                  ⚠️ Withdrawable amount is locked at 0.00 USDm until your total platform earnings reach 1.00 USDm. Keep earning to unlock withdrawals!
+                                </p>
+                              )}
+                              {isWithdrawableUnlocked && dbUserBalance < 1.00 && (
+                                <p className="text-[10px] text-slate-500 font-semibold bg-slate-50 border border-slate-100 p-2.5 rounded-xl leading-normal">
+                                  ℹ️ Minimum withdrawal amount is 1.00 USDm. Earn more tasks or referrals to build your withdrawable balance.
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                        {/* 3. Stats Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm text-center space-y-1">
+                            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
+                              Total Earnings
+                            </span>
+                            <span className="text-xl font-black text-emerald-600 block">
+                              {formatCurrency(stats.earnings)}
+                            </span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm text-center space-y-1">
+                            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
+                              Tasks Completed
+                            </span>
+                            <span className="text-xl font-black text-slate-900 block">
+                              {stats.completed}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 4. Currency Preference Selector */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-slate-900 block">
+                                Currency Display
+                              </span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">
+                                Choose how you view payout amounts
+                              </span>
+                            </div>
+                            <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                              <button
+                                type="button"
+                                onClick={() => setCurrencyPreference("USDm")}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                                  currencyPreference === "USDm"
+                                    ? "bg-white text-slate-900 shadow-sm"
+                                    : "text-slate-500 hover:text-slate-900"
+                                }`}
+                              >
+                                USDm
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCurrencyPreference("NGN")}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                                  currencyPreference === "NGN"
+                                    ? "bg-white text-slate-900 shadow-sm"
+                                    : "text-slate-500 hover:text-slate-900"
+                                }`}
+                              >
+                                Naira (₦)
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 5. XP, Level, Streaks and Badges Card */}
                         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 animate-fade-in">
                           {/* Level & Streak Row */}
                           <div className="flex justify-between items-center">
@@ -3704,7 +3829,7 @@ try {
                           </button>
                         </div>
 
-                        {/* Referral Link Card */}
+                        {/* 6. Referral Link Card & Referral Contest */}
                         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3 animate-fade-in">
                           <div>
                             <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
@@ -3845,112 +3970,6 @@ try {
                             </div>
                           )}
                         </div>
-
-                        {/* Wallet Balance Card */}
-                        {(() => {
-                          const totalEarningsNum = parseFloat(stats.earnings.split(" ")[0]) || 0;
-                          const isWithdrawableUnlocked = totalEarningsNum >= 1.00;
-                          const displayedWithdrawableBalance = isWithdrawableUnlocked ? dbUserBalance : 0.00;
-                          const canWithdraw = isWithdrawableUnlocked && dbUserBalance >= 1.00;
-
-                          return (
-                            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
-                                    Withdrawable Balance
-                                  </span>
-                                  <span className="text-2xl font-black text-slate-950 block mt-1">
-                                    {formatCurrency(`${displayedWithdrawableBalance.toFixed(2)} USDm`)}
-                                  </span>
-                                </div>
-                                
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setWithdrawAmountInput(1.00);
-                                    setShowWithdrawModal(true);
-                                  }}
-                                  disabled={!canWithdraw}
-                                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 ${
-                                    canWithdraw 
-                                      ? "bg-slate-900 text-white hover:bg-slate-800" 
-                                      : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
-                                  }`}
-                                >
-                                  Withdraw Earnings
-                                </button>
-                              </div>
-                              {!isWithdrawableUnlocked && (
-                                <p className="text-[10px] text-amber-600 font-bold bg-amber-50/50 border border-amber-100/50 p-2.5 rounded-xl leading-normal">
-                                  ⚠️ Withdrawable amount is locked at 0.00 USDm until your total platform earnings reach 1.00 USDm. Keep earning to unlock withdrawals!
-                                </p>
-                              )}
-                              {isWithdrawableUnlocked && dbUserBalance < 1.00 && (
-                                <p className="text-[10px] text-slate-500 font-semibold bg-slate-50 border border-slate-100 p-2.5 rounded-xl leading-normal">
-                                  ℹ️ Minimum withdrawal amount is 1.00 USDm. Earn more tasks or referrals to build your withdrawable balance.
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })()}
-
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm text-center space-y-1">
-                            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
-                              Total Earnings
-                            </span>
-                            <span className="text-xl font-black text-emerald-600 block">
-                              {formatCurrency(stats.earnings)}
-                            </span>
-                          </div>
-                          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm text-center space-y-1">
-                            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
-                              Tasks Completed
-                            </span>
-                            <span className="text-xl font-black text-slate-900 block">
-                              {stats.completed}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Currency Preference Selector */}
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="text-xs font-bold text-slate-900 block">
-                                Currency Display
-                              </span>
-                              <span className="text-[10px] text-slate-400 block mt-0.5">
-                                Choose how you view payout amounts
-                              </span>
-                            </div>
-                            <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
-                              <button
-                                type="button"
-                                onClick={() => setCurrencyPreference("USDm")}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
-                                  currencyPreference === "USDm"
-                                    ? "bg-white text-slate-900 shadow-sm"
-                                    : "text-slate-500 hover:text-slate-900"
-                                }`}
-                              >
-                                USDm
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setCurrencyPreference("NGN")}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
-                                  currencyPreference === "NGN"
-                                    ? "bg-white text-slate-900 shadow-sm"
-                                    : "text-slate-500 hover:text-slate-900"
-                                }`}
-                              >
-                                Naira (₦)
-                              </button>
-                            </div>
-                          </div>
                         </div>
 
                         {/* Task Created Manager Entry Button (Dashboard) */}
@@ -4247,19 +4266,6 @@ try {
                                     <span className="text-[9px] text-slate-400 font-medium">
                                       {contestConfig ? contestConfig.status.toUpperCase() : "IDLE"}
                                     </span>
-                                  </button>
-
-                                  {/* System Reset */}
-                                  <button
-                                    type="button"
-                                    onClick={handleResetDatabase}
-                                    className="p-3.5 bg-white border border-rose-100 rounded-xl hover:border-rose-200 hover:bg-rose-50/50 transition-all flex flex-col items-center gap-2 active:scale-95 text-rose-600"
-                                  >
-                                    <div className="p-2 bg-rose-50 rounded-lg">
-                                      <RotateCw className="w-5 h-5 text-rose-500" />
-                                    </div>
-                                    <span className="text-xs font-bold">Reset Data</span>
-                                    <span className="text-[9px] font-medium">System purge</span>
                                   </button>
                                 </div>
                               </div>
