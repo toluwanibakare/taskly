@@ -4157,22 +4157,11 @@ try {
                                   <div>
                                     <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Fees Earned (2%)</span>
                                     <span className="text-emerald-600 font-black text-xl block mt-1">
-                                      {isLoadingOnchainFees ? (
-                                        <span className="inline-block w-5 h-5 border-2 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></span>
-                                      ) : (
-                                        onchainFeesCollected.toFixed(2)
-                                      )} USDm
+                                      {platformAdminStats.feesCollected.toFixed(2)} USDm
                                     </span>
                                     <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                      ~₦{Math.round(Math.max(onchainFeesCollected, platformAdminStats.feesCollected) * USDM_TO_NGN_RATE).toLocaleString()}
+                                      ~₦{Math.round(platformAdminStats.feesCollected * USDM_TO_NGN_RATE).toLocaleString()}
                                     </span>
-                                    {platformAdminStats.feesCollected > 0 && (
-                                      <span className="text-[8px] text-blue-600 font-bold block mt-1 flex items-center gap-1">
-                                        <Info className="w-2.5 h-2.5" />
-                                        Ledger: {platformAdminStats.feesCollected.toFixed(2)} USDm
-                                        {onchainFeesCollected > 0 && ` · On-chain: ${onchainFeesCollected.toFixed(2)} USDm`}
-                                      </span>
-                                    )}
                                   </div>
                                   <div className="p-2.5 bg-emerald-50 rounded-xl">
                                     <TrendingUp className="w-5 h-5 text-emerald-600" />
