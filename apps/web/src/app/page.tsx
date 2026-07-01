@@ -55,7 +55,12 @@ import {
   LogOut,
   TrendingUp,
   Receipt,
-  Trophy
+  Trophy,
+  Search,
+  Loader2,
+  Zap,
+  ArrowRight,
+  ChevronLeft
 } from "lucide-react";
 
 // Platform Type definition
@@ -847,12 +852,15 @@ export default function Home() {
 
   // Web3 Transaction Overlay state
   interface ActiveTransaction {
-    status: "confirm-deposit" | "naira-checkout" | "sending-escrow" | "confirm-release" | "releasing-escrow" | "confirm-refund" | "refunding-escrow" | "confirm-reopen" | "reopening-campaign" | "confirm-withdrawal" | "processing-withdrawal" | "success";
+    status: "confirm-deposit" | "waiting-for-tx" | "scanning-blockchain" | "naira-checkout" | "sending-escrow" | "confirm-release" | "releasing-escrow" | "confirm-refund" | "refunding-escrow" | "confirm-reopen" | "reopening-campaign" | "confirm-withdrawal" | "processing-withdrawal" | "success" | "error";
     title: string;
     amount: string;
     step?: number;
     txHash?: string;
     onClose?: () => void;
+    expectedAmount?: string;
+    expectedRecipient?: string;
+    userTxHash?: string;
   }
   const [activeTransaction, setActiveTransaction] = useState<ActiveTransaction | null>(null);
 
@@ -1087,23 +1095,33 @@ export default function Home() {
         setIsConnectingWallet(true);
         // Request account access directly first to ensure ethereum object injection is ready
         win.ethereum.request({ method: "eth_requestAccounts" })
-          .then(() => {
+          .then(async () => {
+            // Add USDm token to MetaMask for proper display
+            try {
+              await addUsdmToMetaMask();
+            } catch (e) {
+              console.log("Could not add USDm token during auto-connect:", e);
+            }
+            
             const injectedConnector = connectors.find((c) => c.type === "injected") || connectors.find((c) => c.id === "injected") || connectors[0];
             if (injectedConnector) {
-              connectAsync({ connector: injectedConnector })
-                .then(() => {
-                  setIsConnectingWallet(false);
-                })
-                .catch((err) => {
-                  console.error("Auto-connect sync failed in MiniPay", err);
-                  setIsConnectingWallet(false);
-                });
+              try {
+                await connectAsync({ connector: injectedConnector });
+                setIsConnectingWallet(false);
+              } catch (err) {
+                console.error("Auto-connect sync failed in MiniPay", err);
+                setIsConnectingWallet(false);
+              }
             } else {
               setIsConnectingWallet(false);
             }
           })
           .catch((err: any) => {
             console.error("Direct MiniPay eth_requestAccounts failed:", err);
+            // If user rejected, don't keep retrying automatically
+            if (err?.code !== 4001 && !err?.message?.includes("rejected")) {
+              // Could add retry logic here if needed
+            }
             setIsConnectingWallet(false);
           });
       }
@@ -1899,19 +1917,28 @@ export default function Home() {
         try {
           // Force account initialization directly before syncing with Wagmi
           await win.ethereum.request({ method: "eth_requestAccounts" });
+          
+          // Add USDm token to MetaMask for MiniPay users
+          await addUsdmToMetaMask();
+          
           const injectedConnector = connectors.find((c) => c.type === "injected") || connectors.find((c) => c.id === "injected") || connectors[0];
           if (injectedConnector) {
             await connectAsync({ connector: injectedConnector });
+            // Small delay to ensure connection is fully established
             setTimeout(() => {
               action();
               setIsConnectingWallet(false);
-            }, 200);
+            }, 300);
           } else {
             alert("Injected wallet connector not found.");
             setIsConnectingWallet(false);
           }
-        } catch (err) {
+        } catch (err: any) {
           console.error("Manual connection failed in MiniPay", err);
+          // Check if it's a user rejection
+          if (err?.code === 4001 || err?.message?.includes("rejected")) {
+            alert("Please approve the connection request in MiniPay to continue.");
+          }
           setIsConnectingWallet(false);
         }
       } else {
@@ -1926,6 +1953,107 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Wallet connection failed", err);
+    }
+  };
+
+  // Add USDm token to MetaMask wallet for proper display
+  const addUsdmToMetaMask = async () => {
+    if (typeof window === "undefined" || !window.ethereum) return;
+    try {
+      const usdmAddr = getUsdmAddress(chainId);
+      await window.ethereum.request({
+        method: "wallet_watchAsset",
+        params: {
+          type: "ERC20",
+          options: {
+            address: usdmAddr,
+            symbol: "USDm",
+            decimals: 18,
+            image: "https://celo.org/images/mip-map/usdm.png"
+          }
+        }
+      });
+      console.log("USDm token added to MetaMask");
+    } catch (err) {
+      console.log("Could not add USDm to MetaMask (user may have rejected or already added):", err);
+    }
+  };
+
+  // Scan blockchain for USDm transaction to escrow wallet
+  const scanForUsdmTransaction = async (expectedAmount: string, expectedRecipient: string, userAddress: string): Promise<{ found: boolean; txHash?: string; actualAmount?: string }> => {
+    if (typeof window === "undefined") return { found: false };
+    
+    const explorerUrl = chainId === 42220 
+      ? "https://celo.blockscout.com" 
+      : chainId === 44787
+        ? "https://celo-sepolia.blockscout.com"
+        : "https://celo-sepolia.blockscout.com";
+    
+    const usdmAddr = getUsdmAddress(chainId).toLowerCase();
+    const recipientLower = expectedRecipient.toLowerCase();
+    const expectedAmountWei = parseEther(expectedAmount);
+    
+    try {
+      // Fetch recent token transfers to the escrow wallet
+      const res = await fetch(`${explorerUrl}/api/v2/addresses/${recipientLower}/token-transfers?limit=50`);
+      if (!res.ok) throw new Error("Failed to fetch token transfers");
+      
+      const json = await res.json();
+      const transfers = json.items || [];
+      
+      // Look for USDm transfers from user to escrow within last few minutes
+      const now = Date.now();
+      const fiveMinutesAgo = now - 5 * 60 * 1000;
+      
+      for (const transfer of transfers) {
+        const transferTime = new Date(transfer.timestamp).getTime();
+        if (transferTime < fiveMinutesAgo) continue;
+        
+        const fromAddr = transfer.from?.hash?.toLowerCase();
+        const toAddr = transfer.to?.hash?.toLowerCase();
+        const tokenAddr = transfer.token?.address?.toLowerCase();
+        const value = transfer.total?.value || transfer.value || "0";
+        
+        if (
+          fromAddr === userAddress.toLowerCase() &&
+          toAddr === recipientLower &&
+          tokenAddr === usdmAddr
+        ) {
+          const actualAmount = formatEther(BigInt(value));
+          // Allow small tolerance for gas/fees
+          const expectedNum = parseFloat(expectedAmount);
+          const actualNum = parseFloat(actualAmount);
+          if (Math.abs(actualNum - expectedNum) < 0.01) { // 0.01 USDm tolerance
+            return { found: true, txHash: transfer.transaction_hash, actualAmount };
+          }
+        }
+      }
+      
+      return { found: false };
+    } catch (err) {
+      console.error("Error scanning for transaction:", err);
+      return { found: false };
+    }
+  };
+
+  // Relaunch wallet for retry
+  const relaunchWallet = async () => {
+    if (typeof window === "undefined" || !window.ethereum) return;
+    
+    const isMinipay = !!(window.ethereum.isMiniPay);
+    
+    if (isMinipay) {
+      try {
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        const injectedConnector = connectors.find((c) => c.type === "injected") || connectors.find((c) => c.id === "injected") || connectors[0];
+        if (injectedConnector) {
+          await connectAsync({ connector: injectedConnector });
+        }
+      } catch (err) {
+        console.error("Relaunch wallet failed:", err);
+      }
+    } else if (openConnectModal) {
+      openConnectModal();
     }
   };
 
@@ -6351,59 +6479,13 @@ try {
                           return;
                         }
 
-                        // Transition state to sending
-                        setActiveTransaction((prev) => prev ? { ...prev, status: "sending-escrow" } : null);
-                        const amountWei = parseEther(total.toFixed(18));
-
-                        const usdmAddress = getUsdmAddress(chainId);
-                        const escrowContractAddress = getEscrowAddress(chainId);
-
-                        let txHash: `0x${string}` | undefined;
-                        if (escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000") {
-                          // Step 1: Approve the Escrow Contract to spend USDm/USDm
-                          await writeContractAsync({
-                            address: usdmAddress,
-                            abi: ERC20_ABI,
-                            // function name matches approve(address spender, uint256 value)
-                            functionName: "approve",
-                            args: [escrowContractAddress, amountWei],
-                            type: "legacy",
-                          });
-
-                          // Step 2: Call createCampaign on the escrow smart contract
-                          const rewardWei = parseEther(payoutValue.toString());
-                          const bytes32TaskId = formatTaskIdToBytes32(pendingTxData?.newTask?.id || "");
-                          const durationSeconds = BigInt((pendingTxData?.newTask?.expiryHours || 24) * 3600);
-
-                          txHash = await writeContractAsync({
-                            address: escrowContractAddress,
-                            abi: ESCROW_ABI,
-                            functionName: "createCampaign",
-                            args: [bytes32TaskId, rewardWei, BigInt(slotsValue), durationSeconds],
-                            type: "legacy",
-                            });
-                        } else {
-                          // Fallback to legacy transfer
-                          txHash = await writeContractAsync({
-                            address: usdmAddress,
-                            abi: ERC20_ABI,
-                            functionName: "transfer",
-                            args: [PLATFORM_ESCROW_WALLET as `0x${string}`, amountWei],
-                            type: "legacy",
-                          });
-                        }
-
-                        // Create and save task
-                        if (pendingTxData?.newTask) {
-                          saveNewTask(pendingTxData.newTask);
-                        }
-
-                        setIsDepositing(false);
-                        // Set success status
+                        // Transition state to waiting for user to confirm transaction
+                        await addUsdmToMetaMask(); // Ensure USDm token is visible in MetaMask
                         setActiveTransaction((prev) => prev ? { 
                           ...prev, 
-                          status: "success", 
-                          txHash
+                          status: "waiting-for-tx",
+                          expectedAmount: total.toFixed(2),
+                          expectedRecipient: escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000" ? escrowContractAddress : PLATFORM_ESCROW_WALLET
                         } : null);
 
                       } catch (err: any) {
@@ -6446,6 +6528,224 @@ try {
                     ) : (
                       "Deposit & Launch"
                     )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTransaction.status === "waiting-for-tx" && (
+              <div className="space-y-5 animate-fade-in">
+                <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                  <Zap className="w-7 h-7 text-amber-600 animate-pulse" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-black text-slate-900">Waiting for Transaction</h3>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans px-2">
+                    MetaMask has opened. Please approve the USDm transaction in your wallet.
+                  </p>
+                </div>
+                
+                {/* Transaction Details */}
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-semibold text-slate-600 space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Amount to Send:</span>
+                    <span className="text-slate-800 font-bold text-emerald-600">{activeTransaction.expectedAmount} USDm</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-slate-200/50 pt-2.5">
+                    <span className="text-slate-400">To (Escrow):</span>
+                    <span className="text-slate-800 font-mono text-[9px] truncate max-w-[140px]">{formatAddress(activeTransaction.expectedRecipient || "")}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-slate-200/50 pt-2.5">
+                    <span className="text-slate-400">From:</span>
+                    <span className="text-slate-800 font-mono text-[9px] truncate max-w-[140px]">{formatAddress(wagmiAddress || "")}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-slate-800/10 pt-2.5 text-slate-950 font-black text-sm">
+                    <span>Total:</span>
+                    <span className="text-emerald-600">{activeTransaction.expectedAmount} USDm</span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      // I have done the transaction - scan blockchain
+                      if (!activeTransaction.expectedAmount || !activeTransaction.expectedRecipient || !wagmiAddress) return;
+                      
+                      setActiveTransaction((prev) => prev ? { 
+                        ...prev, 
+                        status: "scanning-blockchain" 
+                      } : null);
+                      
+                      const result = await scanForUsdmTransaction(
+                        activeTransaction.expectedAmount!,
+                        activeTransaction.expectedRecipient!,
+                        wagmiAddress
+                      );
+                      
+                      if (result.found) {
+                        // Transaction found - complete the task creation
+                        if (pendingTxData?.newTask) {
+                          await saveNewTask(pendingTxData.newTask);
+                        }
+                        setActiveTransaction((prev) => prev ? { 
+                          ...prev, 
+                          status: "success", 
+                          txHash: result.txHash,
+                          userTxHash: result.txHash
+                        } : null);
+                      } else {
+                        // Transaction not found yet - show error state with retry option
+                        setActiveTransaction((prev) => prev ? { 
+                          ...prev, 
+                          status: "error",
+                          title: "Transaction Not Found"
+                        } : null);
+                      }
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Check className="w-4 h-4" />
+                    I Have Done the Transaction
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={relaunchWallet}
+                    className="w-full py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 rounded-xl text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <RotateCw className="w-4 h-4" />
+                    Relaunch Wallet
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Go back to confirm-deposit
+                      setActiveTransaction((prev) => prev ? { 
+                        ...prev, 
+                        status: "confirm-deposit" 
+                      } : null);
+                    }}
+                    className="w-full py-3 border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Back
+                  </button>
+                </div>
+                
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-center pt-2">
+                  <span className="animate-pulse">⏳</span> Waiting for you to confirm in MetaMask...
+                </div>
+              </div>
+            )}
+
+            {activeTransaction.status === "scanning-blockchain" && (
+              <div className="py-8 space-y-6 animate-fade-in">
+                <div className="w-12 h-12 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-bold text-slate-950">Scanning Blockchain</h3>
+                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider animate-pulse">
+                    Verifying your USDm transaction on Celo...
+                  </p>
+                  <span className="text-[10px] font-mono text-slate-400 block bg-slate-50 border border-slate-100 py-1.5 px-3 rounded-lg truncate max-w-[220px] mx-auto select-all">
+                    Checking: {activeTransaction.expectedAmount} USDm → {formatAddress(activeTransaction.expectedRecipient || "")}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {activeTransaction.status === "error" && (
+              <div className="space-y-5 animate-fade-in">
+                <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                  <AlertCircle className="w-7 h-7 text-rose-600" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-black text-slate-900">{activeTransaction.title || "Transaction Not Found"}</h3>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans px-2">
+                    We couldn't find the transaction on the blockchain yet. This can happen if:
+                  </p>
+                </div>
+                
+                <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 text-xs text-rose-700 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-rose-600 font-bold">1.</span>
+                    <span>Transaction is still pending (wait a moment and try again)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-rose-600 font-bold">2.</span>
+                    <span>Transaction was rejected or failed in MetaMask</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-rose-600 font-bold">3.</span>
+                    <span>Wrong amount or recipient was sent</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      // Retry scanning
+                      if (!activeTransaction.expectedAmount || !activeTransaction.expectedRecipient || !wagmiAddress) return;
+                      
+                      setActiveTransaction((prev) => prev ? { 
+                        ...prev, 
+                        status: "scanning-blockchain" 
+                      } : null);
+                      
+                      const result = await scanForUsdmTransaction(
+                        activeTransaction.expectedAmount!,
+                        activeTransaction.expectedRecipient!,
+                        wagmiAddress
+                      );
+                      
+                      if (result.found) {
+                        if (pendingTxData?.newTask) {
+                          await saveNewTask(pendingTxData.newTask);
+                        }
+                        setActiveTransaction((prev) => prev ? { 
+                          ...prev, 
+                          status: "success", 
+                          txHash: result.txHash,
+                          userTxHash: result.txHash
+                        } : null);
+                      } else {
+                        setActiveTransaction((prev) => prev ? { 
+                          ...prev, 
+                          status: "error" 
+                        } : null);
+                      }
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Search className="w-4 h-4" />
+                    Scan Again
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={relaunchWallet}
+                    className="w-full py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 rounded-xl text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <RotateCw className="w-4 h-4" />
+                    Relaunch Wallet & Retry
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Go back to waiting-for-tx
+                      setActiveTransaction((prev) => prev ? { 
+                        ...prev, 
+                        status: "waiting-for-tx" 
+                      } : null);
+                    }}
+                    className="w-full py-3 border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Back to Waiting
                   </button>
                 </div>
               </div>
