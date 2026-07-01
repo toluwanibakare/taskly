@@ -5,7 +5,7 @@ import { useAccount, useConnect, useWriteContract, useChainId, useDisconnect, us
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseEther, formatEther } from "viem";
 
-import { getEscrowAddress, formatTaskIdToBytes32 } from "../hooks/useEscrow";
+import { getEscrowAddress, formatTaskIdToBytes32, useEscrow } from "../hooks/useEscrow";
 import { ESCROW_ABI } from "../lib/escrowAbi";
 import { db, storage } from "../lib/firebase";
 import { 
@@ -666,6 +666,7 @@ export default function Home() {
   const openConnectModal = connectModal ? connectModal.openConnectModal : undefined;
   const { writeContractAsync } = useWriteContract();
   const chainId = useChainId();
+  const { createCampaign } = useEscrow();
 
   // Screen state routing
   // "splash" | "main" (with nested tabs) | "task-details" | "submit-proof" | "create-task" | "success-celebration"
@@ -6469,44 +6470,33 @@ try {
                         const task = pendingTxData?.newTask;
                         if (!task) return;
 
-                        const escrowAddr = (escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000"
-                          ? escrowContractAddress
-                          : PLATFORM_ESCROW_WALLET) as `0x${string}`;
+                        if (!escrowContractAddress || escrowContractAddress === "0x0000000000000000000000000000000000000000") {
+                          throw new Error("Escrow contract not configured for this network");
+                        }
 
                         await addUsdmToMetaMask();
                         setActiveTransaction((prev) => prev ? {
                           ...prev,
                           status: "waiting-for-tx",
                           expectedAmount: total.toFixed(2),
-                          expectedRecipient: escrowAddr
+                          expectedRecipient: escrowContractAddress
                         } : null);
 
-                        // Step 1: Approve USDm spending
+                        // Step 1: Approve USDm spending (escrow contract as spender)
                         const approveTx = await writeContractAsync({
                           address: usdmAddress,
                           abi: ERC20_ABI,
                           functionName: "approve",
-                          args: [escrowAddr, parseEther(total.toFixed(18))],
+                          args: [escrowContractAddress, parseEther(total.toFixed(18))],
                         });
 
-                        // Step 2: Create campaign on escrow contract
-                        await writeContractAsync({
-                          address: escrowAddr,
-                          abi: ESCROW_ABI,
-                          functionName: "createCampaign",
-                          args: [
-                            formatTaskIdToBytes32(task.id),
-                            parseEther(payoutValue.toFixed(18)),
-                            BigInt(slotsValue),
-                            BigInt(expiryHours * 3600)
-                          ],
-                          type: "legacy",
-                        });
+                        // Step 2: Create campaign on escrow contract via hook
+                        await createCampaign(task.id, payoutValue, slotsValue, expiryHours * 3600);
 
                         // Step 3: Scan blockchain
                         setActiveTransaction((prev) => prev ? { ...prev, status: "scanning-blockchain" } : null);
 
-                        const result = await scanForUsdmTransaction(total.toFixed(2), escrowAddr, wagmiAddress!);
+                        const result = await scanForUsdmTransaction(total.toFixed(2), escrowContractAddress, wagmiAddress!);
 
                         if (result.found) {
                           await saveNewTask(task);
