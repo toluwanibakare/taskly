@@ -695,7 +695,7 @@ export default function Home() {
 
   // Profile Sub-Screen for Creator Dashboard
   // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-withdrawals" | "admin-contest"
-  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest">("profile-main");
+  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest" | "admin-contract">("profile-main");
 
   // Selected task for Details and Submission
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -1295,16 +1295,19 @@ export default function Home() {
     };
   }, []);
 
-  // Fetch Live On-Chain Contract Statistics (Unique Users & Transactions) via Blockscout API
+  const getExplorerUrl = (cid: number): string => {
+    if (cid === 42220) return "https://celo.blockscout.com";
+    if (cid === 44787) return "https://alfajores-blockscout.celo-testnet.org";
+    if (cid === 11142220) return "https://celo-sepolia.blockscout.com";
+    return "https://celo.blockscout.com";
+  };
+
+  // Fetch Live On-Chain Contract Statistics via Blockscout API
   useEffect(() => {
     const fetchOnchainStats = async () => {
-      if (wagmiAddress?.toLowerCase() !== PLATFORM_ESCROW_WALLET.toLowerCase()) return;
-      
       setIsLoadingOnchainStats(true);
       try {
-        const explorerUrl = chainId === 42220 
-          ? "https://celo.blockscout.com" 
-          : "https://celo-sepolia.blockscout.com";
+        const explorerUrl = getExplorerUrl(chainId);
         const contractAddress = getEscrowAddress(chainId);
         
         if (contractAddress && contractAddress !== "0x0000000000000000000000000000000000000000") {
@@ -1333,55 +1336,38 @@ export default function Home() {
       fetchOnchainStats();
       fetchOnchainFees();
     }
-  }, [screen, activeTab, wagmiAddress, chainId]);
+  }, [screen, activeTab, chainId]);
 
-  // Fetch On-Chain Fees Collected (2% platform fee from escrow contract transactions)
+  // Fetch On-Chain Fees Collected (2% platform fee from escrow contract)
   const fetchOnchainFees = async () => {
-    if (wagmiAddress?.toLowerCase() !== PLATFORM_ESCROW_WALLET.toLowerCase()) return;
-    
     setIsLoadingOnchainFees(true);
     try {
-      const explorerUrl = chainId === 42220 
-        ? "https://celo.blockscout.com" 
-        : "https://celo-sepolia.blockscout.com";
+      const explorerUrl = getExplorerUrl(chainId);
       const contractAddress = getEscrowAddress(chainId);
       
       if (contractAddress && contractAddress !== "0x0000000000000000000000000000000000000000") {
-        // Fetch all transactions to the escrow contract
-        const res = await fetch(`${explorerUrl}/api/v2/addresses/${contractAddress}/transactions`);
-        if (res.ok) {
-          const json = await res.json();
-          const items = json.items || [];
+        let totalVolume = 0;
+        
+        const tokenTransfersRes = await fetch(`${explorerUrl}/api/v2/addresses/${contractAddress}/token-transfers`);
+        if (tokenTransfersRes.ok) {
+          const tokenJson = await tokenTransfersRes.json();
+          const tokenItems = tokenJson.items || [];
           
-          // Calculate total USDm volume from createCampaign and fundCampaign transactions
-          // We'll identify campaign creation/funding by the method selector
-          // createCampaign: 0x... (we need to check actual method signatures)
-          // For now, sum all incoming USDm transfers to the contract
+          const usdmAddr = getUsdmAddress(chainId).toLowerCase();
           
-          let totalVolume = 0;
-          
-          // Also fetch token transfers to the contract
-          const tokenTransfersRes = await fetch(`${explorerUrl}/api/v2/addresses/${contractAddress}/token-transfers`);
-          if (tokenTransfersRes.ok) {
-            const tokenJson = await tokenTransfersRes.json();
-            const tokenItems = tokenJson.items || [];
-            
-            const usdmAddress = getUsdmAddress(chainId).toLowerCase();
-            
-            for (const transfer of tokenItems) {
-              // Only count incoming USDm transfers (to the escrow contract)
-              if (transfer.to?.hash?.toLowerCase() === contractAddress.toLowerCase() && 
-                  transfer.token?.address?.toLowerCase() === usdmAddress) {
-                const value = parseFloat(formatEther(BigInt(transfer.total?.value || transfer.value || "0")));
-                totalVolume += value;
-              }
+          for (const transfer of tokenItems) {
+            if (transfer.to?.hash?.toLowerCase() === contractAddress.toLowerCase() && 
+                transfer.token?.address?.toLowerCase() === usdmAddr) {
+              const value = parseFloat(formatEther(BigInt(transfer.total?.value || transfer.value || "0")));
+              totalVolume += value;
             }
           }
-          
-          // Platform fee is 2% of total volume
-          const feesCollected = totalVolume * (PLATFORM_FEE_PERCENTAGE / 100);
-          setOnchainFeesCollected(parseFloat(feesCollected.toFixed(2)));
         }
+        
+        // Correct fee: contract receives total = budget + fee, where fee = budget * 2%
+        // So fee = totalVolume * 2 / 102
+        const feesCollected = totalVolume * PLATFORM_FEE_PERCENTAGE / (100 + PLATFORM_FEE_PERCENTAGE);
+        setOnchainFeesCollected(parseFloat(feesCollected.toFixed(2)));
       }
     } catch (err) {
       console.error("Error fetching live on-chain fees:", err);
@@ -4178,12 +4164,13 @@ try {
                                       )} USDm
                                     </span>
                                     <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                      ~₦{Math.round(onchainFeesCollected * USDM_TO_NGN_RATE).toLocaleString()}
+                                      ~₦{Math.round(Math.max(onchainFeesCollected, platformAdminStats.feesCollected) * USDM_TO_NGN_RATE).toLocaleString()}
                                     </span>
-                                    {onchainFeesCollected > 0 && platformAdminStats.feesCollected > 0 && (
+                                    {platformAdminStats.feesCollected > 0 && (
                                       <span className="text-[8px] text-blue-600 font-bold block mt-1 flex items-center gap-1">
                                         <Info className="w-2.5 h-2.5" />
-                                        Firestore: {platformAdminStats.feesCollected.toFixed(2)} USDm
+                                        Ledger: {platformAdminStats.feesCollected.toFixed(2)} USDm
+                                        {onchainFeesCollected > 0 && ` · On-chain: ${onchainFeesCollected.toFixed(2)} USDm`}
                                       </span>
                                     )}
                                   </div>
@@ -4381,6 +4368,21 @@ try {
                                     <span className="text-xs font-bold text-slate-800">Contest</span>
                                     <span className="text-[9px] text-slate-400 font-medium">
                                       {contestConfig ? contestConfig.status.toUpperCase() : "IDLE"}
+                                    </span>
+                                  </button>
+
+                                  {/* Contract */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setProfileSubScreen("admin-contract")}
+                                    className="p-3.5 bg-white border border-slate-100 rounded-xl hover:border-purple-200 hover:bg-purple-50/50 transition-all flex flex-col items-center gap-2 active:scale-95"
+                                  >
+                                    <div className="p-2 bg-purple-50 rounded-lg">
+                                      <FileText className="w-5 h-5 text-purple-500" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-800">Contract</span>
+                                    <span className="text-[9px] text-slate-400 font-medium">
+                                      {escrowContractAddress !== "0x0000000000000000000000000000000000000000" ? "Active" : "Unavailable"}
                                     </span>
                                   </button>
                                 </div>
@@ -5092,6 +5094,16 @@ try {
                           </div>
                         </div>
                       </div>
+                    )}
+
+                    {/* PROFILE: CONTRACT SETTINGS FOR ADMINISTRATOR */}
+                    {profileSubScreen === "admin-contract" && (
+                      <ContractSettings
+                        escrowAddress={escrowContractAddress}
+                        adminWallet={PLATFORM_ESCROW_WALLET}
+                        writeContractAsync={writeContractAsync}
+                        onBack={() => setProfileSubScreen("profile-main")}
+                      />
                     )}
                   </>
                 )}
@@ -7716,6 +7728,130 @@ try {
         </div>
       )}
 
+    </div>
+  );
+}
+
+function ContractSettings({ escrowAddress, adminWallet, writeContractAsync, onBack }: {
+  escrowAddress: `0x${string}`;
+  adminWallet: string;
+  writeContractAsync: any;
+  onBack: () => void;
+}) {
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateMsg, setUpdateMsg] = useState<string | null>(null);
+  const [currentOwner, setCurrentOwner] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!escrowAddress || escrowAddress === "0x0000000000000000000000000000000000000000") return;
+    const fetchOwner = async () => {
+      try {
+        const res = await fetch(`https://celo.blockscout.com/api/v2/smart-contracts/${escrowAddress}`);
+        if (res.ok) {
+          const json = await res.json();
+          const abiStr = json.abi;
+          // Not ideal - use wagmi readContract instead
+        }
+      } catch {}
+      // Fallback: use wagmi via readContract - but we can't use hooks here outside component
+      // Just show the admin wallet as reference
+      setCurrentOwner(null);
+    };
+    fetchOwner();
+  }, [escrowAddress]);
+
+  const handleUpdateOwner = async () => {
+    if (!escrowAddress || escrowAddress === "0x0000000000000000000000000000000000000000") {
+      alert("Escrow contract not deployed on this network");
+      return;
+    }
+    setIsUpdating(true);
+    setUpdateMsg(null);
+    try {
+      await writeContractAsync({
+        address: escrowAddress,
+        abi: ESCROW_ABI,
+        functionName: "updateOwner",
+        args: [adminWallet as `0x${string}`],
+        type: "legacy",
+      });
+      setUpdateMsg("Owner updated successfully! Fees will now be sent to the admin wallet.");
+    } catch (err: any) {
+      const msg = err?.message || "";
+      if (msg.includes("rejected")) {
+        setUpdateMsg("Transaction was rejected.");
+      } else if (msg.includes("Only owner")) {
+        setUpdateMsg("You are not the current owner. Only the current contract owner can update ownership.");
+      } else {
+        setUpdateMsg("Failed to update owner: " + msg.slice(0, 100));
+      }
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={onBack} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+          <ArrowLeft className="w-5 h-5 text-slate-800" />
+        </button>
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 font-sans">Contract Settings</h2>
+          <span className="text-xs text-slate-400 font-semibold block">
+            Manage escrow contract ownership and fee collection
+          </span>
+        </div>
+      </div>
+
+      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Escrow Contract</span>
+          <div className="bg-slate-50 rounded-xl p-3 font-mono text-xs text-slate-800 select-all truncate flex items-center gap-2">
+            <Cpu className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            {escrowAddress && escrowAddress !== "0x0000000000000000000000000000000000000000"
+              ? escrowAddress
+              : "Not deployed on this network"}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Admin Wallet (Fee Recipient)</span>
+          <div className="bg-slate-50 rounded-xl p-3 font-mono text-xs text-slate-800 select-all truncate flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            {adminWallet}
+          </div>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-[11px] text-amber-800 font-medium space-y-1">
+          <p>
+            <strong>Fee flow:</strong> When a campaign is created, the escrow contract automatically sends the 2% platform fee 
+            to its <code className="bg-amber-100 px-1 rounded">owner</code>. If the current owner is not this admin wallet, 
+            fees go to the deployer instead.
+          </p>
+        </div>
+
+        {escrowAddress && escrowAddress !== "0x0000000000000000000000000000000000000000" && (
+          <button
+            type="button"
+            disabled={isUpdating}
+            onClick={handleUpdateOwner}
+            className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-slate-300 disabled:to-slate-300 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+          >
+            {isUpdating ? (
+              <><RotateCw className="w-4 h-4 animate-spin" /> Updating...</>
+            ) : (
+              <><RotateCw className="w-4 h-4" /> Set Contract Owner to Admin Wallet</>
+            )}
+          </button>
+        )}
+
+        {updateMsg && (
+          <div className={`rounded-xl p-3 text-xs font-semibold ${updateMsg.includes("successfully") ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-rose-50 text-rose-700 border border-rose-100"}`}>
+            {updateMsg}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
