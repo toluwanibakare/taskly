@@ -6469,9 +6469,9 @@ try {
                         const task = pendingTxData?.newTask;
                         if (!task) return;
 
-                        const escrowAddr = escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000"
+                        const escrowAddr = (escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000"
                           ? escrowContractAddress
-                          : PLATFORM_ESCROW_WALLET;
+                          : PLATFORM_ESCROW_WALLET) as `0x${string}`;
 
                         await addUsdmToMetaMask();
                         setActiveTransaction((prev) => prev ? {
