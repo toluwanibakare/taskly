@@ -3970,7 +3970,6 @@ try {
                             </div>
                           )}
                         </div>
-                        </div>
 
                         {/* Task Created Manager Entry Button (Dashboard) */}
                         <button
