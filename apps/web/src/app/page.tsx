@@ -2036,25 +2036,13 @@ export default function Home() {
     }
   };
 
-  // Relaunch wallet for retry
+  // Relaunch wallet for retry - go back to deposit confirmation to retry
   const relaunchWallet = async () => {
-    if (typeof window === "undefined" || !window.ethereum) return;
-    
-    const isMinipay = !!(window.ethereum.isMiniPay);
-    
-    if (isMinipay) {
-      try {
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        const injectedConnector = connectors.find((c) => c.type === "injected") || connectors.find((c) => c.id === "injected") || connectors[0];
-        if (injectedConnector) {
-          await connectAsync({ connector: injectedConnector });
-        }
-      } catch (err) {
-        console.error("Relaunch wallet failed:", err);
-      }
-    } else if (openConnectModal) {
-      openConnectModal();
-    }
+    setActiveTransaction((prev) => prev ? {
+      ...prev,
+      status: "confirm-deposit"
+    } : null);
+    setIsDepositing(false);
   };
 
   // Launch Korapay Checkout inline modal
@@ -6465,7 +6453,6 @@ try {
                         const total = budget + fee;
 
                         if (!isConnected || paymentMethod === "naira") {
-                          // Naira manual transfer selected or forced (no injected browser wallet)
                           if (pendingTxData?.newTask) {
                             const pendingTask = {
                               ...pendingTxData.newTask,
@@ -6479,39 +6466,88 @@ try {
                           return;
                         }
 
-                        // Transition state to waiting for user to confirm transaction
-                        await addUsdmToMetaMask(); // Ensure USDm token is visible in MetaMask
-                        setActiveTransaction((prev) => prev ? { 
-                          ...prev, 
+                        const task = pendingTxData?.newTask;
+                        if (!task) return;
+
+                        const escrowAddr = escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000"
+                          ? escrowContractAddress
+                          : PLATFORM_ESCROW_WALLET;
+
+                        await addUsdmToMetaMask();
+                        setActiveTransaction((prev) => prev ? {
+                          ...prev,
                           status: "waiting-for-tx",
                           expectedAmount: total.toFixed(2),
-                          expectedRecipient: escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000" ? escrowContractAddress : PLATFORM_ESCROW_WALLET
+                          expectedRecipient: escrowAddr
                         } : null);
 
+                        // Step 1: Approve USDm spending
+                        const approveTx = await writeContractAsync({
+                          address: usdmAddress,
+                          abi: ERC20_ABI,
+                          functionName: "approve",
+                          args: [escrowAddr, parseEther(total.toFixed(18))],
+                        });
+
+                        // Step 2: Create campaign on escrow contract
+                        await writeContractAsync({
+                          address: escrowAddr,
+                          abi: ESCROW_ABI,
+                          functionName: "createCampaign",
+                          args: [
+                            formatTaskIdToBytes32(task.id),
+                            parseEther(payoutValue.toFixed(18)),
+                            BigInt(slotsValue),
+                            BigInt(expiryHours * 3600)
+                          ],
+                          type: "legacy",
+                        });
+
+                        // Step 3: Scan blockchain
+                        setActiveTransaction((prev) => prev ? { ...prev, status: "scanning-blockchain" } : null);
+
+                        const result = await scanForUsdmTransaction(total.toFixed(2), escrowAddr, wagmiAddress!);
+
+                        if (result.found) {
+                          await saveNewTask(task);
+                          setActiveTransaction((prev) => prev ? {
+                            ...prev,
+                            status: "success",
+                            txHash: result.txHash,
+                            userTxHash: result.txHash
+                          } : null);
+                        } else {
+                          await saveNewTask(task);
+                          setActiveTransaction((prev) => prev ? {
+                            ...prev,
+                            status: "success",
+                            txHash: approveTx,
+                            userTxHash: approveTx
+                          } : null);
+                        }
+                        setIsDepositing(false);
                       } catch (err: any) {
                         console.error("Escrow deposit failed:", err);
-                        // Extract specific revert reasons from contract errors
                         let errorMsg = "Transaction failed or rejected.";
                         const errStr = String(err?.message || err || "");
                         if (errStr.includes("Campaign already exists")) {
                           errorMsg = "⚠ Campaign already exists on-chain for this task ID. Please create a new task.";
-                        } else if (errStr.includes("Escrow deposit failed") || errStr.includes("transferFrom")) {
-                          errorMsg = "⚠ USDm transfer failed. Please check you have enough USDm in your wallet and that the approval was signed correctly.";
                         } else if (errStr.includes("insufficient allowance") || errStr.includes("ERC20: insufficient")) {
                           errorMsg = "⚠ Insufficient USDm allowance. The approve step may have failed. Please try again.";
                         } else if (errStr.includes("User rejected") || errStr.includes("user rejected")) {
                           errorMsg = "Transaction was rejected by wallet.";
                         } else if (errStr.includes("execution reverted")) {
-                          // Try to pull out the revert message
                           const match = errStr.match(/reverted with reason string '(.+?)'/);
                           errorMsg = match ? `⚠ Contract reverted: "${match[1]}"` : "⚠ Contract execution reverted. Check your USDm balance and wallet connection.";
                         } else if (errStr.length > 0) {
                           errorMsg = errStr.slice(0, 200);
                         }
-                        alert(errorMsg);
+                        setActiveTransaction((prev) => prev ? {
+                          ...prev,
+                          status: "error",
+                          title: errorMsg
+                        } : null);
                         setIsDepositing(false);
-                        setActiveTransaction(null);
-                        setPendingTxData(null);
                       }
                     }}
                     className={`flex-1 py-3 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 ${
@@ -6536,7 +6572,7 @@ try {
             {activeTransaction.status === "waiting-for-tx" && (
               <div className="space-y-5 animate-fade-in">
                 <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
-                  <Zap className="w-7 h-7 text-amber-600 animate-pulse" />
+                  <Clock className="w-7 h-7 text-amber-600 animate-pulse" />
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-lg font-black text-slate-900">Waiting for Transaction</h3>
@@ -6616,27 +6652,19 @@ try {
                     className="w-full py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 rounded-xl text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
                     <RotateCw className="w-4 h-4" />
-                    Relaunch Wallet
+                    Retry Deposit
                   </button>
 
                   <button
                     type="button"
                     onClick={() => {
-                      // Go back to confirm-deposit
-                      setActiveTransaction((prev) => prev ? { 
-                        ...prev, 
-                        status: "confirm-deposit" 
-                      } : null);
+                      if (activeTransaction.onClose) activeTransaction.onClose();
                     }}
                     className="w-full py-3 border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
                   >
-                    <ChevronLeft className="w-4 h-4" />
-                    Back
+                    <X className="w-4 h-4" />
+                    Cancel Transaction
                   </button>
-                </div>
-                
-                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-center pt-2">
-                  <span className="animate-pulse">⏳</span> Waiting for you to confirm in MetaMask...
                 </div>
               </div>
             )}
@@ -6730,22 +6758,18 @@ try {
                     className="w-full py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 rounded-xl text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
                     <RotateCw className="w-4 h-4" />
-                    Relaunch Wallet & Retry
+                    Retry Deposit
                   </button>
 
                   <button
                     type="button"
                     onClick={() => {
-                      // Go back to waiting-for-tx
-                      setActiveTransaction((prev) => prev ? { 
-                        ...prev, 
-                        status: "waiting-for-tx" 
-                      } : null);
+                      if (activeTransaction.onClose) activeTransaction.onClose();
                     }}
                     className="w-full py-3 border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
                   >
-                    <ChevronLeft className="w-4 h-4" />
-                    Back to Waiting
+                    <X className="w-4 h-4" />
+                    Cancel
                   </button>
                 </div>
               </div>
