@@ -7735,6 +7735,17 @@ function ContractSettings({ escrowAddress, adminWallet, writeContractAsync, isCo
 }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMsg, setUpdateMsg] = useState<string | null>(null);
+  const { address: connectedWallet } = useAccount();
+
+  const { data: contractOwner } = useReadContract({
+    address: escrowAddress && escrowAddress !== "0x0000000000000000000000000000000000000000" ? escrowAddress : undefined,
+    abi: ESCROW_ABI,
+    functionName: "owner",
+    query: { enabled: escrowAddress !== "0x0000000000000000000000000000000000000000" },
+  });
+
+  const isOwnerConnected = contractOwner && connectedWallet &&
+    contractOwner.toString().toLowerCase() === connectedWallet.toLowerCase();
 
   const handleUpdateOwner = async () => {
     if (!isConnected) {
@@ -7768,7 +7779,7 @@ function ContractSettings({ escrowAddress, adminWallet, writeContractAsync, isCo
       } else if (msg.includes("rejected")) {
         setUpdateMsg("Transaction was rejected in wallet.");
       } else if (msg.includes("Only owner")) {
-        setUpdateMsg("You are not the current owner. Only the current contract owner can update ownership.");
+        setUpdateMsg("Only the contract owner can update ownership. Switch to the owner wallet in MetaMask and try again.");
       } else {
         setUpdateMsg("Failed: " + msg.slice(0, 100));
       }
@@ -7796,41 +7807,63 @@ function ContractSettings({ escrowAddress, adminWallet, writeContractAsync, isCo
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Escrow Contract</span>
           <div className="bg-slate-50 rounded-xl p-3 font-mono text-xs text-slate-800 select-all truncate flex items-center gap-2">
             <Cpu className="w-4 h-4 text-slate-400 flex-shrink-0" />
-            {escrowAddress && escrowAddress !== "0x0000000000000000000000000000000000000000"
-              ? escrowAddress
-              : "Not deployed on this network"}
+            {escrowAddress !== "0x0000000000000000000000000000000000000000" ? escrowAddress : "Not deployed on this network"}
           </div>
         </div>
 
         <div className="space-y-2">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Admin Wallet (Fee Recipient)</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Current Contract Owner</span>
+          <div className="bg-slate-50 rounded-xl p-3 font-mono text-xs text-slate-800 select-all truncate flex items-center gap-2">
+            <UserCheck className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            {contractOwner ? (contractOwner as string) : "Loading..."}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Your Connected Wallet</span>
           <div className="bg-slate-50 rounded-xl p-3 font-mono text-xs text-slate-800 select-all truncate flex items-center gap-2">
             <Wallet className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            {connectedWallet || "Not connected"}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Admin Wallet (New Owner)</span>
+          <div className="bg-slate-50 rounded-xl p-3 font-mono text-xs text-slate-800 select-all truncate flex items-center gap-2">
+            <User className="w-4 h-4 text-slate-400 flex-shrink-0" />
             {adminWallet}
           </div>
         </div>
 
-        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-[11px] text-amber-800 font-medium space-y-1">
-          <p>
-            <strong>Fee flow:</strong> When a campaign is created, the escrow contract automatically sends the 2% platform fee 
-            to its <code className="bg-amber-100 px-1 rounded">owner</code>. The <strong>user creating the task pays the gas</strong> for this transfer as part of the same transaction — the admin never pays gas for fee collection.
-          </p>
-          <p className="pt-1">
-            <strong>Next step:</strong> Click the button below to set the owner to your admin wallet. This is a <strong>one-time</strong> blockchain transaction. After this, every new campaign automatically sends fees here.
-          </p>
-        </div>
+        {contractOwner && (
+          <div className={`rounded-xl p-3 text-xs font-semibold ${isOwnerConnected ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-amber-50 text-amber-800 border border-amber-100"}`}>
+            {isOwnerConnected ? (
+              <span>You are connected as the contract owner. Click the button to transfer ownership to the admin wallet.</span>
+            ) : (
+              <span>
+                <strong>Switch wallets:</strong> You are connected as <code className="bg-amber-100 px-1 rounded">{connectedWallet ? connectedWallet.slice(0, 6) + "..." + connectedWallet.slice(-4) : "unknown"}</code>, 
+                but the contract owner is <code className="bg-amber-100 px-1 rounded">{(contractOwner as string).slice(0, 6) + "..." + (contractOwner as string).slice(-4)}</code>. 
+                Switch to the owner wallet in MetaMask to proceed.
+              </span>
+            )}
+          </div>
+        )}
 
-        {escrowAddress && escrowAddress !== "0x0000000000000000000000000000000000000000" && (
+        {escrowAddress !== "0x0000000000000000000000000000000000000000" && (
           <button
             type="button"
-            disabled={isUpdating}
+            disabled={isUpdating || !isOwnerConnected}
             onClick={handleUpdateOwner}
-            className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-slate-300 disabled:to-slate-300 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+            className={`w-full py-3 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 ${
+              isOwnerConnected
+                ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                : "bg-slate-200 text-slate-400 cursor-not-allowed"
+            }`}
           >
             {isUpdating ? (
-              <><RotateCw className="w-4 h-4 animate-spin" /> Updating...</>
+              <><RotateCw className="w-4 h-4 animate-spin" /> Confirming...</>
             ) : (
-              <><RotateCw className="w-4 h-4" /> Set Contract Owner to Admin Wallet</>
+              <><RotateCw className="w-4 h-4" /> Set Owner to Admin Wallet</>
             )}
           </button>
         )}
