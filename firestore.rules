@@ -101,5 +101,13 @@ service cloud.firestore {
     match /withdrawals/{withdrawalId} {
       allow read, write, delete: if true;
     }
+
+    // 8. Notifications subcollection under users
+    match /users/{walletAddress}/notifications/{notificationId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if request.resource.data.read == true;
+      allow delete: if false;
+    }
   }
 }

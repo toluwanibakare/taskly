@@ -43,15 +43,15 @@ export function useEscrow() {
     const bytes32TaskId = formatTaskIdToBytes32(taskId);
 
     const usdmAddress = getUsdmAddress(chainId);
-
-    return writeContractAsync({
+    const txParams = {
       address: contractAddress,
       abi: ESCROW_ABI,
-      functionName: "createCampaign",
-      args: [bytes32TaskId, rewardWei, BigInt(totalSlots), BigInt(durationSeconds)],
-      type: "legacy",
+      functionName: "createCampaign" as const,
+      args: [bytes32TaskId, rewardWei, BigInt(totalSlots), BigInt(durationSeconds)] as const,
+      type: "legacy" as const,
       feeCurrency: usdmAddress,
-    });
+    };
+    return writeContractAsync(txParams as any);
   };
 
   // Pay out a worker (called by Task Creator or Admin)
@@ -61,17 +61,16 @@ export function useEscrow() {
     }
 
     const bytes32TaskId = formatTaskIdToBytes32(taskId);
-
     const usdmAddress = getUsdmAddress(chainId);
-
-    return writeContractAsync({
+    const txParams = {
       address: contractAddress,
       abi: ESCROW_ABI,
-      functionName: "payoutWorker",
-      args: [bytes32TaskId, workerAddress as `0x${string}`],
-      type: "legacy",
+      functionName: "payoutWorker" as const,
+      args: [bytes32TaskId, workerAddress as `0x${string}`] as const,
+      type: "legacy" as const,
       feeCurrency: usdmAddress,
-    });
+    };
+    return writeContractAsync(txParams as any);
   };
 
   // Refund unused campaign tokens (called by Task Creator after expiry)
@@ -81,17 +80,16 @@ export function useEscrow() {
     }
 
     const bytes32TaskId = formatTaskIdToBytes32(taskId);
-
     const usdmAddress = getUsdmAddress(chainId);
-
-    return writeContractAsync({
+    const txParams = {
       address: contractAddress,
       abi: ESCROW_ABI,
-      functionName: "refundCampaign",
-      args: [bytes32TaskId],
-      type: "legacy",
+      functionName: "refundCampaign" as const,
+      args: [bytes32TaskId] as const,
+      type: "legacy" as const,
       feeCurrency: usdmAddress,
-    });
+    };
+    return writeContractAsync(txParams as any);
   };
 
   return {
