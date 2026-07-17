@@ -9,8 +9,8 @@
 - [x] **Zero-Click Auto-Connect** — Wallet connects automatically when opened inside MiniPay browser. ✅ Verified
 - [x] **Stablecoin Native Flow** — App uses `USDm` (+ Naira display) as core unit of account.
 - [x] **Mobile-Responsive UI** — Fully optimized for low-end mobile devices.
-- [ ] **No `personal_sign` Calls** — Verify no arbitrary message-signing popups are triggered for auth flows. _(Low risk — app uses wallet address directly, but worth auditing)_
-- [ ] **Fee Abstraction (Gasless)** — Transactions pay gas in stablecoins or are sponsored. _(Nice-to-have for grant bonus points, not blocking)_
+- [x] **No `personal_sign` Calls** — Verify no arbitrary message-signing popups are triggered for auth flows. _(Verified: no `personal_sign`, `signMessage`, or `signTypedData` calls exist; wallet address is used directly as identity via EIP-1193.)_
+- [x] **Fee Abstraction (Gasless)** — Transactions pay gas in stablecoins or are sponsored. _(Implemented via Celo native `feeCurrency`: all `writeContract` calls now set `feeCurrency` to USDm address, allowing gas payments in USDm instead of CELO.)_
 
 ---
 
@@ -50,9 +50,9 @@
 
 | Category | Status |
 |---|---|
-| MiniPay Compliance | 3/5 core items ✅ |
+| MiniPay Compliance | 5/5 core items ✅ |
 | Smart Contract | 3/3 ✅ |
 | Growth & Ecosystem | 4/4 ✅ |
 | Production Readiness | 3/3 ✅ |
 
-**You are ready to apply for Prezenti, Celo Builder Fund, and GoodBuilders grants.** The only remaining optional items are fee abstraction (gasless transactions) and a formal `personal_sign` audit — neither are blockers for grant applications.
+**You are ready to apply for Prezenti, Celo Builder Fund, and GoodBuilders grants.** All checklist items are now complete.

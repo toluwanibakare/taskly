@@ -130,7 +130,8 @@ export async function POST(req: Request) {
       abi: ERC20_ABI,
       functionName: "approve",
       args: [ESCROW_CONTRACT, amountWei],
-      type: "legacy"
+      type: "legacy",
+      feeCurrency: USDM_CONTRACT as `0x${string}`,
     });
     console.log(`Approve Tx sent: ${approveTx}. Waiting for confirmation...`);
     await walletClient.waitForTransactionReceipt({ hash: approveTx });
@@ -142,7 +143,8 @@ export async function POST(req: Request) {
       abi: ESCROW_ABI,
       functionName: "createCampaign",
       args: [bytes32TaskId, rewardWei, BigInt(taskData.slotsTotal), durationSeconds],
-      type: "legacy"
+      type: "legacy",
+      feeCurrency: USDM_CONTRACT as `0x${string}`,
     });
     console.log(`Create Campaign Tx sent: ${createTx}. Waiting for confirmation...`);
     await walletClient.waitForTransactionReceipt({ hash: createTx });

@@ -1,5 +1,6 @@
 import { useChainId, useWriteContract, useReadContract } from "wagmi";
 import { ESCROW_ABI } from "@/lib/escrowAbi";
+import { getUsdmAddress } from "@/lib/app-utils";
 import { parseUnits, keccak256, toBytes } from "viem";
 
 // Mappings for deployed Escrow contract addresses per Celo network chain ID
@@ -41,12 +42,15 @@ export function useEscrow() {
     const rewardWei = parseUnits(rewardPerSlot.toString(), 18);
     const bytes32TaskId = formatTaskIdToBytes32(taskId);
 
+    const usdmAddress = getUsdmAddress(chainId);
+
     return writeContractAsync({
       address: contractAddress,
       abi: ESCROW_ABI,
       functionName: "createCampaign",
       args: [bytes32TaskId, rewardWei, BigInt(totalSlots), BigInt(durationSeconds)],
       type: "legacy",
+      feeCurrency: usdmAddress,
     });
   };
 
@@ -58,12 +62,15 @@ export function useEscrow() {
 
     const bytes32TaskId = formatTaskIdToBytes32(taskId);
 
+    const usdmAddress = getUsdmAddress(chainId);
+
     return writeContractAsync({
       address: contractAddress,
       abi: ESCROW_ABI,
       functionName: "payoutWorker",
       args: [bytes32TaskId, workerAddress as `0x${string}`],
       type: "legacy",
+      feeCurrency: usdmAddress,
     });
   };
 
@@ -75,12 +82,15 @@ export function useEscrow() {
 
     const bytes32TaskId = formatTaskIdToBytes32(taskId);
 
+    const usdmAddress = getUsdmAddress(chainId);
+
     return writeContractAsync({
       address: contractAddress,
       abi: ESCROW_ABI,
       functionName: "refundCampaign",
       args: [bytes32TaskId],
       type: "legacy",
+      feeCurrency: usdmAddress,
     });
   };
 

@@ -3021,12 +3021,14 @@ try {
 
       // Execute on-chain smart contract refund
       if (escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000") {
+        const usdmAddr = getUsdmAddress(chainId);
         txHash = await writeContractAsync({
           address: escrowContractAddress,
           abi: ESCROW_ABI,
           functionName: "refundCampaign",
           args: [bytes32TaskId],
           type: "legacy",
+          feeCurrency: usdmAddr,
         });
       } else {
         // Fallback for mock environment
@@ -6507,6 +6509,7 @@ try {
                           abi: ERC20_ABI,
                           functionName: "approve",
                           args: [escrowContractAddress, parseEther(total.toFixed(18))],
+                          feeCurrency: usdmAddress,
                         });
 
                         // Step 2: Create campaign on escrow contract via hook
@@ -7022,6 +7025,7 @@ try {
                           functionName: "transfer",
                           args: [workerWallet as `0x${string}`, amountWei],
                           type: "legacy",
+                          feeCurrency: usdmAddress,
                         });
 
                         // Update the withdrawal request to completed in Firestore
@@ -7750,6 +7754,8 @@ function ContractSettings({ escrowAddress, adminWallet, writeContractAsync, isCo
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMsg, setUpdateMsg] = useState<string | null>(null);
   const { address: connectedWallet } = useAccount();
+  const chainId = useChainId();
+  const usdmAddress = getUsdmAddress(chainId);
 
   const { data: contractOwner } = useReadContract({
     address: escrowAddress && escrowAddress !== "0x0000000000000000000000000000000000000000" ? escrowAddress : undefined,
@@ -7780,6 +7786,7 @@ function ContractSettings({ escrowAddress, adminWallet, writeContractAsync, isCo
         functionName: "updateOwner",
         args: [adminWallet as `0x${string}`],
         type: "legacy",
+        feeCurrency: usdmAddress,
       });
       const timeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("timeout")), 90000)

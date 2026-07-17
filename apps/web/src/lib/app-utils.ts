@@ -31,3 +31,14 @@ export function isValidAddress(address: string): boolean {
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+// USDm (Mento Dollar) addresses per Celo network chain ID
+export const USDM_ADDRESSES: Record<number, `0x${string}`> = {
+  42220: "0x765DE816845861e75A25fCA122bb6898B8B1282a", // Celo Mainnet
+  44787: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1", // Celo Alfajores (formerly cUSD)
+  11142220: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b", // Celo Sepolia
+};
+
+export const getUsdmAddress = (chainId: number): `0x${string}` => {
+  return USDM_ADDRESSES[chainId] || "0x765DE816845861e75A25fCA122bb6898B8B1282a";
+};
