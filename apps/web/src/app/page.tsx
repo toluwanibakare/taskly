@@ -3029,7 +3029,7 @@ try {
           args: [bytes32TaskId] as const,
           type: "legacy" as const,
           feeCurrency: usdmAddr,
-        };
+        } as any;
         txHash = await (writeContractAsync as any)(refundParams);
       } else {
         // Fallback for mock environment
@@ -6511,7 +6511,7 @@ try {
                           functionName: "approve" as const,
                           args: [escrowContractAddress, parseEther(total.toFixed(18))] as const,
                           feeCurrency: usdmAddress,
-                        };
+                        } as any;
                         const approveTx = await (writeContractAsync as any)(approveParams);
 
                         // Step 2: Create campaign on escrow contract via hook
@@ -7028,7 +7028,7 @@ try {
                           args: [workerWallet as `0x${string}`, amountWei] as const,
                           type: "legacy" as const,
                           feeCurrency: usdmAddress,
-                        };
+                        } as any;
                         const txHash = await (writeContractAsync as any)(transferParams);
 
                         // Update the withdrawal request to completed in Firestore
@@ -7790,7 +7790,7 @@ function ContractSettings({ escrowAddress, adminWallet, writeContractAsync, isCo
         args: [adminWallet as `0x${string}`] as const,
         type: "legacy" as const,
         feeCurrency: usdmAddress,
-      };
+      } as any;
       const txPromise = (writeContractAsync as any)(ownerParams);
       const timeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("timeout")), 90000)

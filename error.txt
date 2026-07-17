@@ -1,0 +1,11 @@
+Type error: Object literal may only specify known properties, and 'feeCurrency' does not exist in type '{ abi: readonly [{ readonly inputs: readonly [{ readonly internalType: "address"; readonly name: "_stableToken"; readonly type: "address"; }]; readonly stateMutability: "nonpayable"; readonly type: "constructor"; }, ... 9 more ..., { ...; }]; ... 22 more ...; __mode?: "prepared" | undefined; }'.
+  3029 |           args: [bytes32TaskId],
+  3030 |           type: "legacy",
+> 3031 |           feeCurrency: usdmAddr,
+       |           ^
+  3032 |         });
+  3033 |       } else {
+  3034 |         // Fallback for mock environment
+Next.js build worker exited with code: 1 and signal: null
+ ELIFECYCLE  Command failed with exit code 1.
+Error: Command "pnpm build" exited with 1
