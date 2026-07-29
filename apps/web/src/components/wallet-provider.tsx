@@ -7,7 +7,10 @@ import React, { useEffect, useState } from "react";
 import { WagmiProvider } from "wagmi";
 import { celo, celoSepolia } from "wagmi/chains";
 
-const projectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID || "3fcc6b226e640003185962237fe4a3ec";
+const projectId = 
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 
+  process.env.NEXT_PUBLIC_WC_PROJECT_ID || 
+  "202cc0d29cc96ae3343a5891647bb566";
 
 const wagmiConfig = getDefaultConfig({
   appName: "tuzo",
