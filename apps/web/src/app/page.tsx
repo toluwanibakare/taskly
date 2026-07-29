@@ -7689,8 +7689,14 @@ try {
             <div className="flex-1 overflow-y-auto pr-1 space-y-4 scrollbar-thin">
               {Object.keys(BADGES_METADATA).map((key) => {
                 const badge = BADGES_METADATA[key];
-                const unlockedAt = dbUserProfile?.badges?.[key];
-                const isUnlocked = !!unlockedAt;
+                const isUnlocked = Array.isArray(dbUserProfile?.badges)
+                  ? dbUserProfile.badges.includes(key)
+                  : !!dbUserProfile?.badges?.[key];
+                const unlockedAt = isUnlocked
+                  ? (Array.isArray(dbUserProfile?.badges)
+                      ? dbUserProfile?.emailSubmittedAt || dbUserProfile?.created_at || new Date().toISOString()
+                      : dbUserProfile?.badges?.[key])
+                  : null;
 
                 return (
                   <div 
@@ -7717,7 +7723,11 @@ try {
                       {isUnlocked && (
                         <div className="flex flex-wrap items-center gap-2 mt-2">
                           <span className="text-[9px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-md font-bold whitespace-nowrap">
-                            🎉 Acquired: {new Date(unlockedAt).toLocaleDateString()}
+                            🎉 Acquired: {(() => {
+                              if (!unlockedAt) return new Date().toLocaleDateString();
+                              const d = (unlockedAt as any).toDate ? (unlockedAt as any).toDate() : new Date(unlockedAt);
+                              return isNaN(d.getTime()) ? new Date().toLocaleDateString() : d.toLocaleDateString();
+                            })()}
                           </span>
                           <button
                             type="button"
