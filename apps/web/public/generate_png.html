@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate Tezra Brand PNG</title>
+</head>
+<body style="background: #f1f5f9; font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; margin: 0; padding: 20px;">
+  <div style="background: #ffffff; padding: 40px; border-radius: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); max-width: 650px; width: 100%; text-align: center;">
+    <h1 style="color: #0f172a; margin-top: 0; font-size: 24px; font-weight: 800;">Tezra Brand Logo Generator</h1>
+    <p style="color: #64748b; font-size: 14px; margin-bottom: 30px;">Click the button below to download the high-resolution brand banner as a PNG file.</p>
+    
+    <!-- Preview Canvas -->
+    <canvas id="canvas" width="600" height="200" style="border: 1px solid #e2e8f0; border-radius: 12px; max-width: 100%; background: #ffffff;"></canvas>
+    
+    <div style="margin-top: 30px;">
+      <button id="download-btn" style="background: linear-gradient(to right, #2563eb, #10b981); color: #ffffff; font-weight: bold; border: none; padding: 12px 28px; border-radius: 12px; cursor: pointer; font-size: 14px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); transition: opacity 0.2s;">
+        Download brand_logo.png
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const downloadBtn = document.getElementById('download-btn');
+
+    // Set white background initially
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 600, 200);
+
+    // Load actual logo image
+    const logo = new Image();
+    logo.src = 'logo.png';
+    
+    logo.onload = () => {
+      // Draw logo centered vertically (y: 50, height: 100 on a 200px canvas)
+      ctx.drawImage(logo, 60, 50, 100, 100);
+
+      // Create brand gradient fill for the "Tezra" text
+      const grad = ctx.createLinearGradient(185, 0, 320, 0);
+      grad.addColorStop(0, '#2563eb'); // blue-600
+      grad.addColorStop(1, '#10b981'); // emerald-500
+
+      // Draw "Tezra"
+      ctx.fillStyle = grad;
+      ctx.font = '900 54px system-ui, -apple-system, sans-serif';
+      ctx.fillText('Tezra', 185, 110);
+
+      // Draw Tagline
+      ctx.fillStyle = '#64748b'; // slate-500
+      ctx.font = '600 18px system-ui, -apple-system, sans-serif';
+      ctx.fillText('Microwork for Stablecoins', 188, 140);
+    };
+
+    downloadBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'brand_logo.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  </script>
+</body>
+</html>
