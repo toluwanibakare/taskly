@@ -39,9 +39,10 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({ badge, onClo
   if (!badge) return null;
 
   const appUrl = "https://tezra.xyz";
+  const shareUrl = `${appUrl}/share/${badge.id}`;
   const shareText = `I just unlocked the "${badge.title}" badge on Tezra! 🏆 Earn crypto rewards by completing micro-tasks.`;
   const encodedText = encodeURIComponent(shareText);
-  const encodedUrl = encodeURIComponent(appUrl);
+  const encodedUrl = encodeURIComponent(shareUrl);
 
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}&hashtags=Tezra,Celo,Web3,CryptoRewards`;
   const telegramUrl = `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`;
