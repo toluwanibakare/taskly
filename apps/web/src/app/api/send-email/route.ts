@@ -27,11 +27,11 @@ export async function POST(req: Request) {
         const { toEmail, isFirst10, walletAddress, displayName } = payload || {};
         if (!toEmail) return NextResponse.json({ error: "Missing toEmail" }, { status: 400 });
         
-        await sendWelcomeGiftEmail(toEmail, !!isFirst10, displayName);
+        const success = await sendWelcomeGiftEmail(toEmail, !!isFirst10, displayName);
         if (walletAddress) {
           await sendAdminNewUserEmail(toEmail, walletAddress, !!isFirst10);
         }
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success });
       }
 
       case "task_created": {

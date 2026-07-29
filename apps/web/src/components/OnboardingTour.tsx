@@ -6,11 +6,13 @@ import { ArrowRight, Trophy, User } from "lucide-react";
 interface OnboardingTourProps {
   activeTab: string;
   setActiveTab: (tab: any) => void;
+  enabled?: boolean;
 }
 
 export const OnboardingTour: React.FC<OnboardingTourProps> = ({
   activeTab,
   setActiveTab,
+  enabled = true,
 }) => {
   const [step, setStep] = useState(0); // 0 = not started, 1 = earn tab, 2 = profile tab, 3 = finished
   const [highlightCoords, setHighlightCoords] = useState<{
@@ -35,16 +37,20 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
 
   // Check if onboarding was completed
   useEffect(() => {
+    if (!enabled) {
+      setStep(0);
+      return;
+    }
     if (typeof window !== "undefined") {
       const completed = localStorage.getItem("tezra_onboarding_completed");
       if (!completed) {
         const timer = setTimeout(() => {
           setStep(1);
-        }, 2500);
+        }, 1500); // Wait 1.5 seconds after page is fully ready & modals are gone
         return () => clearTimeout(timer);
       }
     }
-  }, []);
+  }, [enabled]);
 
   // Update target bounding box coordinates dynamically
   const updateHighlight = () => {

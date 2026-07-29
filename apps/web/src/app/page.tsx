@@ -8316,7 +8316,11 @@ try {
       />
 
       {/* ===== INTERACTIVE ONBOARDING TOUR ===== */}
-      <OnboardingTour activeTab={activeTab} setActiveTab={setActiveTab} />
+      <OnboardingTour
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        enabled={!showEmailModal && !showCertificate && !unlockedBadgeInfo && !pendingBadgeUnlock && !!dbUserProfile?.displayName}
+      />
     </div>
   );
 }

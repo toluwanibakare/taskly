@@ -89,7 +89,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
 
       // Trigger email send via API
       try {
-        await fetch("/api/send-email", {
+        const res = await fetch("/api/send-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -102,6 +102,10 @@ export const EmailModal: React.FC<EmailModalProps> = ({
             },
           }),
         });
+        const resData = await res.json();
+        if (res.ok && resData.success === false) {
+          console.warn("SMTP email dispatch returned success=false. Verify SMTP_PASS is configured correctly in Vercel.");
+        }
       } catch (err) {
         console.error("Failed to trigger welcome email API call:", err);
       }
