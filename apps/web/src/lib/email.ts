@@ -225,7 +225,43 @@ export async function sendEmail({
   subject: string;
   html: string;
 }): Promise<boolean> {
-  // If cPanel API is configured, route through it to bypass Vercel port/SMTP blocks
+  // 1. If Resend is configured, route via Resend API (Vercel native secure connection)
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey) {
+    try {
+      console.log(`Sending email via Resend API to ${to}`);
+      const senderEmail = process.env.SENDER_EMAIL || "noreply@tezra.xyz";
+      
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: `Tezra <${senderEmail}>`,
+          to: [to],
+          subject,
+          html,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`Resend API returned status ${res.status}:`, errText);
+        return false;
+      }
+
+      const data = await res.json();
+      console.log(`Email successfully sent via Resend, messageId: ${data.id}`);
+      return true;
+    } catch (err) {
+      console.error(`Failed to send email via Resend API to ${to}:`, err);
+      return false;
+    }
+  }
+
+  // 2. If cPanel API is configured, route through it to bypass Vercel port/SMTP blocks
   const cpanelUrl = process.env.CPANEL_EMAIL_API_URL;
   if (cpanelUrl) {
     try {

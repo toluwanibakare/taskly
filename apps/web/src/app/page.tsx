@@ -2228,7 +2228,8 @@ export default function Home() {
     };
     const budget = payoutValue * slotsValue;
     const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
-    const total = budget + fee;
+    const credit = dbUserProfile?.taskCredit || 0;
+    const total = Math.max(0, budget + fee - credit);
 
     if (isReopening && reopeningTaskId) {
       const orig = tasks.find(t => t.id === reopeningTaskId);
@@ -2354,6 +2355,19 @@ export default function Home() {
           
           if (userSnap.exists()) {
             const uData = userSnap.data();
+            
+            // Deduct taskCredit if user has credit
+            if (uData.taskCredit && uData.taskCredit > 0) {
+              const totalCost = taskData.total_budget;
+              const creditUsed = Math.min(totalCost, uData.taskCredit);
+              const updatedCredit = parseFloat((uData.taskCredit - creditUsed).toFixed(2));
+              await updateDoc(userDocRef, {
+                taskCredit: updatedCredit
+              });
+              setDbUserProfile((prev: any) => prev ? { ...prev, taskCredit: updatedCredit } : null);
+              console.log(`Deducted task credit by ${creditUsed}. Remaining: ${updatedCredit}`);
+            }
+
             const tasksSnap = await getDocs(collection(db, "tasks"));
             
             // 1. Genesis Creator Badge Check
@@ -6769,7 +6783,8 @@ try {
                 {isConnected && paymentMethod !== "naira" && (() => {
                   const budget = payoutValue * slotsValue;
                   const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
-                  const totalNeeded = budget + fee;
+                  const credit = dbUserProfile?.taskCredit || 0;
+                  const totalNeeded = Math.max(0, budget + fee - credit);
                   const hasEnough = userUsdmBalance >= totalNeeded;
                   return (
                     <div className={`rounded-xl px-3 py-2.5 text-xs font-semibold flex items-center gap-2 ${hasEnough ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-red-50 text-red-700 border border-red-100"}`}>
@@ -6796,30 +6811,50 @@ try {
                   </button>
                   <button
                     type="button"
-                    disabled={isDepositing || (isConnected && paymentMethod !== "naira" && userUsdmBalance < (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)))}
+                    disabled={isDepositing || (isConnected && paymentMethod !== "naira" && userUsdmBalance < Math.max(0, (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)) - (dbUserProfile?.taskCredit || 0)))}
                     onClick={async () => {
                       setIsDepositing(true);
                       try {
                         const budget = payoutValue * slotsValue;
                         const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
-                        const total = budget + fee;
+                        const credit = dbUserProfile?.taskCredit || 0;
+                        const total = Math.max(0, budget + fee - credit);
+
+                        const task = pendingTxData?.newTask;
+                        if (!task) return;
+
+                        // Welcome credit completely covers the cost
+                        if (total <= 0) {
+                          const pendingTask = {
+                            ...task,
+                            status: "active",
+                            transactionHash: "welcome-credit"
+                          };
+                          await saveNewTask(pendingTask);
+                          setIsDepositing(false);
+                          setActiveTransaction({
+                            status: "success",
+                            title: task.title,
+                            amount: "0.00 USDm (Paid via Welcome Credit 🎁)",
+                            txHash: undefined,
+                            onClose: () => {
+                              setActiveTransaction(null);
+                            }
+                          });
+                          return;
+                        }
 
                         if (!isConnected || paymentMethod === "naira") {
-                          if (pendingTxData?.newTask) {
-                            const pendingTask = {
-                              ...pendingTxData.newTask,
-                              status: "pending_payment",
-                              transactionHash: "manual-payment"
-                            };
-                            await saveNewTask(pendingTask);
-                          }
+                          const pendingTask = {
+                            ...task,
+                            status: "pending_payment",
+                            transactionHash: "manual-payment"
+                          };
+                          await saveNewTask(pendingTask);
                           setIsDepositing(false);
                           setActiveTransaction((prev) => prev ? { ...prev, status: "naira-checkout" } : null);
                           return;
                         }
-
-                        const task = pendingTxData?.newTask;
-                        if (!task) return;
 
                         if (!escrowContractAddress || escrowContractAddress === "0x0000000000000000000000000000000000000000") {
                           throw new Error("Escrow contract not configured for this network");
