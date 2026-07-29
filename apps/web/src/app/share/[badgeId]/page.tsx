@@ -75,10 +75,10 @@ async function getUserInfo(wallet: string): Promise<{ name: string; design: numb
     const avatarDesign = fields.avatarDesign?.integerValue
       ? parseInt(fields.avatarDesign.integerValue, 10)
       : parseInt(wallet.slice(-2), 16) % 4;
-    const name = displayName || getShortWallet(wallet);
+    const name = displayName ? (displayName.startsWith("@") ? displayName : `@${displayName}`) : `@${getShortWallet(wallet)}`;
     return { name, design: avatarDesign };
   } catch (err) {
-    return { name: getShortWallet(wallet), design: parseInt(wallet.slice(-2), 16) % 4 };
+    return { name: `@${getShortWallet(wallet)}`, design: parseInt(wallet.slice(-2), 16) % 4 };
   }
 }
 
@@ -143,7 +143,8 @@ export default async function ShareBadgePage({ params, searchParams }: Props) {
   }
 
   const design = AVATAR_DESIGNS[userInfo.design % 4];
-  const initial = userInfo.name ? userInfo.name.charAt(0).toUpperCase() : "?";
+  const cleanName = userInfo.name.startsWith("@") ? userInfo.name.slice(1) : userInfo.name;
+  const initial = cleanName ? cleanName.charAt(0).toUpperCase() : "?";
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white flex flex-col items-center justify-center p-4">

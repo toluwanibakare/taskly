@@ -20,6 +20,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
   onSuccess,
 }) => {
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +30,12 @@ export const EmailModal: React.FC<EmailModalProps> = ({
     e.preventDefault();
     if (!email || !email.includes("@")) {
       setError("Please enter a valid email address.");
+      return;
+    }
+
+    const cleanUsername = username.trim().replace(/\s+/g, "").replace(/[^a-zA-Z0-9_]/g, "");
+    if (!cleanUsername || cleanUsername.length < 3) {
+      setError("Username must be at least 3 characters long and contain only letters, numbers, or underscores.");
       return;
     }
 
@@ -51,6 +58,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
       const taskCreditAmount = isFirst10 ? 1.0 : 0.0;
 
       const timestamp = new Date().toISOString();
+      const defaultDesign = parseInt(normalizedAddress.slice(-2), 16) % 4;
 
       if (userSnap.exists()) {
         const currentBadges = userSnap.data()?.badges || {};
@@ -58,6 +66,8 @@ export const EmailModal: React.FC<EmailModalProps> = ({
 
         await updateDoc(userRef, {
           email: email.trim().toLowerCase(),
+          displayName: cleanUsername,
+          avatarDesign: userSnap.data()?.avatarDesign !== undefined ? userSnap.data().avatarDesign : defaultDesign,
           xp: increment(50),
           badges: currentBadges,
           taskCredit: increment(taskCreditAmount),
@@ -67,6 +77,8 @@ export const EmailModal: React.FC<EmailModalProps> = ({
         await setDoc(userRef, {
           walletAddress: normalizedAddress,
           email: email.trim().toLowerCase(),
+          displayName: cleanUsername,
+          avatarDesign: defaultDesign,
           xp: 50,
           badges: { pioneer: timestamp },
           taskCredit: taskCreditAmount,
@@ -86,6 +98,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
               toEmail: email.trim().toLowerCase(),
               walletAddress: normalizedAddress,
               isFirst10,
+              displayName: cleanUsername,
             },
           }),
         });
@@ -154,6 +167,23 @@ export const EmailModal: React.FC<EmailModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              Choose a Username
+            </label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-bold">@</span>
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="username"
+                className="w-full pl-8 pr-4 py-2.5 bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none transition"
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
               Your Email Address

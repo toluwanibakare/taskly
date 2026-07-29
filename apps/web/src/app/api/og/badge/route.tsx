@@ -61,11 +61,12 @@ export async function GET(req: NextRequest) {
     const badgeId = searchParams.get('id') || 'pioneer';
     const badge = BADGES[badgeId] || BADGES.pioneer;
 
-    const displayName = searchParams.get('name') || '';
+    const rawName = searchParams.get('name') || '';
+    const displayName = rawName ? (rawName.startsWith('@') ? rawName : `@${rawName}`) : '';
     const designIdxStr = searchParams.get('design') || '0';
     const designIdx = parseInt(designIdxStr, 10) % 4;
     const design = AVATAR_DESIGNS[designIdx];
-    const initial = displayName ? displayName.charAt(0).toUpperCase() : '?';
+    const initial = displayName ? (displayName.startsWith('@') ? displayName.charAt(1).toUpperCase() : displayName.charAt(0).toUpperCase()) : '?';
 
     return new ImageResponse(
       (

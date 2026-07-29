@@ -61,10 +61,13 @@ import {
   Zap,
   ArrowRight,
   ChevronLeft,
-  Share2
+  Share2,
+  Pencil
 } from "lucide-react";
 import { EmailModal } from "../components/EmailModal";
 import { BadgeUnlockModal, BadgeUnlockInfo } from "../components/BadgeUnlockModal";
+import { CertificateModal } from "../components/CertificateModal";
+import { OnboardingTour } from "../components/OnboardingTour";
 
 // Platform Type definition
 type Platform = "instagram" | "x" | "youtube" | "tiktok" | "survey" | "testing" | "facebook" | "linkedin" | "github";
@@ -700,8 +703,8 @@ export default function Home() {
   const [screen, setScreen] = useState<"splash" | "main" | "task-details" | "submit-proof" | "create-task" | "success-celebration">("splash");
   
   // Bottom navigation tab state
-  // "home" | "history" | "profile" | "about"
-  const [activeTab, setActiveTab] = useState<"home" | "history" | "profile" | "about">("home");
+  // "home" | "earn" | "profile" | "about"
+  const [activeTab, setActiveTab] = useState<"home" | "earn" | "profile" | "about">("home");
 
   // Capture referral code from URL query parameters
   useEffect(() => {
@@ -722,7 +725,7 @@ export default function Home() {
 
   // Profile Sub-Screen for Creator Dashboard
   // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-withdrawals" | "admin-contest"
-  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest" | "admin-contract">("profile-main");
+  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest" | "admin-contract" | "task-history" | "transaction-history">("profile-main");
 
   // Selected task for Details and Submission
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -1019,7 +1022,9 @@ export default function Home() {
   const [adminContestPrize, setAdminContestPrize] = useState(20);
   const [adminContestDuration, setAdminContestDuration] = useState(7);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showCertificate, setShowCertificate] = useState(false);
   const [unlockedBadgeInfo, setUnlockedBadgeInfo] = useState<BadgeUnlockInfo | null>(null);
+  const [pendingBadgeUnlock, setPendingBadgeUnlock] = useState<BadgeUnlockInfo | null>(null);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [profileEditName, setProfileEditName] = useState("");
   const [profileEditEmail, setProfileEditEmail] = useState("");
@@ -3634,35 +3639,103 @@ try {
                       <p className="text-slate-400 text-sm font-medium">No tasks found for "{activeFilter}"</p>
                     </div>
                   )}
+                        {/* TAB: EARN */}
+            {activeTab === "earn" && (
+              <div className="space-y-6 animate-fade-in">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                    Earn Rewards
+                  </h2>
+                  <p className="text-slate-500 text-xs font-semibold mt-0.5">
+                    Participate in promotional campaigns and contests
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Campaign 1: Sign-up Reward & Certificate Share */}
+                  <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-900 border border-slate-800 rounded-3xl p-5 text-white shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 bg-emerald-500/10 text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-emerald-500/30">
+                      ⚡ Active
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/15 border border-emerald-500/30 rounded-full text-emerald-400 text-[9px] font-black uppercase tracking-wider mb-3">
+                      <span>Giveaway Contest</span>
+                    </div>
+                    <h3 className="text-lg font-black tracking-tight text-white">Membership Certificate Share</h3>
+                    <p className="text-slate-300 text-xs mt-2 leading-relaxed font-medium">
+                      Share your official **Tezra Member Certificate** on X tagging <strong className="text-emerald-400">@earnwithtezra</strong> and <strong className="text-emerald-400">@0xTMB</strong>. The most engaged tweet wins a <strong className="text-amber-400">$10.00 USDm</strong> prize!
+                    </p>
+                    <div className="flex gap-2.5 mt-5">
+                      <button
+                        onClick={() => {
+                          if (!dbUserProfile?.displayName) {
+                            // Prompt signup if missing
+                            setShowEmailModal(true);
+                          } else {
+                            setShowCertificate(true);
+                          }
+                        }}
+                        className="flex-1 py-2.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-extrabold rounded-xl shadow-lg shadow-emerald-500/10 active:scale-95 transition-all text-center"
+                      >
+                        View & Share Certificate
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Campaign 2: Referral Contest */}
+                  <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 bg-blue-50 text-blue-600 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-blue-100">
+                      ⏳ Coming Soon
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-[9px] font-black uppercase tracking-wider mb-3">
+                      <span>Leaderboard Campaign</span>
+                    </div>
+                    <h3 className="text-lg font-black tracking-tight text-slate-900">Referral Champion Contest</h3>
+                    <p className="text-slate-500 text-xs mt-2 leading-relaxed font-medium">
+                      Invite your community to Tezra. Top 3 referrers with the highest active user submissions within the campaign window will share a reward pool of <strong className="text-blue-600">$50.00 USDm</strong>!
+                    </p>
+                    <button
+                      disabled
+                      className="w-full py-2.5 px-4 bg-slate-100 text-slate-400 text-xs font-extrabold rounded-xl mt-5 cursor-not-allowed text-center"
+                    >
+                      Registration Opens Soon
+                    </button>
+                  </div>
+
+                  {/* Campaign 3: Badge Contest */}
+                  <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 bg-purple-50 text-purple-600 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-purple-100">
+                      ⏳ Coming Soon
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-purple-50 border border-purple-100 rounded-full text-purple-600 text-[9px] font-black uppercase tracking-wider mb-3">
+                      <span>Collector Contest</span>
+                    </div>
+                    <h3 className="text-lg font-black tracking-tight text-slate-900">Badge Collector Sprint</h3>
+                    <p className="text-slate-500 text-xs mt-2 leading-relaxed font-medium">
+                      Earn achievements, download your badge cards, and post them to X. The collector who gathers and shares the most achievements with proper tagging wins <strong className="text-purple-600">$15.00 USDm</strong>.
+                    </p>
+                    <button
+                      disabled
+                      className="w-full py-2.5 px-4 bg-slate-100 text-slate-400 text-xs font-extrabold rounded-xl mt-5 cursor-not-allowed text-center"
+                    >
+                      Contest Locked
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* TAB: TASK HISTORY */}
-            {activeTab === "history" && (
-              <div className="space-y-6">
-                {historySubScreen === "tasks" ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                          Task History
-                        </h2>
-                        <p className="text-slate-500 text-xs font-semibold mt-0.5">
-                          Track the status of your task submissions
-                        </p>
-                      </div>
-                      {isUserConnected && (
-                        <button
-                          type="button"
-                          onClick={() => setHistorySubScreen("ledger")}
-                          className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100/50 rounded-xl text-[10px] font-extrabold flex items-center gap-1.5 active:scale-95 transition-all"
-                        >
-                          <Receipt className="w-3.5 h-3.5" />
-                          Transactions
-                        </button>
-                      )}
-                    </div>
+            {/* Removed duplicate history tab */}
+            {false && isUserConnected && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setHistorySubScreen("ledger")}
+                  className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100/50 rounded-xl text-[10px] font-extrabold flex items-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <Receipt className="w-3.5 h-3.5" />
+                  Transactions
+                </button>
+              </div>
 
                     {!isUserConnected ? (
                       renderConnectPrompt(
@@ -3915,11 +3988,17 @@ try {
                           </div>
                           <button
                             type="button"
-                            onClick={() => window.location.reload()}
+                            onClick={() => {
+                              setProfileEditName(dbUserProfile?.displayName || "");
+                              setProfileEditEmail(dbUserProfile?.email || "");
+                              setProfileEditAvatar(null);
+                              setProfileEditAvatarPreview(null);
+                              setShowProfileEdit(true);
+                            }}
                             className="p-2.5 bg-white border border-slate-100 hover:bg-slate-50 active:scale-95 text-slate-700 rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
                           >
-                            <RotateCw className="w-4 h-4 text-emerald-600" />
-                            Refresh
+                            <Pencil className="w-4 h-4 text-emerald-600" />
+                            Edit Profile
                           </button>
                         </div>
 
@@ -3933,9 +4012,9 @@ try {
                           </div>
                           <div className="flex justify-between items-end">
                             <div>
-                              <span className="text-[11px] text-slate-500 font-medium block">Address</span>
-                              <span className="text-sm font-bold block mt-0.5 font-mono select-all">
-                                {formatAddress(displayAddress)}
+                              <span className="text-[11px] text-slate-500 font-medium block">Username</span>
+                              <span className="text-sm font-bold block mt-0.5 select-all">
+                                {dbUserProfile?.displayName ? (dbUserProfile.displayName.startsWith("@") ? dbUserProfile.displayName : `@${dbUserProfile.displayName}`) : `@${formatAddress(displayAddress)}`}
                               </span>
                             </div>
                             {!isMiniPayApp && (
@@ -4106,21 +4185,25 @@ try {
                             View Achievements & Badges
                           </button>
 
-                          {/* Edit Profile Button */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setProfileEditName(dbUserProfile?.displayName || "");
-                              setProfileEditEmail(dbUserProfile?.email || "");
-                              setProfileEditAvatar(null);
-                              setProfileEditAvatarPreview(null);
-                              setShowProfileEdit(true);
-                            }}
-                            className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 active:scale-95 text-slate-800 rounded-xl text-xs font-bold transition-all border border-slate-100 flex items-center justify-center gap-2"
-                          >
-                            <User className="w-3.5 h-3.5" />
-                            Edit Profile
-                          </button>
+                          {/* Profile Navigation Actions */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setProfileSubScreen("task-history")}
+                              className="py-2.5 bg-slate-50 hover:bg-slate-100 active:scale-95 text-slate-800 rounded-xl text-xs font-bold transition-all border border-slate-100 flex items-center justify-center gap-1.5"
+                            >
+                              <ClipboardList className="w-3.5 h-3.5 text-blue-600" />
+                              Task History
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setProfileSubScreen("transaction-history")}
+                              className="py-2.5 bg-slate-50 hover:bg-slate-100 active:scale-95 text-slate-800 rounded-xl text-xs font-bold transition-all border border-slate-100 flex items-center justify-center gap-1.5"
+                            >
+                              <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+                              Transactions
+                            </button>
+                          </div>
                         </div>
 
                         {/* 6. Referral Link Card & Referral Contest */}
@@ -4572,6 +4655,243 @@ try {
                             </div>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* PROFILE: USER'S TASK HISTORY SUB-SCREEN */}
+                    {profileSubScreen === "task-history" && (
+                      <div className="space-y-6 animate-fade-in">
+                        {/* Header */}
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setProfileSubScreen("profile-main")}
+                            className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors border border-slate-100 bg-white shadow-sm active:scale-95 flex items-center justify-center flex-shrink-0"
+                          >
+                            <ArrowLeft className="w-4 h-4 text-slate-800" />
+                          </button>
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900 tracking-tight font-sans">
+                              Task History
+                            </h2>
+                            <span className="text-xs text-slate-400 font-semibold block">Track the status of your task submissions</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {history.length > 0 ? (
+                            history.map((item) => {
+                              const statusConfig = {
+                                pending: {
+                                  color: "bg-amber-50 text-amber-700 border-amber-100/50",
+                                  icon: <Clock className="w-3.5 h-3.5 text-amber-600" />,
+                                  label: "Pending Review"
+                                },
+                                approved: {
+                                  color: "bg-emerald-50 text-emerald-700 border-emerald-100/50",
+                                  icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+                                  label: "Approved"
+                                },
+                                rejected: {
+                                  color: "bg-red-50 text-red-700 border-red-100/50",
+                                  icon: <XCircle className="w-3.5 h-3.5 text-red-600" />,
+                                  label: "Rejected"
+                                },
+                                disputed: {
+                                  color: "bg-orange-50 text-orange-700 border-orange-100/50",
+                                  icon: <AlertCircle className="w-3.5 h-3.5 text-orange-600" />,
+                                  label: "Disputed"
+                                },
+                                "rejected-final": {
+                                  color: "bg-slate-100 text-slate-700 border-slate-200",
+                                  icon: <XCircle className="w-3.5 h-3.5 text-slate-500" />,
+                                  label: "Rejection Upheld"
+                                }
+                              }[item.status] || {
+                                color: "bg-slate-50 text-slate-600 border-slate-100",
+                                icon: <Info className="w-3.5 h-3.5" />,
+                                label: "Unknown"
+                              };
+
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="flex flex-col gap-2 w-full bg-white p-4 rounded-xl border border-slate-100 shadow-sm animate-fade-in"
+                                >
+                                  <div className="flex items-center justify-between gap-4 w-full">
+                                    <div className="flex items-center gap-3">
+                                      <div className="p-2 bg-slate-50 rounded-lg">
+                                        {getPlatformIcon(item.platform, "w-4 h-4")}
+                                      </div>
+                                      <div>
+                                        <h4 className="text-xs font-bold text-slate-900 line-clamp-1">
+                                          {item.taskTitle}
+                                        </h4>
+                                        <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                                          Submitted: {item.date}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    <div className="text-right flex-shrink-0 flex flex-col items-end gap-0.5">
+                                      <span className="text-xs font-extrabold text-slate-800">
+                                        {formatCurrency(item.amount)}
+                                      </span>
+                                      {(() => {
+                                        const val = parseFloat(item.amount.replace(/[^\d.]/g, ""));
+                                        if (!isNaN(val)) {
+                                          return (
+                                            <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
+                                              {currencyPreference === "NGN" ? `${val.toFixed(2)} USDm` : `~₦${Math.round(val * USDM_TO_NGN_RATE)}`}
+                                            </span>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                      <span
+                                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold border ${statusConfig.color}`}
+                                      >
+                                        {statusConfig.icon}
+                                        {statusConfig.label}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Rejection Details & Dispute Button */}
+                                  {item.status === "rejected" && (
+                                    <div className="mt-1 pt-2.5 border-t border-slate-50 flex items-center justify-between gap-3 flex-wrap">
+                                      <div className="text-[10px] text-slate-500 font-medium">
+                                        <span className="font-extrabold text-red-600 uppercase text-[9px] block">Rejection Reason:</span>
+                                        <span className="font-bold text-slate-700 capitalize">{item.rejectionCategory}</span> - {item.rejectionReason}
+                                      </div>
+                                      <button
+                                        onClick={() => {
+                                          setDisputingSubId(item.id);
+                                          setDisputeReasonInput("");
+                                        }}
+                                        className="px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-bold hover:bg-slate-800 transition-all shadow-sm active:scale-95"
+                                      >
+                                        Dispute Rejection
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {/* Upheld/Disputed Status Extra details */}
+                                  {item.status === "disputed" && item.disputeReason && (
+                                    <div className="mt-1 pt-2.5 border-t border-slate-50 text-[10px] text-slate-500 font-medium">
+                                      <span className="font-extrabold text-orange-600 uppercase text-[9px] block">Your Dispute Argument:</span>
+                                      "{item.disputeReason}"
+                                    </div>
+                                  )}
+                                  {item.status === "rejected-final" && (
+                                    <div className="mt-1 pt-2.5 border-t border-slate-50 text-[10px] text-slate-500 font-medium">
+                                      <span className="font-extrabold text-slate-500 uppercase text-[9px] block">Admin Resolution:</span>
+                                      Rejection upheld. Dispute closed.
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
+                              <p className="text-slate-400 text-xs font-semibold">No task submissions recorded yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PROFILE: USER'S TRANSACTION HISTORY SUB-SCREEN */}
+                    {profileSubScreen === "transaction-history" && (
+                      <div className="space-y-6 animate-fade-in">
+                        {/* Header */}
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setProfileSubScreen("profile-main")}
+                            className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors border border-slate-100 bg-white shadow-sm active:scale-95 flex items-center justify-center flex-shrink-0"
+                          >
+                            <ArrowLeft className="w-4 h-4 text-slate-800" />
+                          </button>
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900 tracking-tight font-sans">
+                              Transactions
+                            </h2>
+                            <span className="text-xs text-slate-400 font-semibold block">Full cash-flow breakdown</span>
+                          </div>
+                        </div>
+
+                        {/* Summary statistics */}
+                        {(() => {
+                          const ledger = getTransactionLedger();
+                          return (
+                            <>
+                              <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-5 grid grid-cols-2 gap-4 text-center">
+                                <div className="space-y-1">
+                                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Total Earnings</span>
+                                  <span className="text-xs font-black text-emerald-600">
+                                    +{formatCurrencyVal(ledger.totalInflow)}
+                                  </span>
+                                </div>
+                                <div className="space-y-1 border-l border-slate-100">
+                                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Total Outflow</span>
+                                  <span className="text-xs font-black text-rose-600">
+                                    -{formatCurrencyVal(ledger.totalOutflow)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Transaction Items list */}
+                              <div className="space-y-3.5">
+                                {ledger.items.length > 0 ? (
+                                  ledger.items.map((item, idx) => (
+                                    <div
+                                      key={item.id || idx}
+                                      className="bg-white p-4 border border-slate-100 shadow-sm rounded-2xl flex items-center justify-between gap-3 animate-fade-in"
+                                    >
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <div className={`p-2.5 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                          item.type === "inflow" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50/70 text-rose-600"
+                                        }`}>
+                                          <Receipt className="w-4 h-4" />
+                                        </div>
+                                        <div className="min-w-0">
+                                          <h4 className="text-xs font-black text-slate-900 truncate">
+                                            {item.title}
+                                          </h4>
+                                          <p className="text-[9px] text-slate-400 font-bold mt-0.5 truncate">
+                                            {item.meta} • {item.date}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="text-right flex-shrink-0 space-y-1">
+                                        <span className={`text-xs font-black block ${
+                                          item.type === "inflow" ? "text-emerald-600" : "text-rose-600"
+                                        }`}>
+                                          {item.type === "inflow" ? "+" : "-"}{formatCurrencyVal(item.amount)}
+                                        </span>
+                                        <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                                          item.status === "completed" || item.status === "approved" || item.status === "active"
+                                            ? "bg-emerald-50 text-emerald-700"
+                                            : item.status === "pending"
+                                            ? "bg-amber-50 text-amber-700 animate-pulse"
+                                            : "bg-slate-50 text-slate-400"
+                                        }`}>
+                                          {item.status}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
+                                    <p className="text-slate-400 text-xs font-semibold">No transactions recorded yet.</p>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
 
@@ -5633,14 +5953,15 @@ try {
           <nav className="fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto h-20 bg-white/90 backdrop-blur-md border-t border-slate-100 px-6 flex items-center justify-between z-40">
             {[
               { id: "home", label: "Home", icon: <TezraLogo className="w-5 h-5 opacity-70" /> },
-              { id: "history", label: "History", icon: <History className="w-5 h-5" /> },
-              { id: "profile", label: "Profile", icon: <User className="w-5 h-5" /> },
+              { id: "earn", label: "Earn", icon: <Trophy className="w-5 h-5" />, elementId: "nav-tab-earn" },
+              { id: "profile", label: "Profile", icon: <User className="w-5 h-5" />, elementId: "nav-tab-profile" },
               { id: "about", label: "About", icon: <Info className="w-5 h-5" /> }
             ].map((tab) => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
+                  id={tab.elementId}
                   onClick={() => {
                     setActiveTab(tab.id as any);
                     setProfileSubScreen("profile-main"); // reset creator sub-screens on nav click
@@ -7982,7 +8303,9 @@ try {
             sessionStorage.setItem(`tezra_email_prompt_dismissed_${activeAddress.toLowerCase()}`, "true");
           }}
           onSuccess={(badge) => {
-            setUnlockedBadgeInfo(badge);
+            setShowEmailModal(false);
+            setPendingBadgeUnlock(badge);
+            setShowCertificate(true);
           }}
         />
       )}
@@ -8152,6 +8475,25 @@ try {
         walletAddress={activeAddress}
       />
 
+      {/* ===== MEMBER CERTIFICATE MODAL ===== */}
+      <CertificateModal
+        isOpen={showCertificate}
+        displayName={dbUserProfile?.displayName || ""}
+        walletAddress={activeAddress || ""}
+        onClose={() => {
+          setShowCertificate(false);
+          // Chain to badge unlock celebrating modal if pending
+          if (pendingBadgeUnlock) {
+            setTimeout(() => {
+              setUnlockedBadgeInfo(pendingBadgeUnlock);
+              setPendingBadgeUnlock(null);
+            }, 2500);
+          }
+        }}
+      />
+
+      {/* ===== INTERACTIVE ONBOARDING TOUR ===== */}
+      <OnboardingTour activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );
 }

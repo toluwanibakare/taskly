@@ -1,0 +1,226 @@
+"use client";
+
+import React, { useRef, useState } from "react";
+import { Download, X } from "lucide-react";
+import logoImg from "../../assets/logo.png";
+
+interface CertificateModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  displayName: string;
+  walletAddress: string;
+}
+
+export const CertificateModal: React.FC<CertificateModalProps> = ({
+  isOpen,
+  onClose,
+  displayName,
+  walletAddress,
+}) => {
+  const [downloading, setDownloading] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  if (!isOpen) return null;
+
+  const formattedName = displayName.startsWith("@") ? displayName : `@${displayName}`;
+  const shortAddress = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+
+  const drawCertificate = async (): Promise<HTMLCanvasElement> => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 900;
+    canvas.height = 600;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not get canvas context");
+
+    // 1. Background
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 900, 600);
+
+    // 2. Borders & Ornaments
+    ctx.strokeStyle = "#10b981"; // Emerald
+    ctx.lineWidth = 14;
+    ctx.strokeRect(7, 7, 886, 586);
+
+    ctx.strokeStyle = "#2563eb"; // Blue
+    ctx.lineWidth = 2;
+    ctx.strokeRect(22, 22, 856, 556);
+
+    // Corner Ornaments
+    const drawCorner = (x: number, y: number, w: number, h: number) => {
+      ctx.fillStyle = "#10b981";
+      ctx.fillRect(x, y, w, h);
+    };
+    drawCorner(22, 22, 30, 8);
+    drawCorner(22, 22, 8, 30);
+    drawCorner(848, 22, 30, 8);
+    drawCorner(870, 22, 8, 30);
+    drawCorner(22, 570, 30, 8);
+    drawCorner(22, 548, 8, 30);
+    drawCorner(848, 570, 30, 8);
+    drawCorner(870, 548, 8, 30);
+
+    // 3. Load & Draw Logo
+    const logo = new Image();
+    logo.src = logoImg.src;
+    await new Promise((resolve) => {
+      logo.onload = resolve;
+      logo.onerror = resolve;
+    });
+    try {
+      ctx.drawImage(logo, 425, 45, 50, 50);
+    } catch (e) {
+      console.error(e);
+    }
+
+    // 4. Texts
+    ctx.textAlign = "center";
+    
+    // Header
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "bold 15px sans-serif";
+    ctx.fillText("TEZRA MEMBERSHIP NETWORK", 450, 125);
+
+    ctx.fillStyle = "#10b981";
+    ctx.font = "bold 32px Georgia, serif";
+    ctx.fillText("OFFICIAL CERTIFICATE", 450, 175);
+
+    ctx.fillStyle = "#64748b";
+    ctx.font = "italic 16px sans-serif";
+    ctx.fillText("This document proudly certifies that", 450, 225);
+
+    // Username (Gradient / Big)
+    const grad = ctx.createLinearGradient(350, 0, 550, 0);
+    grad.addColorStop(0, "#2563eb");
+    grad.addColorStop(1, "#10b981");
+    ctx.fillStyle = grad;
+    ctx.font = "black 42px sans-serif";
+    ctx.fillText(formattedName, 450, 290);
+
+    // Wallet address
+    ctx.fillStyle = "#64748b";
+    ctx.font = "normal 14px monospace";
+    ctx.fillText(`Celo Wallet ID: ${shortAddress}`, 450, 325);
+
+    // Description text
+    ctx.fillStyle = "#334155";
+    ctx.font = "normal 16px sans-serif";
+    ctx.fillText("is a verified early pioneer of the Tezra microwork marketplace,", 450, 380);
+    ctx.fillText("officially registered on the Celo blockchain for secure stablecoin rewards.", 450, 405);
+
+    // Date
+    const today = new Date().toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    ctx.fillStyle = "#64748b";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText(`DATE OF REGISTRATION: ${today.toUpperCase()}`, 450, 460);
+
+    // Footer signature line
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(350, 515);
+    ctx.lineTo(550, 515);
+    ctx.stroke();
+
+    ctx.fillStyle = "#475569";
+    ctx.font = "bold 11px sans-serif";
+    ctx.fillText("TEZRA ECOSYSTEM AUDIT", 450, 532);
+
+    // 5. Verification Seal (Gold-like style at bottom right)
+    const sealX = 720;
+    const sealY = 440;
+    ctx.fillStyle = "#f59e0b"; // Gold
+    ctx.beginPath();
+    ctx.arc(sealX, sealY, 35, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "#d97706";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(sealX, sealY, 30, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 10px sans-serif";
+    ctx.fillText("VERIFIED", sealX, sealY - 4);
+    ctx.fillText("MEMBER", sealX, sealY + 8);
+
+    return canvas;
+  };
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const canvas = await drawCertificate();
+      const dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.download = `tezra_member_certificate_${displayName}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Failed to generate member certificate:", err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const shareText = `I am now an official verified member of Tezra! ⚡ Complete tasks & earn stablecoins. CC: @earnwithtezra @0xTMB`;
+  const shareUrl = `https://tezra.xyz`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}&hashtags=Tezra,Celo,Web3`;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+      <div className="relative w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-4 border-slate-100 text-center animate-scale-up">
+        
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full transition"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Your Member Certificate!</h2>
+        <p className="text-slate-500 text-xs mt-1 mb-6">Download and share to participate in the $10 Giveaway</p>
+
+        {/* Certificate Display Mockup */}
+        <div className="border-4 border-[#10b981] p-6 rounded-2xl bg-white shadow-md text-slate-950 font-sans max-w-sm mx-auto relative overflow-hidden mb-6">
+          <div className="absolute top-2 right-2 text-[8px] bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full font-bold uppercase">
+            Pioneer
+          </div>
+          <div className="w-8 h-8 mx-auto mb-2 bg-[#10b981]/15 rounded-lg flex items-center justify-center">
+            <span className="text-[#10b981] text-xs font-black">⚡</span>
+          </div>
+          <span className="text-[9px] font-bold text-slate-400 block tracking-widest uppercase">Tezra Member Certificate</span>
+          <h3 className="text-base font-black text-[#2563eb] mt-1">{formattedName}</h3>
+          <span className="text-[8px] text-slate-400 font-mono block mb-3">{shortAddress}</span>
+          <p className="text-[10px] text-slate-600 leading-relaxed max-w-xs mx-auto">
+            Is officially certified as a verified early pioneer. Earns stablecoins and participates in quests at **tezra.xyz**.
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 mt-4">
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="flex-1 py-3 px-5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" />
+            <span>{downloading ? "Generating..." : "Download Certificate (PNG)"}</span>
+          </button>
+          
+          <a
+            href={twitterUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 py-3 px-5 bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition"
+          >
+            <span>Share & Join Giveaway</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+};

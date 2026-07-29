@@ -24,10 +24,10 @@ export async function POST(req: Request) {
 
     switch (action) {
       case "welcome_gift": {
-        const { toEmail, isFirst10, walletAddress } = payload || {};
+        const { toEmail, isFirst10, walletAddress, displayName } = payload || {};
         if (!toEmail) return NextResponse.json({ error: "Missing toEmail" }, { status: 400 });
         
-        await sendWelcomeGiftEmail(toEmail, !!isFirst10);
+        await sendWelcomeGiftEmail(toEmail, !!isFirst10, displayName);
         if (walletAddress) {
           await sendAdminNewUserEmail(toEmail, walletAddress, !!isFirst10);
         }

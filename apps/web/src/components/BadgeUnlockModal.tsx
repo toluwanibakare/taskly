@@ -30,13 +30,18 @@ const AVATAR_DESIGNS = [
 ];
 
 function getDisplayName(displayName?: string, walletAddress?: string): string {
-  if (displayName) return displayName;
-  if (walletAddress) return `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
-  return "Anonymous";
+  let name = "Anonymous";
+  if (displayName) {
+    name = displayName;
+  } else if (walletAddress) {
+    name = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+  }
+  return name.startsWith("@") ? name : `@${name}`;
 }
 
 function getInitial(name: string): string {
-  return name.charAt(0).toUpperCase();
+  const cleanName = name.startsWith("@") ? name.slice(1) : name;
+  return cleanName.charAt(0).toUpperCase();
 }
 
 async function drawBadgeCanvas(
@@ -75,26 +80,33 @@ async function drawBadgeCanvas(
   ctx.lineWidth = 2;
   ctx.strokeRect(24, 24, 752, 752);
 
-  // 3. Logo and Header
+  // 3. Logo and Header (Centered horizontally)
+  const headerText = "TEZRA ACHIEVEMENT";
+  ctx.font = "bold 22px sans-serif";
+  const textWidth = ctx.measureText(headerText).width;
+  const logoSize = 45;
+  const logoSpacing = 15;
+  const totalHeaderWidth = logoSize + logoSpacing + textWidth;
+  const startX = (800 - totalHeaderWidth) / 2;
+
   try {
-    ctx.drawImage(logo, 370, 40, 45, 45);
+    ctx.drawImage(logo, startX, 40, logoSize, logoSize);
   } catch (err) {
     console.error("Failed to draw logo on canvas:", err);
   }
   ctx.textAlign = "left";
   ctx.fillStyle = "#10b981";
-  ctx.font = "bold 22px sans-serif";
-  ctx.fillText("TEZRA ACHIEVEMENT", 430, 69);
+  ctx.fillText(headerText, startX + logoSize + logoSpacing, 70);
 
-  // 4. Avatar and display name (top-right area)
+  // 4. Avatar and display name (top-right area, no overlap with header)
   const name = getDisplayName(displayName, walletAddress);
   const designIdx = avatarDesign !== undefined ? avatarDesign % 4 : 0;
   const design = AVATAR_DESIGNS[designIdx];
 
-  // Avatar circle (60x60)
-  const avatarX = 670;
-  const avatarY = 30;
-  const avatarSize = 60;
+  // Avatar circle (50x50)
+  const avatarSize = 50;
+  const avatarX = 720;
+  const avatarY = 38;
 
   ctx.beginPath();
   ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
@@ -113,17 +125,17 @@ async function drawBadgeCanvas(
   ctx.stroke();
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 22px sans-serif";
+  ctx.font = "bold 20px sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(getInitial(name), avatarX + avatarSize / 2, avatarY + avatarSize / 2);
   ctx.textBaseline = "alphabetic";
 
-  // Display name next to avatar
-  ctx.textAlign = "left";
-  ctx.fillStyle = "#e2e8f0";
-  ctx.font = "500 14px sans-serif";
-  ctx.fillText(name, avatarX - ctx.measureText(name).width - 10, avatarY + avatarSize / 2 + 5);
+  // Display name next to avatar (aligned right of the avatar, flowing leftward)
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#cbd5e1";
+  ctx.font = "bold 15px sans-serif";
+  ctx.fillText(name, avatarX - 12, avatarY + avatarSize / 2 + 5);
 
   ctx.textAlign = "center";
 
@@ -221,11 +233,13 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({
   const walletParam = walletAddress ? `?wallet=${walletAddress}` : "";
   const shareUrl = `${appUrl}/share/${badge.id}${walletParam}`;
   const name = getDisplayName(displayName, walletAddress);
-  const shareText = `I just unlocked the "${badge.title}" badge on Tezra! 🏆 Earn crypto rewards by completing micro-tasks.`;
+  const shareText = `I just unlocked the "${badge.title}" badge on Tezra! 🏆 Complete tasks to earn stablecoin rewards.`;
+  const twitterShareText = `I just unlocked the "${badge.title}" badge on Tezra! 🏆 Complete tasks to earn stablecoin rewards. CC: @earnwithtezra @0xTMB`;
   const encodedText = encodeURIComponent(shareText);
+  const encodedTwitterText = encodeURIComponent(twitterShareText);
   const encodedUrl = encodeURIComponent(shareUrl);
 
-  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}&hashtags=Tezra,Celo,Web3,CryptoRewards`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedTwitterText}&url=${encodedUrl}&hashtags=Tezra,Celo,Web3`;
   const telegramUrl = `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`;
   const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}%20${encodedUrl}`;
 

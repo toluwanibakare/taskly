@@ -248,7 +248,8 @@ export async function sendEmail({
 
 // Event Notification Trigger Handlers
 
-export async function sendWelcomeGiftEmail(toEmail: string, isFirst10: boolean): Promise<boolean> {
+export async function sendWelcomeGiftEmail(toEmail: string, isFirst10: boolean, displayName?: string): Promise<boolean> {
+  const userGreeting = displayName ? `@${displayName.replace(/^@/, "")}` : "there";
   const giftDetails = isFirst10
     ? `🎁 <strong>SPECIAL BONUS UNLOCKED!</strong> You are one of our first 10 early members! You have received a <strong>$1.00 Task Creation Credit</strong>, <strong>50 XP</strong>, and the exclusive <strong>Pioneer Badge</strong>.`
     : `🎁 You have unlocked <strong>50 XP</strong> and the exclusive <strong>Pioneer Badge</strong>!`;
@@ -258,7 +259,7 @@ export async function sendWelcomeGiftEmail(toEmail: string, isFirst10: boolean):
     preheader: "Your welcome gift is waiting for you on Tezra",
     badgeText: "Welcome Gift",
     bodyHtml: `
-      <p>Hey there,</p>
+      <p>Hey ${userGreeting},</p>
       <p>Thank you for joining <strong>Tezra</strong> — the premier micro-tasking platform for web3 & crypto rewards!</p>
       <div class="highlight-box">
         <p style="margin:0;color:#f8fafc;">${giftDetails}</p>
