@@ -3640,7 +3640,8 @@ try {
                     </div>
                   )}
                 </div>
-              )}
+              </div>
+            )}
 
               {/* TAB: EARN */}
               {activeTab === "earn" && (
@@ -3718,7 +3719,7 @@ try {
                     </p>
                     <button
                       disabled
-                      className="w-full py-2.5 px-4 bg-slate-100 text-slate-400 text-xs font-extrabold rounded-xl mt-5 cursor-not-allowed text-center"
+                        className="w-full py-2.5 px-4 bg-slate-100 text-slate-400 text-xs font-extrabold rounded-xl mt-5 cursor-not-allowed text-center"
                     >
                       Contest Locked
                     </button>
@@ -3727,225 +3728,7 @@ try {
               </div>
             )}
 
-            {/* Removed duplicate history tab */}
-            {false && (
-              <>
-                      renderConnectPrompt(
-                        "Access Task History",
-                        "Connect your wallet to view your submitted proofs, tracking statuses, and earned rewards."
-                      )
-                    ) : (
-                      <div className="space-y-4">
-                    {history.map((item) => {
-                      const statusConfig = {
-                        pending: {
-                          color: "bg-amber-50 text-amber-700 border-amber-100/50",
-                          icon: <Clock className="w-3.5 h-3.5 text-amber-600" />,
-                          label: "Pending Review"
-                        },
-                        approved: {
-                          color: "bg-emerald-50 text-emerald-700 border-emerald-100/50",
-                          icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
-                          label: "Approved"
-                        },
-                        rejected: {
-                          color: "bg-red-50 text-red-700 border-red-100/50",
-                          icon: <XCircle className="w-3.5 h-3.5 text-red-600" />,
-                          label: "Rejected"
-                        },
-                        disputed: {
-                          color: "bg-orange-50 text-orange-700 border-orange-100/50",
-                          icon: <AlertCircle className="w-3.5 h-3.5 text-orange-600" />,
-                          label: "Disputed"
-                        },
-                        "rejected-final": {
-                          color: "bg-slate-100 text-slate-700 border-slate-200",
-                          icon: <XCircle className="w-3.5 h-3.5 text-slate-500" />,
-                          label: "Rejection Upheld"
-                        }
-                      }[item.status] || {
-                        color: "bg-slate-50 text-slate-600 border-slate-100",
-                        icon: <Info className="w-3.5 h-3.5" />,
-                        label: "Unknown"
-                      };
 
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex flex-col gap-2 w-full bg-white p-4 rounded-xl border border-slate-100 shadow-sm animate-fade-in"
-                        >
-                          <div className="flex items-center justify-between gap-4 w-full">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-slate-50 rounded-lg">
-                                {getPlatformIcon(item.platform, "w-4 h-4")}
-                              </div>
-                              <div>
-                                <h4 className="text-xs font-bold text-slate-900 line-clamp-1">
-                                  {item.taskTitle}
-                                </h4>
-                                <p className="text-[10px] text-slate-400 font-semibold mt-1">
-                                  Submitted: {item.date}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="text-right flex-shrink-0 flex flex-col items-end gap-0.5">
-                              <span className="text-xs font-extrabold text-slate-800">
-                                {formatCurrency(item.amount)}
-                              </span>
-                              {(() => {
-                                const val = parseFloat(item.amount.replace(/[^\d.]/g, ""));
-                                if (!isNaN(val)) {
-                                  return (
-                                    <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                                      {currencyPreference === "NGN" ? `${val.toFixed(2)} USDm` : `~₦${Math.round(val * USDM_TO_NGN_RATE)}`}
-                                    </span>
-                                  );
-                                }
-                                return null;
-                              })()}
-                              <span
-                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold border ${statusConfig.color}`}
-                              >
-                                {statusConfig.icon}
-                                {statusConfig.label}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          {/* Rejection Details & Dispute Button */}
-                          {item.status === "rejected" && (
-                            <div className="mt-1 pt-2.5 border-t border-slate-50 flex items-center justify-between gap-3 flex-wrap">
-                              <div className="text-[10px] text-slate-500 font-medium">
-                                <span className="font-extrabold text-red-600 uppercase text-[9px] block">Rejection Reason:</span>
-                                <span className="font-bold text-slate-700 capitalize">{item.rejectionCategory}</span> - {item.rejectionReason}
-                              </div>
-                              <button
-                                onClick={() => {
-                                  setDisputingSubId(item.id);
-                                  setDisputeReasonInput("");
-                                }}
-                                className="px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-bold hover:bg-slate-800 transition-all shadow-sm active:scale-95"
-                              >
-                                Dispute Rejection
-                              </button>
-                            </div>
-                          )}
-
-                          {/* Upheld/Disputed Status Extra details */}
-                          {item.status === "disputed" && item.disputeReason && (
-                            <div className="mt-1 pt-2.5 border-t border-slate-50 text-[10px] text-slate-500 font-medium">
-                              <span className="font-extrabold text-orange-600 uppercase text-[9px] block">Your Dispute Argument:</span>
-                              "{item.disputeReason}"
-                            </div>
-                          )}
-                          {item.status === "rejected-final" && (
-                            <div className="mt-1 pt-2.5 border-t border-slate-50 text-[10px] text-slate-500 font-medium">
-                              <span className="font-extrabold text-slate-500 uppercase text-[9px] block">Admin Resolution:</span>
-                              Rejection upheld. Dispute closed.
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="space-y-6 animate-fade-in">
-                {/* Header */}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setHistorySubScreen("tasks")}
-                    className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors border border-slate-100 bg-white shadow-sm active:scale-95 flex items-center justify-center flex-shrink-0"
-                  >
-                    <ArrowLeft className="w-4 h-4 text-slate-800" />
-                  </button>
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900 tracking-tight font-sans">
-                      Transactions
-                    </h2>
-                    <span className="text-xs text-slate-400 font-semibold block">Full cash-flow breakdown</span>
-                  </div>
-                </div>
-
-                {/* Summary statistics */}
-                {(() => {
-                  const ledger = getTransactionLedger();
-                  return (
-                    <>
-                      <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-5 grid grid-cols-2 gap-4 text-center">
-                        <div className="space-y-1">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Total Earnings</span>
-                          <span className="text-xs font-black text-emerald-600">
-                            +{formatCurrencyVal(ledger.totalInflow)}
-                          </span>
-                        </div>
-                        <div className="space-y-1 border-l border-slate-100">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Total Outflow</span>
-                          <span className="text-xs font-black text-rose-600">
-                            -{formatCurrencyVal(ledger.totalOutflow)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Transaction Items list */}
-                      <div className="space-y-3.5">
-                        {ledger.items.length > 0 ? (
-                          ledger.items.map((item, idx) => (
-                            <div
-                              key={item.id || idx}
-                              className="bg-white p-4 border border-slate-100 shadow-sm rounded-2xl flex items-center justify-between gap-3 animate-fade-in"
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className={`p-2.5 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                                  item.type === "inflow" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50/70 text-rose-600"
-                                }`}>
-                                  <Receipt className="w-4 h-4" />
-                                </div>
-                                <div className="min-w-0">
-                                  <h4 className="text-xs font-black text-slate-900 truncate">
-                                    {item.title}
-                                  </h4>
-                                  <p className="text-[9px] text-slate-400 font-bold mt-0.5 truncate">
-                                    {item.meta} • {item.date}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="text-right flex-shrink-0 space-y-1">
-                                <span className={`text-xs font-black block ${
-                                  item.type === "inflow" ? "text-emerald-600" : "text-rose-600"
-                                }`}>
-                                  {item.type === "inflow" ? "+" : "-"}{formatCurrencyVal(item.amount)}
-                                </span>
-                                <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                                  item.status === "completed" || item.status === "approved" || item.status === "active"
-                                    ? "bg-emerald-50 text-emerald-700"
-                                    : item.status === "pending"
-                                    ? "bg-amber-50 text-amber-700 animate-pulse"
-                                    : "bg-slate-50 text-slate-400"
-                                }`}>
-                                  {item.status}
-                                </span>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
-                            <p className="text-slate-400 text-xs font-semibold">No transactions recorded yet.</p>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-              </>
-            )}
-          </div>
-        )}
 
             {/* TAB: PROFILE & CREATOR DASHBOARD NESTED ROUTER */}
             {activeTab === "profile" && (
@@ -6765,7 +6548,8 @@ try {
             <button
               onClick={() => {
                 setScreen("main");
-                setActiveTab("history");
+                setActiveTab("profile");
+                setProfileSubScreen("task-history");
               }}
               className="w-full py-4 bg-slate-900 text-white rounded-2xl text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
             >
