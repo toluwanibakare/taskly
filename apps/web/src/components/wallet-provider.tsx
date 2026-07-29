@@ -10,7 +10,7 @@ import { celo, celoSepolia } from "wagmi/chains";
 const projectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID || "3fcc6b226e640003185962237fe4a3ec";
 
 const wagmiConfig = getDefaultConfig({
-  appName: "taskly",
+  appName: "tuzo",
   projectId,
   chains: [celo, celoSepolia],
   ssr: true,

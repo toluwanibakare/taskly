@@ -8,7 +8,7 @@ import { WalletProvider } from "@/components/wallet-provider"
 const inter = Inter({ subsets: ['latin'] });
 
 export const viewport: Viewport = {
-  themeColor: '#2563eb', // Gradient Blue brand color matching Taskly theme
+  themeColor: '#2563eb', // Gradient Blue brand color matching Tuzo theme
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -16,20 +16,20 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Taskly | Microwork & Tasks for Stablecoins',
-  description: 'Earn stablecoins instantly by completing micro-tasks, social engagements, surveys, and app testing on Taskly—the premier MiniPay-powered microwork marketplace.',
+  title: 'Tuzo | Earn Crypto Rewards for Micro-Tasks',
+  description: 'Earn stablecoins instantly by completing micro-tasks, social engagements, surveys, and app testing on Tuzo (Swahili for "Reward")—the premier MiniPay-powered microwork marketplace.',
   keywords: ['Celo', 'MiniPay', 'Stablecoins', 'Microwork', 'Earn Crypto', 'Micro-tasks', 'USDm', 'Valora', 'Opera Mini'],
   authors: [{ name: 'TMB', url: 'https://www.tmb.it.com' }],
   openGraph: {
-    title: 'Taskly | Microwork & Tasks for Stablecoins',
+    title: 'Tuzo | Earn Crypto Rewards for Micro-Tasks',
     description: 'Earn stablecoins instantly by completing micro-tasks on Celo.',
-    siteName: 'Taskly',
+    siteName: 'Tuzo',
     images: [
       {
         url: '/icon.png',
         width: 512,
         height: 512,
-        alt: 'Taskly Logo',
+        alt: 'Tuzo Logo',
       },
     ],
     locale: 'en_US',
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary',
-    title: 'Taskly | Microwork & Tasks for Stablecoins',
+    title: 'Tuzo | Earn Crypto Rewards for Micro-Tasks',
     description: 'Earn stablecoins instantly by completing micro-tasks on Celo.',
     images: ['/icon.png'],
   },

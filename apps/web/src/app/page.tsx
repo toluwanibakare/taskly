@@ -126,12 +126,12 @@ const TEMPLATE_PRESETS: Record<string, TaskTemplate> = {
     link: "https://x.com/"
   },
   x_promo: {
-    title: "Create X Post Promoting Taskly",
+    title: "Create X Post Promoting Tuzo",
     platform: "x",
     type: "Content Sharing",
     payout: 0.50,
-    description: "Write a unique, organic post on your personal X profile promoting Taskly for micro-jobs in Nigeria.",
-    instructions: "Compose a tweet describing how Taskly helps Nigerians earn USDm.\nInclude the hashtags #Taskly and #Celo.\nPost the tweet.\nCopy the link of your published tweet.",
+    description: "Write a unique, organic post on your personal X profile promoting Tuzo for micro-jobs in Nigeria.",
+    instructions: "Compose a tweet describing how Tuzo helps Nigerians earn USDm.\nInclude the hashtags #Tuzo and #Celo.\nPost the tweet.\nCopy the link of your published tweet.",
     proofRequirements: "Provide the direct URL of your published X post.",
     proofType: "text",
     link: "https://x.com/compose/post"
@@ -617,9 +617,9 @@ const TikTokIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
 
 import logoImg from "../../assets/logo.png";
 
-const TasklyLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
+const TuzoLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
   <div className={`${className} relative flex items-center justify-center`}>
-    <img src={logoImg.src} alt="Taskly Logo" className="object-contain w-full h-full" />
+    <img src={logoImg.src} alt="Tuzo Logo" className="object-contain w-full h-full" />
   </div>
 );
 
@@ -689,7 +689,7 @@ export default function Home() {
           console.log("Self-referral check failed on same device/browser.");
           return;
         }
-        localStorage.setItem("taskly_referrer_code", ref);
+        localStorage.setItem("tuzo_referrer_code", ref);
         setShowReferralWelcome(true);
       }
     }
@@ -1152,7 +1152,7 @@ export default function Home() {
       getDoc(userDocRef).then(async (docSnap) => {
         if (!docSnap.exists()) {
           // Check local storage for referral code
-          const storedRefCode = localStorage.getItem("taskly_referrer_code");
+          const storedRefCode = localStorage.getItem("tuzo_referrer_code");
           let referredBy = null;
 
           // Generate a random 6-character code
@@ -1436,7 +1436,7 @@ export default function Home() {
       activeAddress &&
       dbUserProfile !== null &&
       !dbUserProfile.email &&
-      !sessionStorage.getItem(`taskly_email_prompt_dismissed_${activeAddress.toLowerCase()}`)
+      !sessionStorage.getItem(`tuzo_email_prompt_dismissed_${activeAddress.toLowerCase()}`)
     ) {
       setShowEmailModal(true);
     }
@@ -1505,7 +1505,7 @@ export default function Home() {
       return;
     }
     if (dbUserProfile && !dbUserProfile.contestRegistered) {
-      const dismissed = sessionStorage.getItem(`taskly_contest_${contestConfig.status}_dismissed`);
+      const dismissed = sessionStorage.getItem(`tuzo_contest_${contestConfig.status}_dismissed`);
       if (!dismissed) {
         setShowContestPopup(true);
       }
@@ -2086,8 +2086,8 @@ export default function Home() {
         amount: finalNairaAmount,
         currency: "NGN",
         customer: {
-          name: "Taskly Creator",
-          email: "creator@taskly.app"
+          name: "Tuzo Creator",
+          email: "creator@tuzo.xyz"
         },
         onClose: () => {
           console.log("Korapay modal closed");
@@ -2935,7 +2935,7 @@ try {
       });
       setShowContestPopup(false);
       if (contestConfig) {
-        sessionStorage.setItem(`taskly_contest_${contestConfig.status}_dismissed`, "true");
+        sessionStorage.setItem(`tuzo_contest_${contestConfig.status}_dismissed`, "true");
       }
       alert("🎉 You are successfully registered for the Referral Contest! Start referring to earn bounties!");
     } catch (err: any) {
@@ -3253,12 +3253,12 @@ try {
           <div className="flex-1 flex flex-col items-center justify-center">
             {/* Steady Logo (no bouncing) */}
             <div className="mb-6 p-4 bg-white rounded-3xl shadow-md border border-slate-50 flex items-center justify-center">
-              <TasklyLogo className="w-16 h-16 animate-pulse" />
+              <TuzoLogo className="w-16 h-16 animate-pulse" />
             </div>
             
-            {/* Taskly Gradient Text */}
+            {/* Tuzo Gradient Text */}
             <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-emerald-500 bg-clip-text text-transparent">
-              Taskly
+              Tuzo
             </h1>
             <p className="text-slate-400 text-sm mt-2 font-medium tracking-wide">
               Microwork for Stablecoins
@@ -3291,7 +3291,7 @@ try {
           
           {/* HEADER */}
           <header className="h-14 bg-white/80 backdrop-blur-md sticky top-0 z-45 border-b border-slate-100 flex items-center justify-center px-4">
-            <TasklyLogo className="w-6 h-6" />
+            <TuzoLogo className="w-6 h-6" />
           </header>
 
           {showStreakReminder && (
@@ -4818,7 +4818,7 @@ try {
                               All Platform Campaigns
                             </h2>
                             <span className="text-xs text-slate-400 font-semibold block">
-                              Moderate or delete any campaign created on Taskly
+                              Moderate or delete any campaign created on Tuzo
                             </span>
                           </div>
                         </div>
@@ -5142,7 +5142,7 @@ try {
                 <div className="space-y-6">
                   <div>
                     <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                      About Taskly
+                      About Tuzo
                     </h2>
                     <p className="text-slate-500 text-sm font-medium mt-1">
                       Stablecoin microlabor marketplace on Celo
@@ -5151,16 +5151,16 @@ try {
 
                   <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm leading-relaxed space-y-4 text-slate-600 text-xs">
                     <div className="space-y-2">
-                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">🚀 What is Taskly?</h3>
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">🚀 What is Tuzo?</h3>
                       <p>
-                        Taskly is a next-generation micro-job marketplace powered by the Celo blockchain. It connects creators who need digital actions completed (social follows, app testing, surveys) with earners looking to make stablecoin rewards.
+                        Tuzo (which means "Reward" in Swahili) is a next-generation micro-job marketplace powered by the Celo blockchain. It connects creators who need digital actions completed (social follows, app testing, surveys) with earners looking to make stablecoin rewards.
                       </p>
                     </div>
 
                     <div className="space-y-2 pt-2 border-t border-slate-50">
                       <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">💳 Off-Chain Balance System</h3>
                       <p>
-                        To save earners from paying blockchain gas fees on every single submission, Taskly accumulates your earnings securely off-chain in a general treasury wallet. Once your balance reaches the minimum threshold of <span className="font-extrabold text-emerald-600">1.00 USDm</span>, you can submit a withdrawal request. Payouts are aggregated and batch-sent on-chain, keeping transaction fees at zero for earners!
+                        To save earners from paying blockchain gas fees on every single submission, Tuzo accumulates your earnings securely off-chain in a general treasury wallet. Once your balance reaches the minimum threshold of <span className="font-extrabold text-emerald-600">1.00 USDm</span>, you can submit a withdrawal request. Payouts are aggregated and batch-sent on-chain, keeping transaction fees at zero for earners!
                       </p>
                     </div>
 
@@ -5258,7 +5258,7 @@ try {
                               3. Perform the requested actions (e.g. signing up, following, subscribing). Ensure you take the necessary screenshot proof.
                             </p>
                             <p>
-                              4. Go back to Taskly, fill in the proof form (upload the screenshot, and/or enter any required text values), and tap <strong>Submit Proof</strong>. The campaign creator will review your proof and release the funds!
+                              4. Go back to Tuzo, fill in the proof form (upload the screenshot, and/or enter any required text values), and tap <strong>Submit Proof</strong>. The campaign creator will review your proof and release the funds!
                             </p>
                           </div>
                         )}
@@ -5318,7 +5318,7 @@ try {
                         {openAccordion === "xp-level" && (
                           <div className="px-5 pb-4 text-[11px] leading-relaxed text-slate-600 border-t border-slate-50 pt-3 space-y-2">
                             <p>
-                              Taskly uses an <strong>XP (Experience Points)</strong> reputation score to verify quality work:
+                              Tuzo uses an <strong>XP (Experience Points)</strong> reputation score to verify quality work:
                             </p>
                             <p>
                               1. Every new user starts with <strong>500 XP</strong> (Level 5).
@@ -5348,7 +5348,7 @@ try {
                         {openAccordion === "refer-earn" && (
                           <div className="px-5 pb-4 text-[11px] leading-relaxed text-slate-600 border-t border-slate-50 pt-3 space-y-2">
                             <p>
-                              You can earn extra passive stablecoins by inviting friends to Taskly:
+                              You can earn extra passive stablecoins by inviting friends to Tuzo:
                             </p>
                             <p>
                               1. Copy your private referral link from your <strong>Profile</strong> page.
@@ -5403,7 +5403,7 @@ try {
                     <div className="flex justify-center items-center gap-4">
                       {/* Telegram Updates */}
                       <a
-                        href="https://t.me/taskly_updates"
+                        href="https://t.me/tuzo_updates"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-10 h-10 bg-sky-50 text-sky-600 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-sky-100/50 shadow-sm"
@@ -5429,7 +5429,7 @@ try {
 
                       {/* X / Twitter Support */}
                       <a
-                        href="https://x.com/taskly_app"
+                        href="https://x.com/tuzo_app"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-10 h-10 bg-slate-50 text-slate-800 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-slate-100/50 shadow-sm"
@@ -5474,7 +5474,7 @@ try {
           {/* BOTTOM NAVIGATION BAR */}
           <nav className="fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto h-20 bg-white/90 backdrop-blur-md border-t border-slate-100 px-6 flex items-center justify-between z-40">
             {[
-              { id: "home", label: "Home", icon: <TasklyLogo className="w-5 h-5 opacity-70" /> },
+              { id: "home", label: "Home", icon: <TuzoLogo className="w-5 h-5 opacity-70" /> },
               { id: "history", label: "History", icon: <History className="w-5 h-5" /> },
               { id: "profile", label: "Profile", icon: <User className="w-5 h-5" /> },
               { id: "about", label: "About", icon: <Info className="w-5 h-5" /> }
@@ -7239,7 +7239,7 @@ try {
                 type="button"
                 onClick={() => {
                   setShowContestPopup(false);
-                  sessionStorage.setItem(`taskly_contest_${contestConfig.status}_dismissed`, "true");
+                  sessionStorage.setItem(`tuzo_contest_${contestConfig.status}_dismissed`, "true");
                 }}
                 className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all active:scale-95"
               >
@@ -7270,7 +7270,7 @@ try {
                 Referral Invite Accepted!
               </h3>
               <p className="text-xs text-slate-500 font-semibold leading-relaxed font-sans">
-                You just accessed Taskly using a referral link! 
+                You just accessed Tuzo using a referral link! 
               </p>
               <div className="bg-slate-50 p-4.5 rounded-2xl text-left border border-slate-100 space-y-2.5">
                 <p className="text-[10px] text-slate-600 font-bold leading-normal">
@@ -7765,7 +7765,7 @@ try {
           isOpen={showEmailModal}
           onClose={() => {
             setShowEmailModal(false);
-            sessionStorage.setItem(`taskly_email_prompt_dismissed_${activeAddress.toLowerCase()}`, "true");
+            sessionStorage.setItem(`tuzo_email_prompt_dismissed_${activeAddress.toLowerCase()}`, "true");
           }}
           onSuccess={(badge) => {
             setUnlockedBadgeInfo(badge);

@@ -39,11 +39,11 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({ badge, onClo
   if (!badge) return null;
 
   const appUrl = "https://taskly-celo-3022.firebaseapp.com";
-  const shareText = `I just unlocked the "${badge.title}" badge on Taskly! 🚀 Earn crypto rewards by completing micro-tasks.`;
+  const shareText = `I just unlocked the "${badge.title}" badge on Tuzo! 🚀 Earn crypto rewards by completing micro-tasks.`;
   const encodedText = encodeURIComponent(shareText);
   const encodedUrl = encodeURIComponent(appUrl);
 
-  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}&hashtags=Taskly,Celo,Web3,CryptoRewards`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}&hashtags=Tuzo,Celo,Web3,CryptoRewards`;
   const telegramUrl = `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`;
   const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}%20${encodedUrl}`;
 

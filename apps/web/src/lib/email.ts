@@ -7,7 +7,7 @@ const SMTP_USER = process.env.SMTP_USER || "mosesbakare48@gmail.com";
 const SMTP_PASS = process.env.SMTP_PASS || "";
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "mosesbakare48@gmail.com";
 export const APP_URL = "https://taskly-celo-3022.firebaseapp.com";
-export const TELEGRAM_URL = "https://t.me/taskly_community";
+export const TELEGRAM_URL = "https://t.me/tuzo_community";
 
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
@@ -28,10 +28,10 @@ interface EmailTemplateProps {
   ctaUrl?: string;
 }
 
-export function generateTasklyEmailHtml({
+export function generateTuzoEmailHtml({
   title,
-  preheader = "Taskly Notification",
-  badgeText = "Taskly Update",
+  preheader = "Tuzo Notification",
+  badgeText = "Tuzo Update",
   bodyHtml,
   ctaText,
   ctaUrl = APP_URL,
@@ -174,8 +174,8 @@ export function generateTasklyEmailHtml({
     </div>
     <div class="card">
       <div class="header">
-        <div class="brand-title">⚡ TASKLY</div>
-        <div class="brand-sub">Micro-Tasks & Web3 Rewards</div>
+        <div class="brand-title">⚡ TUZO</div>
+        <div class="brand-sub">Micro-Tasks & Web3 Rewards • "Tuzo" means Reward in Swahili</div>
       </div>
       <div class="content">
         <div class="badge">${badgeText}</div>
@@ -190,11 +190,11 @@ export function generateTasklyEmailHtml({
         }
       </div>
       <div class="footer">
-        <p>From <a href="${APP_URL}" target="_blank">Taskly</a></p>
-        <p>© 2026 Taskly. All rights reserved.</p>
+        <p>From <a href="${APP_URL}" target="_blank">Tuzo</a></p>
+        <p>© 2026 Tuzo. All rights reserved.</p>
         <p>
           <a href="${TELEGRAM_URL}" target="_blank" class="telegram-btn">
-            ✈️ Join Taskly Telegram Channel for Updates & Giveaways
+            ✈️ Join Tuzo Telegram Channel for Updates & Giveaways
           </a>
         </p>
       </div>
@@ -220,7 +220,7 @@ export async function sendEmail({
       return false;
     }
     const info = await transporter.sendMail({
-      from: `"Taskly" <${SMTP_USER}>`,
+      from: `"Tuzo" <${SMTP_USER}>`,
       to,
       subject,
       html,
@@ -240,36 +240,36 @@ export async function sendWelcomeGiftEmail(toEmail: string, isFirst10: boolean):
     ? `🎁 <strong>SPECIAL BONUS UNLOCKED!</strong> You are one of our first 10 early members! You have received a <strong>$1.00 Task Creation Credit</strong>, <strong>50 XP</strong>, and the exclusive <strong>Pioneer Badge</strong>.`
     : `🎁 You have unlocked <strong>50 XP</strong> and the exclusive <strong>Pioneer Badge</strong>!`;
 
-  const html = generateTasklyEmailHtml({
-    title: "Welcome to Taskly! Claim Your Gift 🎁",
-    preheader: "Your welcome gift is waiting for you on Taskly",
+  const html = generateTuzoEmailHtml({
+    title: "Welcome to Tuzo! Claim Your Gift 🎁",
+    preheader: "Your welcome gift is waiting for you on Tuzo",
     badgeText: "Welcome Gift",
     bodyHtml: `
       <p>Hey there,</p>
-      <p>Thank you for joining <strong>Taskly</strong> — the premier micro-tasking platform for web3 & crypto rewards!</p>
+      <p>Thank you for joining <strong>Tuzo</strong> — the premier micro-tasking platform for web3 & crypto rewards!</p>
       <div class="highlight-box">
         <p style="margin:0;color:#f8fafc;">${giftDetails}</p>
       </div>
-      <p>Log in to Taskly to see your Pioneer Badge, check your updated XP, and start completing tasks or launching your own campaigns.</p>
+      <p>Log in to Tuzo to see your Pioneer Badge, check your updated XP, and start completing tasks or launching your own campaigns.</p>
     `,
-    ctaText: "Claim Gift on Taskly 🚀",
+    ctaText: "Claim Gift on Tuzo 🚀",
     ctaUrl: APP_URL,
   });
 
   return sendEmail({
     to: toEmail,
-    subject: "🎁 Claim Your Taskly Welcome Gift!",
+    subject: "🎁 Claim Your Tuzo Welcome Gift!",
     html,
   });
 }
 
 export async function sendAdminNewUserEmail(userEmail: string, walletAddress: string, isFirst10: boolean): Promise<boolean> {
-  const html = generateTasklyEmailHtml({
+  const html = generateTuzoEmailHtml({
     title: "New User Registered 🚀",
-    preheader: `New user ${userEmail} registered on Taskly`,
+    preheader: `New user ${userEmail} registered on Tuzo`,
     badgeText: "Admin Alert",
     bodyHtml: `
-      <p>A new user has registered their email on Taskly:</p>
+      <p>A new user has registered their email on Tuzo:</p>
       <ul>
         <li><strong>Email:</strong> ${userEmail}</li>
         <li><strong>Wallet:</strong> ${walletAddress}</li>
@@ -289,17 +289,17 @@ export async function sendAdminNewUserEmail(userEmail: string, walletAddress: st
 }
 
 export async function sendTaskCreatedEmail(creatorEmail: string, taskTitle: string, taskId: string): Promise<boolean> {
-  const html = generateTasklyEmailHtml({
+  const html = generateTuzoEmailHtml({
     title: "Campaign Submitted Successfully!",
     preheader: `Your task "${taskTitle}" has been created`,
     badgeText: "Campaign Created",
     bodyHtml: `
       <p>Hello Creator,</p>
-      <p>Your campaign <strong>"${taskTitle}"</strong> has been successfully submitted to Taskly.</p>
+      <p>Your campaign <strong>"${taskTitle}"</strong> has been successfully submitted to Tuzo.</p>
       <div class="highlight-box">
         <p style="margin:0;">Task ID: <code>${taskId}</code></p>
       </div>
-      <p>Once funded or verified, workers across Taskly will start completing your campaign!</p>
+      <p>Once funded or verified, workers across Tuzo will start completing your campaign!</p>
     `,
     ctaText: "View Your Campaign",
     ctaUrl: `${APP_URL}?task=${taskId}`,
@@ -313,12 +313,12 @@ export async function sendTaskCreatedEmail(creatorEmail: string, taskTitle: stri
 }
 
 export async function sendAdminTaskSubmittedEmail(creatorWallet: string, taskTitle: string, taskId: string, paymentMethod: string): Promise<boolean> {
-  const html = generateTasklyEmailHtml({
+  const html = generateTuzoEmailHtml({
     title: "New Campaign Submitted for Review",
     preheader: `New campaign "${taskTitle}" by ${creatorWallet}`,
     badgeText: "Admin Alert",
     bodyHtml: `
-      <p>A campaign has been created on Taskly:</p>
+      <p>A campaign has been created on Tuzo:</p>
       <ul>
         <li><strong>Title:</strong> ${taskTitle}</li>
         <li><strong>Task ID:</strong> ${taskId}</li>
@@ -338,9 +338,9 @@ export async function sendAdminTaskSubmittedEmail(creatorWallet: string, taskTit
 }
 
 export async function sendTaskLiveEmail(creatorEmail: string, taskTitle: string, taskId: string, paymentType: string): Promise<boolean> {
-  const html = generateTasklyEmailHtml({
+  const html = generateTuzoEmailHtml({
     title: "Your Campaign is Now LIVE! 🎉",
-    preheader: `Your campaign "${taskTitle}" is now active on Taskly`,
+    preheader: `Your campaign "${taskTitle}" is now active on Tuzo`,
     badgeText: "Campaign Live",
     bodyHtml: `
       <p>Great news!</p>
@@ -365,14 +365,14 @@ export async function sendTaskApprovalEmail(workerEmail: string, taskTitle: stri
     ? `<p>Congratulations! Your proof submission for <strong>"${taskTitle}"</strong> was approved.</p>
        <div class="highlight-box"><p style="margin:0;">Reward: <strong>${reward}</strong> added to your balance!</p></div>`
     : `<p>Your submission for <strong>"${taskTitle}"</strong> was rejected by the campaign creator.</p>
-       <p>If you believe this is an error, you can submit a dispute from your Taskly dashboard.</p>`;
+       <p>If you believe this is an error, you can submit a dispute from your Tuzo dashboard.</p>`;
 
-  const html = generateTasklyEmailHtml({
+  const html = generateTuzoEmailHtml({
     title,
     preheader: `Task submission update for ${taskTitle}`,
     badgeText,
     bodyHtml,
-    ctaText: "Go to Taskly Dashboard",
+    ctaText: "Go to Tuzo Dashboard",
     ctaUrl: APP_URL,
   });
 
@@ -384,7 +384,7 @@ export async function sendTaskApprovalEmail(workerEmail: string, taskTitle: stri
 }
 
 export async function sendDisputeEmail(toEmail: string, isAdmin: boolean, taskTitle: string, disputeReason: string): Promise<boolean> {
-  const html = generateTasklyEmailHtml({
+  const html = generateTuzoEmailHtml({
     title: isAdmin ? "New Dispute Raised ⚠️" : "Dispute Filed on Your Task ⚠️",
     preheader: `Dispute logged for ${taskTitle}`,
     badgeText: "Dispute Alert",
@@ -401,22 +401,22 @@ export async function sendDisputeEmail(toEmail: string, isAdmin: boolean, taskTi
 
   return sendEmail({
     to: toEmail,
-    subject: `⚠️ Taskly Dispute: ${taskTitle}`,
+    subject: `⚠️ Tuzo Dispute: ${taskTitle}`,
     html,
   });
 }
 
 export async function sendStreakEmail(userEmail: string, streakCount: number, isWarning = false): Promise<boolean> {
-  const title = isWarning ? "Don't lose your Taskly Streak! 🔥" : `Streak Milestone: ${streakCount} Days! 🔥`;
+  const title = isWarning ? "Don't lose your Tuzo Streak! 🔥" : `Streak Milestone: ${streakCount} Days! 🔥`;
   const bodyHtml = isWarning
     ? `<p>Your daily streak is about to reset!</p>
-       <p>Complete at least 1 task today on Taskly to keep your <strong>${streakCount}-day streak</strong> alive and earn bonus XP rewards.</p>`
+       <p>Complete at least 1 task today on Tuzo to keep your <strong>${streakCount}-day streak</strong> alive and earn bonus XP rewards.</p>`
     : `<p>Awesome job!</p>
-       <p>You've reached a <strong>${streakCount}-day activity streak</strong> on Taskly! Keep completing tasks to level up and unlock exclusive badges.</p>`;
+       <p>You've reached a <strong>${streakCount}-day activity streak</strong> on Tuzo! Keep completing tasks to level up and unlock exclusive badges.</p>`;
 
-  const html = generateTasklyEmailHtml({
+  const html = generateTuzoEmailHtml({
     title,
-    preheader: isWarning ? "Keep your Taskly streak alive" : `${streakCount} day streak achieved!`,
+    preheader: isWarning ? "Keep your Tuzo streak alive" : `${streakCount} day streak achieved!`,
     badgeText: "Streak Alert",
     bodyHtml,
     ctaText: "Complete Task Now 🔥",
@@ -435,16 +435,16 @@ export async function sendBroadcastEmail(recipientEmails: string[], subject: str
   let failureCount = 0;
 
   for (const email of recipientEmails) {
-    const html = generateTasklyEmailHtml({
+    const html = generateTuzoEmailHtml({
       title: subject,
       preheader: subject,
       badgeText: "Announcement",
       bodyHtml: `<p>${messageContent.replace(/\n/g, "<br/>")}</p>`,
-      ctaText: "Explore Taskly ⚡",
+      ctaText: "Explore Tuzo ⚡",
       ctaUrl: APP_URL,
     });
 
-    const sent = await sendEmail({ to: email, subject: `📢 Taskly Update: ${subject}`, html });
+    const sent = await sendEmail({ to: email, subject: `📢 Tuzo Update: ${subject}`, html });
     if (sent) successCount++;
     else failureCount++;
   }
