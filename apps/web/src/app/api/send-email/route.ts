@@ -9,6 +9,7 @@ import {
   sendDisputeEmail,
   sendStreakEmail,
   sendBroadcastEmail,
+  sendBadgeUnlockEmail,
   sendEmail,
 } from "@/lib/email";
 
@@ -77,6 +78,14 @@ export async function POST(req: Request) {
         const { userEmail, streakCount, isWarning } = payload || {};
         if (userEmail && streakCount) {
           await sendStreakEmail(userEmail, streakCount, !!isWarning);
+        }
+        return NextResponse.json({ success: true });
+      }
+
+      case "badge_unlock": {
+        const { toEmail, badgeName, badgeEmoji, badgeDescription, xpReward } = payload || {};
+        if (toEmail && badgeName) {
+          await sendBadgeUnlockEmail(toEmail, badgeName, badgeEmoji || "", badgeDescription || "", xpReward || 0);
         }
         return NextResponse.json({ success: true });
       }

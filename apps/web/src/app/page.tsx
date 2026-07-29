@@ -1762,6 +1762,22 @@ export default function Home() {
                       if (soldOutNonAdminTasks.length === 0) {
                         currentBadges.sold_out = new Date().toISOString();
                         await updateDoc(creatorUserRef, { badges: currentBadges });
+                        if (cData.email) {
+                          fetch("/api/send-email", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              action: "badge_unlock",
+                              payload: {
+                                toEmail: cData.email,
+                                badgeName: "Sold Out",
+                                badgeEmoji: "✅",
+                                badgeDescription: "First creator to get all slots filled in a campaign",
+                                xpReward: 150,
+                              },
+                            }),
+                          }).catch(err => console.error("Failed to send sold out email:", err));
+                        }
                       }
                     }
                   }
@@ -2314,6 +2330,22 @@ export default function Home() {
                 if (!currentBadges.genesis_creator) {
                   currentBadges.genesis_creator = new Date().toISOString();
                   await updateDoc(userDocRef, { badges: currentBadges });
+                  if (uData.email) {
+                    fetch("/api/send-email", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        action: "badge_unlock",
+                        payload: {
+                          toEmail: uData.email,
+                          badgeName: "Genesis Creator",
+                          badgeEmoji: "🚀",
+                          badgeDescription: "First user to launch a campaign on Celo Mainnet",
+                          xpReward: 200,
+                        },
+                      }),
+                    }).catch(err => console.error("Failed to send genesis creator email:", err));
+                  }
                 }
               }
             }
@@ -2542,6 +2574,22 @@ try {
                 if (soldOutNonAdminTasks.length === 0) {
                   currentBadges.sold_out = new Date().toISOString();
                   await updateDoc(creatorUserRef, { badges: currentBadges });
+                  if (cData.email) {
+                    fetch("/api/send-email", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        action: "badge_unlock",
+                        payload: {
+                          toEmail: cData.email,
+                          badgeName: "Sold Out",
+                          badgeEmoji: "✅",
+                          badgeDescription: "First creator to get all slots filled in a campaign",
+                          xpReward: 150,
+                        },
+                      }),
+                    }).catch(err => console.error("Failed to send sold out email:", err));
+                  }
                 }
               }
             }
@@ -2722,11 +2770,17 @@ try {
   const updateWorkerGamification = async (workerWallet: string, isApproval: boolean, submissionTime: string) => {
     try {
       const workerRef = doc(db, "users", workerWallet.toLowerCase());
+      let workerEmail: string | null = null;
+      let awardedSpeedRun = false;
+      let awardedTaskMachine = false;
+      let awardedPioneerEarner = false;
+
       await runTransaction(db, async (transaction) => {
         const workerSnap = await transaction.get(workerRef);
         if (!workerSnap.exists()) return;
 
         const data = workerSnap.data();
+        workerEmail = data.email || null;
         let xp = data.xp !== undefined ? data.xp : 500;
         let consecutiveRejections = data.consecutiveRejections !== undefined ? data.consecutiveRejections : 0;
         let streakCount = data.streakCount !== undefined ? data.streakCount : 0;
@@ -2749,6 +2803,7 @@ try {
             const subTime = new Date(submissionTime).getTime();
             if (subTime - openedTime < 3 * 60 * 1000 && !badges.speed_run) {
               badges.speed_run = new Date().toISOString();
+              awardedSpeedRun = true;
             }
             if (typeof window !== "undefined") {
               localStorage.removeItem(openedKey);
@@ -2767,11 +2822,13 @@ try {
           }
           if (completedToday >= 20 && !badges.task_machine) {
             badges.task_machine = new Date().toISOString();
+            awardedTaskMachine = true;
           }
 
           // Check Pioneer Earner (total_earnings >= 10.0)
           if (totalEarnings >= 10.0 && !badges.pioneer_earner) {
             badges.pioneer_earner = new Date().toISOString();
+            awardedPioneerEarner = true;
           }
 
           // Referral Reward: If worker completed their first task (tasksCompleted was 0 prior to this one, so tasksCompleted + 1 = 1)
@@ -2834,6 +2891,57 @@ try {
           }, { merge: true });
         }
       });
+
+      if (awardedSpeedRun && workerEmail) {
+        fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "badge_unlock",
+            payload: {
+              toEmail: workerEmail,
+              badgeName: "Speed Run",
+              badgeEmoji: "⚡",
+              badgeDescription: "Submit proof within 3 minutes of opening a task",
+              xpReward: 100,
+            },
+          }),
+        }).catch(err => console.error("Failed to send speed run email:", err));
+      }
+
+      if (awardedTaskMachine && workerEmail) {
+        fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "badge_unlock",
+            payload: {
+              toEmail: workerEmail,
+              badgeName: "Task Machine",
+              badgeEmoji: "🤖",
+              badgeDescription: "Complete 20 tasks in a single day",
+              xpReward: 200,
+            },
+          }),
+        }).catch(err => console.error("Failed to send task machine email:", err));
+      }
+
+      if (awardedPioneerEarner && workerEmail) {
+        fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "badge_unlock",
+            payload: {
+              toEmail: workerEmail,
+              badgeName: "Pioneer Earner",
+              badgeEmoji: "💰",
+              badgeDescription: "Reach a total earnings of 10.00 USDm",
+              xpReward: 250,
+            },
+          }),
+        }).catch(err => console.error("Failed to send pioneer earner email:", err));
+      }
     } catch (e) {
       console.error("Error updating worker gamification stats:", e);
     }
@@ -7093,6 +7201,23 @@ try {
                                   if (!currentBadges.first_payout) {
                                     currentBadges.first_payout = new Date().toISOString();
                                     await updateDoc(recipientUserRef, { badges: currentBadges });
+                                    const recipientData = recipientSnap.data();
+                                    if (recipientData.email) {
+                                      fetch("/api/send-email", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                          action: "badge_unlock",
+                                          payload: {
+                                            toEmail: recipientData.email,
+                                            badgeName: "First Withdraw",
+                                            badgeEmoji: "💸",
+                                            badgeDescription: "First worker to request and complete a payout withdrawal",
+                                            xpReward: 100,
+                                          },
+                                        }),
+                                      }).catch(err => console.error("Failed to send first payout email:", err));
+                                    }
                                   }
                                 }
                               }

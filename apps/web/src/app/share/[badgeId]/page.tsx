@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, Trophy, Sparkles } from 'lucide-react';
+import { headers } from 'next/headers';
 
 const BADGES: Record<string, { name: string; description: string; emoji: string; xp: number }> = {
   pioneer: {
@@ -54,7 +55,13 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const badgeId = params.badgeId;
   const badge = BADGES[badgeId] || BADGES.pioneer;
-  const imageUrl = `https://tezra.xyz/api/og/badge?id=${badgeId}`;
+
+  // Resolve current active host for preview bot crawlers
+  const headersList = headers();
+  const host = headersList.get('host') || 'tezra.xyz';
+  const protocol = host.includes('localhost') ? 'http' : 'https';
+  const imageUrl = `${protocol}://${host}/api/og/badge?id=${badgeId}`;
+  const shareUrl = `${protocol}://${host}/share/${badgeId}`;
 
   return {
     title: `Tezra Achievement: ${badge.name}`,
@@ -62,7 +69,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `Tezra Achievement: ${badge.name}`,
       description: `I just unlocked the ${badge.name} badge on Tezra! Complete tasks and earn stablecoins.`,
-      url: `https://tezra.xyz/share/${badgeId}`,
+      url: shareUrl,
       siteName: 'Tezra',
       images: [
         {

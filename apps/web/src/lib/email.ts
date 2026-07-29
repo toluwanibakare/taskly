@@ -443,6 +443,40 @@ export async function sendStreakEmail(userEmail: string, streakCount: number, is
   });
 }
 
+export async function sendBadgeUnlockEmail(
+  toEmail: string,
+  badgeName: string,
+  badgeEmoji: string,
+  badgeDescription: string,
+  xpReward: number
+): Promise<boolean> {
+  const html = generateTezraEmailHtml({
+    title: `🏆 Badge Unlocked: ${badgeName}`,
+    preheader: `You unlocked the ${badgeName} badge on Tezra!`,
+    badgeText: "Badge Unlocked",
+    bodyHtml: `
+      <p style="text-align:center;font-size:48px;margin:8px 0 16px;">${badgeEmoji}</p>
+      <p>Congratulations! You have unlocked the <strong>${badgeName}</strong> badge on Tezra!</p>
+      <div class="highlight-box">
+        <p style="margin:0;color:#f8fafc;text-align:center;">
+          <strong>${badgeName}</strong><br/>
+          ${badgeDescription}<br/><br/>
+          🏆 +${xpReward} XP Earned
+        </p>
+      </div>
+      <p>Keep completing tasks and launching campaigns to earn more badges, XP, and rewards!</p>
+    `,
+    ctaText: "View Your Badges ⚡",
+    ctaUrl: APP_URL,
+  });
+
+  return sendEmail({
+    to: toEmail,
+    subject: `🏆 Badge Unlocked: ${badgeName}`,
+    html,
+  });
+}
+
 export async function sendBroadcastEmail(recipientEmails: string[], subject: string, messageContent: string): Promise<{ successCount: number; failureCount: number }> {
   let successCount = 0;
   let failureCount = 0;
