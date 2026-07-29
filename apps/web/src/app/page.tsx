@@ -3725,19 +3725,8 @@ try {
             )}
 
             {/* Removed duplicate history tab */}
-            {false && isUserConnected && (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setHistorySubScreen("ledger")}
-                  className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100/50 rounded-xl text-[10px] font-extrabold flex items-center gap-1.5 active:scale-95 transition-all"
-                >
-                  <Receipt className="w-3.5 h-3.5" />
-                  Transactions
-                </button>
-              </div>
-
-                    {!isUserConnected ? (
+            {false && (
+              <>
                       renderConnectPrompt(
                         "Access Task History",
                         "Connect your wallet to view your submitted proofs, tracking statuses, and earned rewards."
@@ -3950,6 +3939,7 @@ try {
                   );
                 })()}
               </div>
+              </>
             )}
           </div>
         )}
