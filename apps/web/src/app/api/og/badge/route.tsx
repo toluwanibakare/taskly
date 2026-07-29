@@ -48,11 +48,24 @@ const BADGES: Record<string, { name: string; description: string; emoji: string;
   }
 };
 
+const AVATAR_DESIGNS = [
+  { bg1: "#059669", bg2: "#10b981", ring: "#34d399" },
+  { bg1: "#7c3aed", bg2: "#a78bfa", ring: "#c4b5fd" },
+  { bg1: "#d97706", bg2: "#f59e0b", ring: "#fcd34d" },
+  { bg1: "#0284c7", bg2: "#38bdf8", ring: "#7dd3fc" },
+];
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const badgeId = searchParams.get('id') || 'pioneer';
     const badge = BADGES[badgeId] || BADGES.pioneer;
+
+    const displayName = searchParams.get('name') || '';
+    const designIdxStr = searchParams.get('design') || '0';
+    const designIdx = parseInt(designIdxStr, 10) % 4;
+    const design = AVATAR_DESIGNS[designIdx];
+    const initial = displayName ? displayName.charAt(0).toUpperCase() : '?';
 
     return new ImageResponse(
       (
@@ -65,13 +78,66 @@ export async function GET(req: NextRequest) {
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: '#0f172a',
-            padding: '60px',
+            position: 'relative',
             border: '12px solid #10b981',
           }}
         >
+          {/* User Avatar + Name (top-right) */}
+          {displayName && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '24px',
+                right: '30px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+              }}
+            >
+              <span style={{ fontSize: '16px', color: '#cbd5e1', fontWeight: 500 }}>
+                {displayName}
+              </span>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${design.bg1}, ${design.bg2})`,
+                  border: `3px solid ${design.ring}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '18px',
+                  fontWeight: 700,
+                  color: '#ffffff',
+                }}
+              >
+                {initial}
+              </div>
+            </div>
+          )}
+
           {/* Logo Header */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '30px' }}>
-            <span style={{ fontSize: '32px', color: '#10b981', fontWeight: 'bold' }}>⚡ TEZRA ACHIEVEMENT</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '30px' }}>
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #059669, #0d9488)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '22px',
+                fontWeight: 800,
+                color: '#ffffff',
+              }}
+            >
+              T
+            </div>
+            <span style={{ fontSize: '28px', color: '#10b981', fontWeight: 700, letterSpacing: '1px' }}>
+              TEZRA ACHIEVEMENT
+            </span>
           </div>
 
           {/* Badge Icon */}
@@ -93,7 +159,7 @@ export async function GET(req: NextRequest) {
           </div>
 
           {/* Title */}
-          <span style={{ fontSize: '48px', fontWeight: '900', color: '#ffffff', marginBottom: '10px' }}>
+          <span style={{ fontSize: '48px', fontWeight: 900, color: '#ffffff', marginBottom: '10px' }}>
             {badge.name}
           </span>
 
@@ -113,7 +179,7 @@ export async function GET(req: NextRequest) {
               borderRadius: '20px',
               fontSize: '24px',
               color: '#f59e0b',
-              fontWeight: 'bold',
+              fontWeight: 700,
               marginBottom: '40px',
             }}
           >
