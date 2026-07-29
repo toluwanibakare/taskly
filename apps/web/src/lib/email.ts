@@ -231,7 +231,15 @@ export async function sendEmail({
     try {
       console.log(`Forwarding email via cPanel API gateway for ${to}`);
       const apiKey = process.env.CPANEL_EMAIL_API_KEY || "tezra_secure_email_key_2026";
-      const smtpUser = process.env.SMTP_USER || "mosesbakare48@gmail.com";
+      let fromEmail = process.env.SENDER_EMAIL;
+      if (!fromEmail) {
+        try {
+          const domain = new URL(cpanelUrl).hostname.replace(/^www\./, "");
+          fromEmail = `noreply@${domain}`;
+        } catch {
+          fromEmail = "noreply@tezra.xyz";
+        }
+      }
 
       const res = await fetch(cpanelUrl, {
         method: "POST",
@@ -243,7 +251,7 @@ export async function sendEmail({
           to,
           subject,
           html,
-          fromEmail: smtpUser,
+          fromEmail,
         }),
       });
 
