@@ -3889,6 +3889,23 @@ try {
                           );
                         })()}
 
+                        {/* 2.5 Campaign Creation Credit Info Banner (if has credit) */}
+                        {dbUserProfile?.taskCredit > 0 && (
+                          <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                            <div className="space-y-0.5">
+                              <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider block">
+                                Campaign Creation Credit
+                              </span>
+                              <span className="text-sm font-black text-slate-900 block">
+                                {formatCurrency(`${dbUserProfile.taskCredit.toFixed(2)} USDm`)}
+                              </span>
+                            </div>
+                            <span className="text-xs bg-emerald-500 text-white font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider scale-95 shadow-sm shadow-emerald-500/20">
+                              🎁 Active
+                            </span>
+                          </div>
+                        )}
+
                         {/* 3. Stats Grid */}
                         <div className="grid grid-cols-2 gap-4">
                           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm text-center space-y-1">
@@ -6733,6 +6750,12 @@ try {
                     <span className="text-slate-400">Admin Escrow Wallet:</span>
                     <span className="text-slate-800 font-mono text-[9px]">{formatAddress(PLATFORM_ESCROW_WALLET)}</span>
                   </div>
+                  {dbUserProfile?.taskCredit > 0 && (
+                    <div className="flex justify-between items-center border-t border-emerald-100/50 pt-2.5 text-emerald-600">
+                      <span className="font-semibold">Available Welcome Credit:</span>
+                      <span className="font-bold">-${dbUserProfile.taskCredit.toFixed(2)} USDm</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center border-t border-slate-800/10 pt-2.5 text-slate-950 font-black text-sm">
                     <span>Total Deposit:</span>
                     <span className="text-emerald-600">{activeTransaction.amount}</span>

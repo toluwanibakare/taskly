@@ -172,9 +172,8 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
     }
   };
 
-  const shareText = `🏅 Just became a Verified Pioneer on @earnwithtezra — the on-chain microwork platform built on @CeloOrg!\n\nEarn real stablecoins completing micro-tasks. No crypto experience needed — just show up & earn.\n\nMy official member certificate is live 👇\nCC: @0xTMB\n\n#TezraPioneerCampaign #Tezra #EarnCrypto #Pioneer #Web3 #Celo #CeloNetwork #StablecoinEarning #DeFiWork #Microwork #CryptoRewards`;
-  const shareUrl = `https://tezra.xyz`;
-  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}&hashtags=TezraPioneerCampaign,Tezra,EarnCrypto,Celo,Web3,Pioneer,CeloNetwork,StablecoinEarning,DeFiWork,CryptoRewards`;
+  const shareText = `🏅 Verified Pioneer on @earnwithtezra, the microwork platform built on @CeloOrg!\n\nEarn stablecoins on Minipay - no crypto experience needed.\n\nGet your certificate here 👇\nhttps://tezra.xyz\n\nCC: @0xTMB\n\n#TezraPioneerCampaign #Tezra #Minipay #Celo`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
