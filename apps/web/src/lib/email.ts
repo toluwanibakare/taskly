@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "mosesbakare48@gmail.com";
 export const APP_URL = "https://tezra.xyz";
-export const TELEGRAM_URL = "https://t.me/tezra_community";
+export const TELEGRAM_URL = "https://t.me/tezra_updates";
 
 let transporter: any = null;
 
