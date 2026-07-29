@@ -3,6 +3,7 @@ const { withSentryConfig } = require("@sentry/nextjs");
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ['nodemailer'],
   webpack: (config) => {
     config.externals.push('pino-pretty', 'lokijs', 'encoding')
     config.resolve.fallback = {
