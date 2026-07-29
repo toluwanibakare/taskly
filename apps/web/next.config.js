@@ -9,6 +9,20 @@ const nextConfig = {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       '@react-native-async-storage/async-storage': false,
+      fs: false,
+      net: false,
+      tls: false,
+      dns: false,
+      child_process: false,
+      readline: false,
+      crypto: false,
+      http: false,
+      https: false,
+      zlib: false,
+      path: false,
+      stream: false,
+      util: false,
+      os: false,
     }
     return config
   },

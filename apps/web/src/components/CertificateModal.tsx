@@ -172,7 +172,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
     }
   };
 
-  const shareText = `🏅 Verified Pioneer on @earnwithtezra, the microwork platform built on @CeloOrg!\n\nEarn stablecoins on Minipay - no crypto experience needed.\n\nGet your certificate here 👇\nhttps://tezra.xyz\n\nCC: @0xTMB\n\n#TezraPioneerCampaign #Tezra #Minipay #Celo`;
+  const shareText = `🏅 Verified Pioneer on @earnwithtezra, built on @Celo & @CeloDevs!\n\nEarn stablecoins on Minipay - no crypto experience needed.\n\nGet your certificate here 👇\nhttps://tezra.xyz\n\nCC: @0xTMB\n\n#TezraPioneerCampaign #Tezra #Minipay #Celo`;
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
 
   return (
