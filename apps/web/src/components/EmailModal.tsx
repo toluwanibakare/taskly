@@ -50,11 +50,16 @@ export const EmailModal: React.FC<EmailModalProps> = ({
       const isFirst10 = emailUserCount < 10;
       const taskCreditAmount = isFirst10 ? 1.0 : 0.0;
 
+      const timestamp = new Date().toISOString();
+
       if (userSnap.exists()) {
+        const currentBadges = userSnap.data()?.badges || {};
+        currentBadges.pioneer = timestamp;
+
         await updateDoc(userRef, {
           email: email.trim().toLowerCase(),
           xp: increment(50),
-          badges: arrayUnion("pioneer"),
+          badges: currentBadges,
           taskCredit: increment(taskCreditAmount),
           emailSubmittedAt: serverTimestamp(),
         });
@@ -63,7 +68,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
           walletAddress: normalizedAddress,
           email: email.trim().toLowerCase(),
           xp: 50,
-          badges: ["pioneer"],
+          badges: { pioneer: timestamp },
           taskCredit: taskCreditAmount,
           createdAt: serverTimestamp(),
           emailSubmittedAt: serverTimestamp(),
@@ -166,27 +171,27 @@ export const EmailModal: React.FC<EmailModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="w-1/3 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition"
+              className="order-2 sm:order-1 sm:w-1/3 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition whitespace-nowrap"
             >
               Skip for now
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="w-2/3 py-2.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition disabled:opacity-50"
+              className="order-1 sm:order-2 sm:w-2/3 py-2.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 transition disabled:opacity-50 whitespace-nowrap"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Claiming Gift...</span>
+                  <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                  <span>Claiming...</span>
                 </>
               ) : (
                 <>
-                  <span>Claim Gift & Unlock Badge</span>
+                  <span>Claim Gift & Unlock</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

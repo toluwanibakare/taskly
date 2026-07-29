@@ -1,23 +1,34 @@
 import nodemailer from "nodemailer";
 
-const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || "465", 10);
-const SMTP_SECURE = process.env.SMTP_SECURE !== "false"; // default true for 465
-const SMTP_USER = process.env.SMTP_USER || "mosesbakare48@gmail.com";
-const SMTP_PASS = process.env.SMTP_PASS || "";
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "mosesbakare48@gmail.com";
 export const APP_URL = "https://taskly-celo-3022.firebaseapp.com";
 export const TELEGRAM_URL = "https://t.me/tuzo_community";
 
-const transporter = nodemailer.createTransport({
-  host: SMTP_HOST,
-  port: SMTP_PORT,
-  secure: SMTP_SECURE,
-  auth: {
-    user: SMTP_USER,
-    pass: SMTP_PASS,
-  },
-});
+let transporter: any = null;
+
+function getTransporter() {
+  if (!transporter) {
+    const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
+    const SMTP_PORT = parseInt(process.env.SMTP_PORT || "465", 10);
+    const SMTP_SECURE = process.env.SMTP_SECURE !== "false";
+    const SMTP_USER = process.env.SMTP_USER || "mosesbakare48@gmail.com";
+    const SMTP_PASS = process.env.SMTP_PASS || "";
+
+    transporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_SECURE,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
+  }
+  return transporter;
+}
 
 interface EmailTemplateProps {
   title: string;
@@ -215,12 +226,14 @@ export async function sendEmail({
   html: string;
 }): Promise<boolean> {
   try {
-    if (!SMTP_PASS) {
-      console.warn("SMTP_PASS is missing, skipping real email dispatch");
+    const smtpPass = process.env.SMTP_PASS || "";
+    const smtpUser = process.env.SMTP_USER || "mosesbakare48@gmail.com";
+    if (!smtpPass) {
+      console.warn("SMTP_PASS environment variable is missing, skipping real email dispatch");
       return false;
     }
-    const info = await transporter.sendMail({
-      from: `"Tuzo" <${SMTP_USER}>`,
+    const info = await getTransporter().sendMail({
+      from: `"Tuzo" <${smtpUser}>`,
       to,
       subject,
       html,

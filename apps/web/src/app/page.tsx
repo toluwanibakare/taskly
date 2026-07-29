@@ -460,10 +460,12 @@ const ACTION_PROOF_PRESETS: Record<string, string[]> = {
   github_follow: ["Screenshot showing the 'Unfollow' button on the profile", "Your GitHub username"]
 };
 
-const BADGES_METADATA: Record<string, { name: string; description: string; icon: (color: string) => React.ReactNode }> = {
+const BADGES_METADATA: Record<string, { name: string; description: string; emoji: string; xp: number; icon: (color: string) => React.ReactNode }> = {
   genesis_creator: {
     name: "Genesis Creator",
     description: "First user to launch a campaign on Celo Mainnet",
+    emoji: "🚀",
+    xp: 200,
     icon: (color: string) => (
       <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#DBEAFE"} />
@@ -475,6 +477,8 @@ const BADGES_METADATA: Record<string, { name: string; description: string; icon:
   sold_out: {
     name: "Sold Out",
     description: "First creator to get all slots filled in a campaign",
+    emoji: "✅",
+    xp: 150,
     icon: (color: string) => (
       <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#D1FAE5"} />
@@ -485,6 +489,8 @@ const BADGES_METADATA: Record<string, { name: string; description: string; icon:
   task_machine: {
     name: "Task Machine",
     description: "Complete 20 tasks in a single day",
+    emoji: "🤖",
+    xp: 200,
     icon: (color: string) => (
       <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#FCE7F3"} />
@@ -496,6 +502,8 @@ const BADGES_METADATA: Record<string, { name: string; description: string; icon:
   speed_run: {
     name: "Speed Run",
     description: "Submit proof within 3 minutes of opening a task",
+    emoji: "⚡",
+    xp: 100,
     icon: (color: string) => (
       <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#FEF3C7"} />
@@ -507,6 +515,8 @@ const BADGES_METADATA: Record<string, { name: string; description: string; icon:
   pioneer_earner: {
     name: "Pioneer Earner",
     description: "Reach a total earnings of 10.00 USDm",
+    emoji: "💰",
+    xp: 250,
     icon: (color: string) => (
       <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#F3E8FF"} />
@@ -517,10 +527,24 @@ const BADGES_METADATA: Record<string, { name: string; description: string; icon:
   first_payout: {
     name: "First Withdraw",
     description: "First worker to request and complete a payout withdrawal",
+    emoji: "💸",
+    xp: 100,
     icon: (color: string) => (
       <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#FFF7ED"} />
         <path d="M22 40V24H42V40M18 20H46M32 28V36M28 32H36" stroke={color === "gray" ? "#94A3B8" : "#EA580C"} strokeWidth="4" strokeLinecap="round" />
+      </svg>
+    )
+  },
+  pioneer: {
+    name: "Early Pioneer",
+    description: "Claimed welcome gift and pioneer badge reward",
+    emoji: "🎖️",
+    xp: 50,
+    icon: (color: string) => (
+      <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="8" width="48" height="48" rx="12" fill={color === "gray" ? "#E2E8F0" : "#D1FAE5"} />
+        <path d="M32 18L35 28H46L38 34L41 44L32 38L23 44L26 34L18 28H29L32 18Z" fill={color === "gray" ? "#94A3B8" : "#10B981"} />
       </svg>
     )
   }
@@ -7690,9 +7714,28 @@ try {
                         {badge.description}
                       </p>
                       {isUnlocked && (
-                        <span className="inline-block mt-1 text-[9px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-md font-bold">
-                          🎉 Acquired: {new Date(unlockedAt).toLocaleDateString()}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <span className="text-[9px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-md font-bold whitespace-nowrap">
+                            🎉 Acquired: {new Date(unlockedAt).toLocaleDateString()}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowBadgesModal(false);
+                              setUnlockedBadgeInfo({
+                                id: key,
+                                title: badge.name,
+                                description: badge.description,
+                                icon: badge.emoji,
+                                xpReward: badge.xp,
+                              });
+                            }}
+                            className="text-[9px] bg-slate-800 hover:bg-slate-700 text-white font-bold px-2 py-0.5 rounded-md flex items-center gap-1 transition whitespace-nowrap"
+                          >
+                            <Share2 className="w-2.5 h-2.5" />
+                            <span>Share Card</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
