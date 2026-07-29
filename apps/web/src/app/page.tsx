@@ -651,6 +651,28 @@ const TezraLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
   </div>
 );
 
+const uploadToCloudinary = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", "tezra_uploads");
+
+  const resourceType = file.type.startsWith("video/") || file.type.startsWith("audio/") ? "video" : "image";
+  const url = `https://api.cloudinary.com/v1_1/lzeo74ym/${resourceType}/upload`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Cloudinary upload failed: ${errText}`);
+  }
+
+  const data = await response.json();
+  return data.secure_url;
+};
+
 export default function Home() {
   const { address: wagmiAddress, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
@@ -2483,14 +2505,10 @@ try {
         let fileUrl = "";
 
         if (proofForm.screenshot) {
-          const fileRef = ref(storage, `proofs/screenshots/sub-${Date.now()}-${proofForm.screenshot.name}`);
-          const uploadResult = await uploadBytes(fileRef, proofForm.screenshot);
-          fileUrl = await getDownloadURL(uploadResult.ref);
+          fileUrl = await uploadToCloudinary(proofForm.screenshot);
         } 
         else if (proofForm.screenRecording) {
-          const fileRef = ref(storage, `proofs/recordings/sub-${Date.now()}-${proofForm.screenRecording.name}`);
-          const uploadResult = await uploadBytes(fileRef, proofForm.screenRecording);
-          fileUrl = await getDownloadURL(uploadResult.ref);
+          fileUrl = await uploadToCloudinary(proofForm.screenRecording);
         }
 
         const submissionId = existingSubmission ? existingSubmission.id : `sub-${Date.now()}`;
@@ -8233,11 +8251,7 @@ try {
                           setProfileSaving(false);
                           return;
                         }
-                        const storageRef = ref(storage, `avatars/${activeAddress.toLowerCase()}`);
-                        const uploadResult = await uploadBytes(storageRef, profileEditAvatar, {
-                          contentType: profileEditAvatar.type || "image/jpeg",
-                        });
-                        const downloadUrl = await getDownloadURL(uploadResult.ref);
+                        const downloadUrl = await uploadToCloudinary(profileEditAvatar);
                         updateData.avatarUrl = downloadUrl;
                       }
 
