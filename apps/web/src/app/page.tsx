@@ -3643,8 +3643,8 @@ try {
               </div>
             )}
 
-              {/* TAB: EARN */}
-              {activeTab === "earn" && (
+            {/* TAB: EARN */}
+            {activeTab === "earn" && (
               <div className="space-y-6 animate-fade-in">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
@@ -3666,7 +3666,7 @@ try {
                     </div>
                     <h3 className="text-lg font-black tracking-tight text-white">Membership Certificate Share</h3>
                     <p className="text-slate-300 text-xs mt-2 leading-relaxed font-medium">
-                      Share your official **Tezra Member Certificate** on X tagging <strong className="text-emerald-400">@earnwithtezra</strong> and <strong className="text-emerald-400">@0xTMB</strong>. The most engaged tweet wins a <strong className="text-amber-400">$10.00 USDm</strong> prize!
+                      Share your official <strong className="text-emerald-400">Tezra Member Certificate</strong> on X tagging <strong className="text-emerald-400">@earnwithtezra</strong> and <strong className="text-emerald-400">@0xTMB</strong>. The most engaged tweet wins a <strong className="text-amber-400">$10.00 USDm</strong> prize!
                     </p>
                     <div className="flex gap-2.5 mt-5">
                       <button
@@ -3688,20 +3688,20 @@ try {
                   {/* Campaign 2: Referral Contest */}
                   <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 bg-blue-50 text-blue-600 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-blue-100">
-                      ⏳ Coming Soon
+                      ⚡ Registration Open
                     </div>
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-[9px] font-black uppercase tracking-wider mb-3">
                       <span>Leaderboard Campaign</span>
                     </div>
                     <h3 className="text-lg font-black tracking-tight text-slate-900">Referral Champion Contest</h3>
                     <p className="text-slate-500 text-xs mt-2 leading-relaxed font-medium">
-                      Invite your community to Tezra. Top 3 referrers with the highest active user submissions within the campaign window will share a reward pool of <strong className="text-blue-600">$50.00 USDm</strong>!
+                      Invite your community to Tezra. Top 3 referrers with the highest active user submissions within the campaign window will share a reward pool of <strong className="text-blue-600">$20.00 USDm</strong>!
                     </p>
                     <button
-                      disabled
-                      className="w-full py-2.5 px-4 bg-slate-100 text-slate-400 text-xs font-extrabold rounded-xl mt-5 cursor-not-allowed text-center"
+                      onClick={() => alert("You have successfully registered for the Referral Champion Contest!")}
+                      className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-extrabold rounded-xl mt-5 shadow-lg shadow-blue-500/10 active:scale-95 transition-all text-center"
                     >
-                      Registration Opens Soon
+                      Register for Contest
                     </button>
                   </div>
 
@@ -3719,7 +3719,7 @@ try {
                     </p>
                     <button
                       disabled
-                        className="w-full py-2.5 px-4 bg-slate-100 text-slate-400 text-xs font-extrabold rounded-xl mt-5 cursor-not-allowed text-center"
+                      className="w-full py-2.5 px-4 bg-slate-100 text-slate-400 text-xs font-extrabold rounded-xl mt-5 cursor-not-allowed text-center"
                     >
                       Contest Locked
                     </button>
@@ -3771,9 +3771,9 @@ try {
                               setProfileEditAvatarPreview(null);
                               setShowProfileEdit(true);
                             }}
-                            className="p-2.5 bg-white border border-slate-100 hover:bg-slate-50 active:scale-95 text-slate-700 rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
+                            className="px-3 py-2 bg-white border border-slate-100 hover:bg-slate-50 active:scale-95 text-slate-700 rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 text-[10px] font-bold whitespace-nowrap flex-shrink-0"
                           >
-                            <Pencil className="w-4 h-4 text-emerald-600" />
+                            <Pencil className="w-3.5 h-3.5 text-emerald-600" />
                             Edit Profile
                           </button>
                         </div>

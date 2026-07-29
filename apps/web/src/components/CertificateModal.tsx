@@ -93,7 +93,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
     grad.addColorStop(0, "#2563eb");
     grad.addColorStop(1, "#10b981");
     ctx.fillStyle = grad;
-    ctx.font = "black 42px sans-serif";
+    ctx.font = "900 52px sans-serif";
     ctx.fillText(formattedName, 450, 290);
 
     // Wallet address
@@ -117,6 +117,11 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
     ctx.font = "bold 12px sans-serif";
     ctx.fillText(`DATE OF REGISTRATION: ${today.toUpperCase()}`, 450, 460);
 
+    // Signature
+    ctx.fillStyle = "#1d4ed8"; // Ink blue signature color
+    ctx.font = "italic 36px cursive";
+    ctx.fillText("TMB", 450, 502);
+
     // Footer signature line
     ctx.strokeStyle = "#cbd5e1";
     ctx.lineWidth = 1.5;
@@ -129,22 +134,22 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
     ctx.font = "bold 11px sans-serif";
     ctx.fillText("TEZRA ECOSYSTEM AUDIT", 450, 532);
 
-    // 5. Verification Seal (Gold-like style at bottom right)
-    const sealX = 720;
-    const sealY = 440;
+    // 5. Verification Seal (Gold-like style at bottom right - bigger & further down-right)
+    const sealX = 775;
+    const sealY = 485;
     ctx.fillStyle = "#f59e0b"; // Gold
     ctx.beginPath();
-    ctx.arc(sealX, sealY, 35, 0, Math.PI * 2);
+    ctx.arc(sealX, sealY, 48, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.strokeStyle = "#d97706";
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
-    ctx.arc(sealX, sealY, 30, 0, Math.PI * 2);
+    ctx.arc(sealX, sealY, 42, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 10px sans-serif";
+    ctx.font = "bold 11px sans-serif";
     ctx.fillText("VERIFIED", sealX, sealY - 4);
     ctx.fillText("MEMBER", sealX, sealY + 8);
 
@@ -197,7 +202,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
           <h3 className="text-base font-black text-[#2563eb] mt-1">{formattedName}</h3>
           <span className="text-[8px] text-slate-400 font-mono block mb-3">{shortAddress}</span>
           <p className="text-[10px] text-slate-600 leading-relaxed max-w-xs mx-auto">
-            Is officially certified as a verified early pioneer. Earns stablecoins and participates in quests at **tezra.xyz**.
+            Is officially certified as a verified early pioneer. Earns stablecoins and participates in quests at <strong>tezra.xyz</strong>.
           </p>
         </div>
 
@@ -217,7 +222,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
             rel="noopener noreferrer"
             className="flex-1 py-3 px-5 bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition"
           >
-            <span>Share & Join Giveaway</span>
+            <span>Share & Join Campaign</span>
           </a>
         </div>
       </div>
