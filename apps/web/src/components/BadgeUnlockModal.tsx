@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 import { X, Share2, Send, Download, Check, Sparkles, Trophy } from "lucide-react";
+import logoImg from "../assets/logo.png";
 
 export interface BadgeUnlockInfo {
   id: string;
@@ -37,7 +38,7 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({ badge, onClo
 
   if (!badge) return null;
 
-  const appUrl = "https://taskly-celo-3022.firebaseapp.com";
+  const appUrl = "https://tuzo.xyz";
   const shareText = `I just unlocked the "${badge.title}" badge on Tuzo! 🏆 Earn crypto rewards by completing micro-tasks.`;
   const encodedText = encodeURIComponent(shareText);
   const encodedUrl = encodeURIComponent(appUrl);
@@ -47,7 +48,7 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({ badge, onClo
   const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}%20${encodedUrl}`;
 
   // Dynamically render and download the Badge Image card using Canvas API
-  const handleDownloadBadge = () => {
+  const handleDownloadBadge = async () => {
     setDownloading(true);
     try {
       const canvas = document.createElement("canvas");
@@ -56,6 +57,14 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({ badge, onClo
       const ctx = canvas.getContext("2d");
 
       if (!ctx) throw new Error("Could not get canvas context");
+
+      // Load logo image asynchronously
+      const logo = new Image();
+      logo.src = logoImg.src;
+      await new Promise((resolve) => {
+        logo.onload = resolve;
+        logo.onerror = resolve; // fallback if logo loading fails
+      });
 
       // 1. Draw elegant background gradient
       const bgGrad = ctx.createLinearGradient(0, 0, 0, 800);
@@ -74,30 +83,35 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({ badge, onClo
       ctx.lineWidth = 2;
       ctx.strokeRect(24, 24, 752, 752);
 
-      // 3. Draw Tuzo Brand Header
+      // 3. Draw Tuzo Brand Logo and Header
+      try {
+        ctx.drawImage(logo, 375, 48, 50, 50);
+      } catch (err) {
+        console.error("Failed to draw logo on canvas:", err);
+      }
       ctx.textAlign = "center";
       ctx.fillStyle = "#10b981";
       ctx.font = "bold 26px sans-serif";
-      ctx.fillText("⚡ TUZO ACHIEVEMENT", 400, 90);
+      ctx.fillText("TUZO ACHIEVEMENT", 400, 130);
 
       // 4. Draw Glowing Badge Icon Backdrop
-      const auraGrad = ctx.createRadialGradient(400, 270, 0, 400, 270, 160);
+      const auraGrad = ctx.createRadialGradient(400, 310, 0, 400, 310, 160);
       auraGrad.addColorStop(0, "rgba(16, 185, 129, 0.25)");
       auraGrad.addColorStop(1, "rgba(16, 185, 129, 0)");
       ctx.fillStyle = auraGrad;
       ctx.beginPath();
-      ctx.arc(400, 270, 160, 0, Math.PI * 2);
+      ctx.arc(400, 310, 160, 0, Math.PI * 2);
       ctx.fill();
 
       // Draw Icon emoji
       ctx.fillStyle = "#ffffff";
       ctx.font = "110px sans-serif";
-      ctx.fillText(badge.icon || "🏆", 400, 310);
+      ctx.fillText(badge.icon || "🏆", 400, 350);
 
       // 5. Draw Title & Description
       ctx.fillStyle = "#ffffff";
       ctx.font = "black 46px sans-serif";
-      ctx.fillText(badge.title, 400, 470);
+      ctx.fillText(badge.title, 400, 505);
 
       ctx.fillStyle = "#cbd5e1";
       ctx.font = "normal 22px sans-serif";
@@ -121,12 +135,12 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({ badge, onClo
         ctx.fillText(line, x, y);
       };
 
-      wrapText(badge.description, 400, 525, 600, 32);
+      wrapText(badge.description, 400, 555, 600, 32);
 
       // 6. Draw XP Reward Box
       ctx.fillStyle = "rgba(245, 158, 11, 0.1)";
       ctx.beginPath();
-      ctx.roundRect(250, 620, 300, 50, 12);
+      ctx.roundRect(250, 640, 300, 50, 12);
       ctx.fill();
       ctx.strokeStyle = "#f59e0b";
       ctx.lineWidth = 1.5;
@@ -134,12 +148,12 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({ badge, onClo
 
       ctx.fillStyle = "#f59e0b";
       ctx.font = "bold 20px sans-serif";
-      ctx.fillText(`🏆 +${badge.xpReward} XP Unlocked`, 400, 652);
+      ctx.fillText(`🏆 +${badge.xpReward} XP Unlocked`, 400, 672);
 
       // 7. Footer
       ctx.fillStyle = "#94a3b8";
       ctx.font = "600 18px sans-serif";
-      ctx.fillText("Earn stablecoins & complete quests at tuzo.app", 400, 725);
+      ctx.fillText("Earn stablecoins & complete quests at tuzo.xyz", 400, 735);
 
       // Trigger actual download link
       const dataUrl = canvas.toDataURL("image/png");
