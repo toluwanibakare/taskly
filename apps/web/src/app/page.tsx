@@ -3639,8 +3639,11 @@ try {
                       <p className="text-slate-400 text-sm font-medium">No tasks found for "{activeFilter}"</p>
                     </div>
                   )}
-                        {/* TAB: EARN */}
-            {activeTab === "earn" && (
+                </div>
+              )}
+
+              {/* TAB: EARN */}
+              {activeTab === "earn" && (
               <div className="space-y-6 animate-fade-in">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
