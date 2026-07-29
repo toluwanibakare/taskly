@@ -172,9 +172,9 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
     }
   };
 
-  const shareText = `I am now an official verified member of Tezra! ⚡ Complete tasks & earn stablecoins. CC: @earnwithtezra @0xTMB`;
+  const shareText = `🏅 Just became a Verified Pioneer on @earnwithtezra — the on-chain microwork platform built on @CeloOrg!\n\nEarn real stablecoins completing micro-tasks. No crypto experience needed — just show up & earn.\n\nMy official member certificate is live 👇\nCC: @0xTMB\n\n#TezraPioneerCampaign #Tezra #EarnCrypto #Pioneer #Web3 #Celo #CeloNetwork #StablecoinEarning #DeFiWork #Microwork #CryptoRewards`;
   const shareUrl = `https://tezra.xyz`;
-  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}&hashtags=Tezra,Celo,Web3`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}&hashtags=TezraPioneerCampaign,Tezra,EarnCrypto,Celo,Web3,Pioneer,CeloNetwork,StablecoinEarning,DeFiWork,CryptoRewards`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
@@ -188,7 +188,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
         </button>
 
         <h2 className="text-2xl font-black text-slate-900 tracking-tight">Your Member Certificate!</h2>
-        <p className="text-slate-500 text-xs mt-1 mb-6">Download and share to participate in the $10 Giveaway</p>
+        <p className="text-slate-500 text-xs mt-1 mb-6">Download and share to participate in the <strong className="text-emerald-600">$10 Campaign</strong> — most engaged post wins!</p>
 
         {/* Certificate Display Mockup */}
         <div className="border-4 border-[#10b981] p-6 rounded-2xl bg-white shadow-md text-slate-950 font-sans max-w-sm mx-auto relative overflow-hidden mb-6">
@@ -206,23 +206,41 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 mt-4">
+        {/* How to enter steps */}
+        <div className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 mb-4 text-left space-y-1.5">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">How to enter the campaign</p>
+          <div className="flex items-start gap-2">
+            <span className="flex-shrink-0 w-4 h-4 bg-slate-200 text-slate-600 rounded-full flex items-center justify-center text-[8px] font-black mt-0.5">1</span>
+            <p className="text-[10px] text-slate-600 font-medium">Download your certificate below</p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="flex-shrink-0 w-4 h-4 bg-slate-200 text-slate-600 rounded-full flex items-center justify-center text-[8px] font-black mt-0.5">2</span>
+            <p className="text-[10px] text-slate-600 font-medium">Post on X with your certificate image attached</p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="flex-shrink-0 w-4 h-4 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-[8px] font-black mt-0.5">3</span>
+            <p className="text-[10px] text-emerald-700 font-bold">Tag <strong>@earnwithtezra</strong> & <strong>@0xTMB</strong> to qualify — most engaged wins!</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={handleDownload}
             disabled={downloading}
             className="flex-1 py-3 px-5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
-            <span>{downloading ? "Generating..." : "Download Certificate (PNG)"}</span>
+            <span>{downloading ? "Generating..." : "Download Certificate"}</span>
           </button>
           
           <a
             href={twitterUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 py-3 px-5 bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition"
+            className="flex-1 py-3 px-5 bg-black hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition"
           >
-            <span>Share & Join Campaign</span>
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            <span>Post to X & Join Campaign</span>
           </a>
         </div>
       </div>

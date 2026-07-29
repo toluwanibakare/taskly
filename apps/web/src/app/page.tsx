@@ -3658,11 +3658,15 @@ try {
                 <div className="space-y-4">
                   {/* Campaign 1: Sign-up Reward & Certificate Share */}
                   <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-900 border border-slate-800 rounded-3xl p-5 text-white shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 bg-emerald-500/10 text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-emerald-500/30">
-                      ⚡ Active
+                    <div className="absolute top-0 right-0 p-4 flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-emerald-500/30">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                      </span>
+                      Active
                     </div>
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/15 border border-emerald-500/30 rounded-full text-emerald-400 text-[9px] font-black uppercase tracking-wider mb-3">
-                      <span>Giveaway Contest</span>
+                      <span>Social Quest</span>
                     </div>
                     <h3 className="text-lg font-black tracking-tight text-white">Membership Certificate Share</h3>
                     <p className="text-slate-300 text-xs mt-2 leading-relaxed font-medium">
