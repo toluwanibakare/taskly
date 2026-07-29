@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "mosesbakare48@gmail.com";
-export const APP_URL = "https://taskly-celo-3022.firebaseapp.com";
+export const APP_URL = "https://tuzo.xyz";
 export const TELEGRAM_URL = "https://t.me/tuzo_community";
 
 let transporter: any = null;
