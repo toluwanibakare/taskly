@@ -62,6 +62,8 @@ import {
   ArrowRight,
   ChevronLeft
 } from "lucide-react";
+import { EmailModal } from "../components/EmailModal";
+import { BadgeUnlockModal, BadgeUnlockInfo } from "../components/BadgeUnlockModal";
 
 // Platform Type definition
 type Platform = "instagram" | "x" | "youtube" | "tiktok" | "survey" | "testing" | "facebook" | "linkedin" | "github";
@@ -991,6 +993,8 @@ export default function Home() {
   const [showContestPopup, setShowContestPopup] = useState(false);
   const [adminContestPrize, setAdminContestPrize] = useState(20);
   const [adminContestDuration, setAdminContestDuration] = useState(7);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [unlockedBadgeInfo, setUnlockedBadgeInfo] = useState<BadgeUnlockInfo | null>(null);
 
   useEffect(() => {
     setVisitedLink(false);
@@ -1425,6 +1429,18 @@ export default function Home() {
     });
     return () => unsubscribeUser();
   }, [activeAddress]);
+
+  // Prompt email modal if user has no registered email
+  useEffect(() => {
+    if (
+      activeAddress &&
+      dbUserProfile !== null &&
+      !dbUserProfile.email &&
+      !sessionStorage.getItem(`taskly_email_prompt_dismissed_${activeAddress.toLowerCase()}`)
+    ) {
+      setShowEmailModal(true);
+    }
+  }, [activeAddress, dbUserProfile]);
 
   // Load referred users list for active wallet address
   useEffect(() => {
@@ -7741,6 +7757,27 @@ try {
           <p className="text-white/30 text-[10px] font-semibold mt-4">Tap outside to close</p>
         </div>
       )}
+
+      {/* ===== EMAIL GIFT CLAIM MODAL ===== */}
+      {activeAddress && (
+        <EmailModal
+          walletAddress={activeAddress}
+          isOpen={showEmailModal}
+          onClose={() => {
+            setShowEmailModal(false);
+            sessionStorage.setItem(`taskly_email_prompt_dismissed_${activeAddress.toLowerCase()}`, "true");
+          }}
+          onSuccess={(badge) => {
+            setUnlockedBadgeInfo(badge);
+          }}
+        />
+      )}
+
+      {/* ===== BADGE UNLOCK CELEBRATION & SHARE MODAL ===== */}
+      <BadgeUnlockModal
+        badge={unlockedBadgeInfo}
+        onClose={() => setUnlockedBadgeInfo(null)}
+      />
 
     </div>
   );

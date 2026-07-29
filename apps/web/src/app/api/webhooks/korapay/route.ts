@@ -157,6 +157,17 @@ export async function POST(req: Request) {
       activatedAt: new Date().toISOString()
     });
 
+    // Send email notification to creator & admin
+    try {
+      const { sendTaskLiveEmail, sendAdminTaskSubmittedEmail } = await import("@/lib/email");
+      if (taskData.creatorEmail) {
+        await sendTaskLiveEmail(taskData.creatorEmail, taskData.title || "Campaign", taskId, "Naira Automated (Korapay)");
+      }
+      await sendAdminTaskSubmittedEmail(taskData.creator || "Unknown", taskData.title || "Campaign", taskId, "Naira Automated (Korapay)");
+    } catch (emailErr) {
+      console.error("Failed to send webhook task live email:", emailErr);
+    }
+
     console.log(`Task ${taskId} successfully funded and activated!`);
     return NextResponse.json({ status: "success", txHash: createTx });
 
