@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 import { X, Share2, Send, Download, Check, Sparkles, Trophy } from "lucide-react";
-import logoImg from "../assets/logo.png";
+import logoImg from "../../assets/logo.png";
 
 export interface BadgeUnlockInfo {
   id: string;
