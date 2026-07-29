@@ -916,6 +916,8 @@ export default function Home() {
     userTxHash?: string;
   }
   const [activeTransaction, setActiveTransaction] = useState<ActiveTransaction | null>(null);
+  const [useWelcomeCredit, setUseWelcomeCredit] = useState(true);
+  const [lockWelcomeCredit, setLockWelcomeCredit] = useState(false);
 
   interface PendingTxData {
     newTask?: Task;
@@ -2228,7 +2230,7 @@ export default function Home() {
     };
     const budget = payoutValue * slotsValue;
     const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
-    const credit = dbUserProfile?.taskCredit || 0;
+    const credit = useWelcomeCredit ? (dbUserProfile?.taskCredit || 0) : 0;
     const total = Math.max(0, budget + fee - credit);
 
     if (isReopening && reopeningTaskId) {
@@ -3905,7 +3907,15 @@ try {
 
                         {/* 2.5 Campaign Creation Credit Info Banner (if has credit) */}
                         {dbUserProfile?.taskCredit > 0 && (
-                          <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUseWelcomeCredit(true);
+                              setLockWelcomeCredit(true);
+                              handleAuthAction(() => setScreen("create-task"));
+                            }}
+                            className="w-full text-left bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 hover:border-emerald-500/40 p-4 rounded-2xl flex items-center justify-between shadow-sm hover:scale-[1.01] active:scale-95 transition-all duration-200 cursor-pointer"
+                          >
                             <div className="space-y-0.5">
                               <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider block">
                                 Campaign Creation Credit
@@ -3913,11 +3923,14 @@ try {
                               <span className="text-sm font-black text-slate-900 block">
                                 {formatCurrency(`${dbUserProfile.taskCredit.toFixed(2)} USDm`)}
                               </span>
+                              <span className="text-[9px] text-slate-500 block font-semibold">
+                                Click here to launch your campaign & apply credit 🚀
+                              </span>
                             </div>
                             <span className="text-xs bg-emerald-500 text-white font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider scale-95 shadow-sm shadow-emerald-500/20">
-                              🎁 Active
+                              🎁 Use Credit
                             </span>
-                          </div>
+                          </button>
                         )}
 
                         {/* 3. Stats Grid */}
@@ -5783,7 +5796,10 @@ try {
           {/* FLOATING ACTION BUTTON (ONLY ON HOME TAB) */}
           {activeTab === "home" && (
             <button
-              onClick={() => handleAuthAction(() => setScreen("create-task"))}
+              onClick={() => {
+                setLockWelcomeCredit(false);
+                handleAuthAction(() => setScreen("create-task"));
+              }}
               className="fixed bottom-24 right-6 w-14 h-14 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-95 hover:scale-105 transition-all duration-300 z-40"
             >
               <Plus className="w-6 h-6" />
@@ -6534,6 +6550,32 @@ try {
                   className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400 disabled:opacity-60"
                 />
               </div>
+
+              {/* Welcome Bonus Credit Option (if user has credit) */}
+              {dbUserProfile?.taskCredit > 0 && !isReopening && (
+                <div className="bg-emerald-50/50 border border-emerald-100 p-3.5 rounded-2xl flex items-center justify-between gap-3 transition-all animate-fade-in">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] text-emerald-800 font-bold uppercase tracking-wider block">
+                      Welcome Bonus Credit
+                    </span>
+                    <p className="text-[10px] text-slate-500 leading-normal font-semibold">
+                      {lockWelcomeCredit 
+                        ? "Applied automatically from profile dashboard 🎁" 
+                        : "Apply available welcome bonus credit to launch this campaign."}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      id="useWelcomeCreditCheckbox"
+                      disabled={lockWelcomeCredit}
+                      checked={useWelcomeCredit}
+                      onChange={(e) => setUseWelcomeCredit(e.target.checked)}
+                      className="w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 accent-emerald-500 cursor-pointer disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+              )}
             </main>
 
             <div className="p-4 bg-white border-t border-slate-100 flex-shrink-0">
@@ -6764,7 +6806,7 @@ try {
                     <span className="text-slate-400">Admin Escrow Wallet:</span>
                     <span className="text-slate-800 font-mono text-[9px]">{formatAddress(PLATFORM_ESCROW_WALLET)}</span>
                   </div>
-                  {dbUserProfile?.taskCredit > 0 && (
+                  {dbUserProfile?.taskCredit > 0 && useWelcomeCredit && (
                     <div className="flex justify-between items-center border-t border-emerald-100/50 pt-2.5 text-emerald-600">
                       <span className="font-semibold">Available Welcome Credit:</span>
                       <span className="font-bold">-${dbUserProfile.taskCredit.toFixed(2)} USDm</span>
@@ -6783,7 +6825,7 @@ try {
                 {isConnected && paymentMethod !== "naira" && (() => {
                   const budget = payoutValue * slotsValue;
                   const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
-                  const credit = dbUserProfile?.taskCredit || 0;
+                  const credit = useWelcomeCredit ? (dbUserProfile?.taskCredit || 0) : 0;
                   const totalNeeded = Math.max(0, budget + fee - credit);
                   const hasEnough = userUsdmBalance >= totalNeeded;
                   return (
@@ -6811,13 +6853,13 @@ try {
                   </button>
                   <button
                     type="button"
-                    disabled={isDepositing || (isConnected && paymentMethod !== "naira" && userUsdmBalance < Math.max(0, (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)) - (dbUserProfile?.taskCredit || 0)))}
+                    disabled={isDepositing || (isConnected && paymentMethod !== "naira" && userUsdmBalance < Math.max(0, (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)) - (useWelcomeCredit ? (dbUserProfile?.taskCredit || 0) : 0)))}
                     onClick={async () => {
                       setIsDepositing(true);
                       try {
                         const budget = payoutValue * slotsValue;
                         const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
-                        const credit = dbUserProfile?.taskCredit || 0;
+                        const credit = useWelcomeCredit ? (dbUserProfile?.taskCredit || 0) : 0;
                         const total = Math.max(0, budget + fee - credit);
 
                         const task = pendingTxData?.newTask;
@@ -8361,6 +8403,8 @@ try {
         isOpen={showCertificate}
         displayName={dbUserProfile?.displayName || ""}
         walletAddress={activeAddress || ""}
+        avatarUrl={dbUserProfile?.avatarUrl}
+        avatarDesign={dbUserProfile?.avatarDesign}
         onClose={() => {
           setShowCertificate(false);
           // Chain to badge unlock celebrating modal if pending

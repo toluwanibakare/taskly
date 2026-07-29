@@ -4,11 +4,20 @@ import React, { useRef, useState } from "react";
 import { Download, X } from "lucide-react";
 import logoImg from "../../assets/logo.png";
 
+const AVATAR_DESIGNS = [
+  { bg1: "#059669", bg2: "#10b981", ring: "#34d399" },
+  { bg1: "#7c3aed", bg2: "#a78bfa", ring: "#c4b5fd" },
+  { bg1: "#d97706", bg2: "#f59e0b", ring: "#fcd34d" },
+  { bg1: "#0284c7", bg2: "#38bdf8", ring: "#7dd3fc" },
+];
+
 interface CertificateModalProps {
   isOpen: boolean;
   onClose: () => void;
   displayName: string;
   walletAddress: string;
+  avatarUrl?: string;
+  avatarDesign?: number;
 }
 
 export const CertificateModal: React.FC<CertificateModalProps> = ({
@@ -16,6 +25,8 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
   onClose,
   displayName,
   walletAddress,
+  avatarUrl,
+  avatarDesign,
 }) => {
   const [downloading, setDownloading] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -88,13 +99,83 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
     ctx.font = "italic 16px sans-serif";
     ctx.fillText("This document proudly certifies that", 450, 225);
 
+    // Username & Avatar centered at y=290
+    const designIdx = avatarDesign !== undefined ? avatarDesign % 4 : 0;
+    const design = AVATAR_DESIGNS[designIdx];
+    const initial = displayName ? displayName.charAt(0).toUpperCase() : "?";
+
+    const avatarSize = 60;
+    const gap = 16;
+    ctx.font = "900 52px sans-serif";
+    const nameWidth = ctx.measureText(formattedName).width;
+    const totalUserWidth = avatarSize + gap + nameWidth;
+    const userStartX = (900 - totalUserWidth) / 2;
+
+    const avatarX = userStartX;
+    const avatarY = 290 - 48;
+
+    // Draw avatar circle and content
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+    ctx.closePath();
+
+    // Background gradient for avatar
+    const avatarGrad = ctx.createLinearGradient(avatarX, avatarY, avatarX + avatarSize, avatarY + avatarSize);
+    avatarGrad.addColorStop(0, design.bg1);
+    avatarGrad.addColorStop(1, design.bg2);
+    ctx.fillStyle = avatarGrad;
+    ctx.fill();
+
+    let imgDrawn = false;
+    if (avatarUrl) {
+      try {
+        const avatarImg = new Image();
+        avatarImg.crossOrigin = "anonymous";
+        avatarImg.src = avatarUrl;
+        await new Promise((resolve, reject) => {
+          avatarImg.onload = resolve;
+          avatarImg.onerror = reject;
+        });
+        ctx.clip();
+        ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+        imgDrawn = true;
+      } catch (e) {
+        console.error("Failed to draw avatar image on certificate canvas:", e);
+      }
+    }
+
+    ctx.restore();
+
+    if (!imgDrawn) {
+      ctx.save();
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 26px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(initial, avatarX + avatarSize / 2, avatarY + avatarSize / 2);
+      ctx.restore();
+    }
+
+    // Ring around avatar
+    ctx.save();
+    ctx.strokeStyle = design.ring;
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2 - 1.75, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
     // Username (Gradient / Big)
-    const grad = ctx.createLinearGradient(350, 0, 550, 0);
+    ctx.save();
+    ctx.textAlign = "left";
+    const grad = ctx.createLinearGradient(avatarX + avatarSize + gap, 0, avatarX + avatarSize + gap + nameWidth, 0);
     grad.addColorStop(0, "#2563eb");
     grad.addColorStop(1, "#10b981");
     ctx.fillStyle = grad;
     ctx.font = "900 52px sans-serif";
-    ctx.fillText(formattedName, 450, 290);
+    ctx.fillText(formattedName, avatarX + avatarSize + gap, 290);
+    ctx.restore();
 
     // Wallet address
     ctx.fillStyle = "#64748b";
@@ -194,11 +275,24 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
           <div className="absolute top-2 right-2 text-[8px] bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full font-bold uppercase">
             Pioneer
           </div>
-          <div className="w-8 h-8 mx-auto mb-2 bg-[#10b981]/15 rounded-lg flex items-center justify-center">
-            <span className="text-[#10b981] text-xs font-black">⚡</span>
+          <div className="w-8 h-8 mx-auto mb-2 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
+            <img src={logoImg.src} alt="Tezra Logo" className="w-6 h-6 object-contain" />
           </div>
           <span className="text-[9px] font-bold text-slate-400 block tracking-widest uppercase">Tezra Member Certificate</span>
-          <h3 className="text-base font-black text-[#2563eb] mt-1">{formattedName}</h3>
+          <div className="flex items-center justify-center gap-2 mt-2.5 mb-1">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" className="w-9 h-9 rounded-full object-cover flex-shrink-0 border-2 border-slate-100 shadow-sm" />
+            ) : (
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0 shadow-sm"
+                style={{
+                  background: `linear-gradient(135deg, ${AVATAR_DESIGNS[avatarDesign !== undefined ? avatarDesign % 4 : 0].bg1}, ${AVATAR_DESIGNS[avatarDesign !== undefined ? avatarDesign % 4 : 0].bg2})`,
+                }}
+              >
+                {displayName ? displayName.charAt(0).toUpperCase() : "?"}
+              </div>
+            )}
+            <h3 className="text-base font-black text-[#2563eb] tracking-tight">{formattedName}</h3>
+          </div>
           <span className="text-[8px] text-slate-400 font-mono block mb-3">{shortAddress}</span>
           <p className="text-[10px] text-slate-600 leading-relaxed max-w-xs mx-auto">
             Is officially certified as a verified early pioneer. Earns stablecoins and participates in quests at <strong>tezra.xyz</strong>.

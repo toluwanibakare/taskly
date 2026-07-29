@@ -98,46 +98,81 @@ async function drawBadgeCanvas(
   ctx.fillStyle = "#10b981";
   ctx.fillText(headerText, startX + logoSize + logoSpacing, 70);
 
-  // 4. Avatar and display name (top-right area, no overlap with header)
+  // 4. Avatar and display name (Centered, below header at y=110)
   const name = getDisplayName(displayName, walletAddress);
   const designIdx = avatarDesign !== undefined ? avatarDesign % 4 : 0;
   const design = AVATAR_DESIGNS[designIdx];
 
-  // Avatar circle (50x50)
   const avatarSize = 50;
-  const avatarX = 720;
-  const avatarY = 38;
+  const gap = 12;
+  ctx.font = "bold 20px sans-serif";
+  const nameWidth = ctx.measureText(name).width;
+  const totalUserWidth = avatarSize + gap + nameWidth;
+  const userStartX = (800 - totalUserWidth) / 2;
 
+  const avatarX = userStartX;
+  const avatarY = 105;
+
+  // Draw avatar circle and content
+  ctx.save();
   ctx.beginPath();
   ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
   ctx.closePath();
 
+  // Background gradient for avatar
   const avatarGrad = ctx.createLinearGradient(avatarX, avatarY, avatarX + avatarSize, avatarY + avatarSize);
   avatarGrad.addColorStop(0, design.bg1);
   avatarGrad.addColorStop(1, design.bg2);
   ctx.fillStyle = avatarGrad;
   ctx.fill();
 
+  let imgDrawn = false;
+  if (avatarUrl) {
+    try {
+      const avatarImg = new Image();
+      avatarImg.crossOrigin = "anonymous";
+      avatarImg.src = avatarUrl;
+      await new Promise((resolve, reject) => {
+        avatarImg.onload = resolve;
+        avatarImg.onerror = reject;
+      });
+      ctx.clip();
+      ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+      imgDrawn = true;
+    } catch (e) {
+      console.error("Failed to draw avatar image on badge canvas:", e);
+    }
+  }
+
+  ctx.restore();
+
+  if (!imgDrawn) {
+    ctx.save();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 22px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(getInitial(name), avatarX + avatarSize / 2, avatarY + avatarSize / 2);
+    ctx.restore();
+  }
+
+  // Ring around avatar
+  ctx.save();
   ctx.strokeStyle = design.ring;
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2 - 1.5, 0, Math.PI * 2);
   ctx.stroke();
+  ctx.restore();
 
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 20px sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(getInitial(name), avatarX + avatarSize / 2, avatarY + avatarSize / 2);
-  ctx.textBaseline = "alphabetic";
-
-  // Display name next to avatar (aligned right of the avatar, flowing leftward)
-  ctx.textAlign = "right";
+  // Display name next to avatar
+  ctx.save();
+  ctx.textAlign = "left";
   ctx.fillStyle = "#cbd5e1";
-  ctx.font = "bold 15px sans-serif";
-  ctx.fillText(name, avatarX - 12, avatarY + avatarSize / 2 + 5);
-
-  ctx.textAlign = "center";
+  ctx.font = "bold 20px sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.fillText(name, avatarX + avatarSize + gap, avatarY + avatarSize / 2);
+  ctx.restore();
 
   // 5. Glowing Badge Icon Backdrop
   const auraGrad = ctx.createRadialGradient(400, 310, 0, 400, 310, 160);
@@ -230,8 +265,8 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({
   if (!badge) return null;
 
   const appUrl = "https://tezra.xyz";
-  const walletParam = walletAddress ? `?wallet=${walletAddress}` : "";
-  const shareUrl = `${appUrl}/share/${badge.id}${walletParam}`;
+  const userParam = displayName ? `?username=${encodeURIComponent(displayName)}` : walletAddress ? `?wallet=${walletAddress}` : "";
+  const shareUrl = `${appUrl}/share/${badge.id}${userParam}`;
   const name = getDisplayName(displayName, walletAddress);
   const shareText = `I just unlocked the "${badge.title}" badge on Tezra! 🏆 Complete tasks to earn stablecoin rewards.`;
   const twitterShareText = `I just unlocked the "${badge.title}" badge on Tezra! 🏆 Complete tasks to earn stablecoin rewards. CC: @earnwithtezra @0xTMB`;
@@ -305,23 +340,28 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({
           <X className="w-5 h-5" />
         </button>
 
-        {/* User info bar */}
-        <div className="flex items-center justify-end gap-2 mb-2">
-          <span className="text-xs text-slate-400 font-medium truncate max-w-[150px]">
-            {name}
-          </span>
-          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold`}
-            style={{
-              background: `linear-gradient(135deg, ${AVATAR_DESIGNS[avatarDesign !== undefined ? avatarDesign % 4 : 0].bg1}, ${AVATAR_DESIGNS[avatarDesign !== undefined ? avatarDesign % 4 : 0].bg2})`,
-            }}
-          >
-            {initial}
+        <div className="flex flex-col items-center gap-2 mb-4 mt-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-400 text-xs font-semibold uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Badge Unlocked!</span>
           </div>
-        </div>
-
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-4">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Badge Unlocked!</span>
+          {/* Centered User Info Bar */}
+          <div className="flex items-center gap-2 mt-1.5 bg-slate-800/40 px-3 py-1.5 rounded-full border border-slate-700/30">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
+                style={{
+                  background: `linear-gradient(135deg, ${AVATAR_DESIGNS[avatarDesign !== undefined ? avatarDesign % 4 : 0].bg1}, ${AVATAR_DESIGNS[avatarDesign !== undefined ? avatarDesign % 4 : 0].bg2})`,
+                }}
+              >
+                {initial}
+              </div>
+            )}
+            <span className="text-xs font-extrabold text-slate-200">
+              {name}
+            </span>
+          </div>
         </div>
 
         <div className="relative mx-auto my-4 w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-400 rounded-3xl p-1 shadow-lg shadow-emerald-500/25 animate-pulse">
