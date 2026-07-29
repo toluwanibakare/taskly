@@ -4,35 +4,29 @@ service firebase.storage {
   match /b/{bucket}/o {
     match /avatars/{allPaths=**} {
       allow read: if true;
+      // Allow any image type under 5MB — no auth required (wallet-based app)
       allow write: if request.resource.size < 5 * 1024 * 1024
-                   && (request.resource.contentType.matches('image/png')
-                       || request.resource.contentType.matches('image/jpeg')
-                       || request.resource.contentType.matches('image/jpg')
-                       || request.resource.contentType.matches('image/webp'));
+                   && request.resource.contentType.matches('image/.*');
     }
 
-    match /proofs {
-      match /screenshots/{allPaths=**} {
-        allow read: if true;
-        allow write: if request.resource.size < 10 * 1024 * 1024
-                     && (request.resource.contentType.matches('image/png')
-                         || request.resource.contentType.matches('image/jpeg')
-                         || request.resource.contentType.matches('image/jpg'));
-      }
-      match /videos/{allPaths=**} {
-        allow read: if true;
-        allow write: if request.resource.size < 50 * 1024 * 1024
-                     && (request.resource.contentType.matches('video/mp4')
-                         || request.resource.contentType.matches('video/webm'));
-      }
-      match /recordings/{allPaths=**} {
-        allow read: if true;
-        allow write: if request.resource.size < 50 * 1024 * 1024
-                     && (request.resource.contentType.matches('video/mp4')
-                         || request.resource.contentType.matches('video/webm')
-                         || request.resource.contentType.matches('audio/mpeg')
-                         || request.resource.contentType.matches('audio/webm'));
-      }
+    match /proofs/screenshots/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    match /proofs/videos/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.resource.size < 50 * 1024 * 1024
+                   && (request.resource.contentType.matches('video/.*')
+                       || request.resource.contentType.matches('audio/.*'));
+    }
+
+    match /proofs/recordings/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.resource.size < 50 * 1024 * 1024
+                   && (request.resource.contentType.matches('video/.*')
+                       || request.resource.contentType.matches('audio/.*'));
     }
   }
 }

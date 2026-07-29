@@ -3690,8 +3690,8 @@ try {
                   </div>
 
                   {/* Campaign 2: Referral Contest */}
-                  <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
-                    <div className="flex items-center justify-between mb-3">
+                  <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-[9px] font-black uppercase tracking-wider">
                         <span>Leaderboard Campaign</span>
                       </div>
@@ -8252,7 +8252,8 @@ try {
                         ? "Storage quota exceeded. Please contact support."
                         : err?.code === "storage/canceled"
                         ? "Upload was cancelled. Please try again."
-                        : "Failed to save profile. Please try again.";
+                        : `Failed to save profile: ${err?.message || "Please try again."}`;
+                      alert(msg);
                     } finally {
                       setProfileSaving(false);
                     }
