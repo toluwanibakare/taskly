@@ -1,8 +1,8 @@
 import nodemailer from "nodemailer";
 
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "mosesbakare48@gmail.com";
-export const APP_URL = "https://tuzo.xyz";
-export const TELEGRAM_URL = "https://t.me/tuzo_community";
+export const APP_URL = "https://tezra.xyz";
+export const TELEGRAM_URL = "https://t.me/tezra_community";
 
 let transporter: any = null;
 
@@ -39,10 +39,10 @@ interface EmailTemplateProps {
   ctaUrl?: string;
 }
 
-export function generateTuzoEmailHtml({
+export function generateTezraEmailHtml({
   title,
-  preheader = "Tuzo Notification",
-  badgeText = "Tuzo Update",
+  preheader = "Tezra Notification",
+  badgeText = "Tezra Update",
   bodyHtml,
   ctaText,
   ctaUrl = APP_URL,
@@ -185,8 +185,8 @@ export function generateTuzoEmailHtml({
     </div>
     <div class="card">
       <div class="header">
-        <div class="brand-title">⚡ TUZO</div>
-        <div class="brand-sub">Micro-Tasks & Web3 Rewards • "Tuzo" means Reward in Swahili</div>
+        <div class="brand-title">⚡ TEZRA</div>
+        <div class="brand-sub">Micro-Tasks & Web3 Rewards</div>
       </div>
       <div class="content">
         <div class="badge">${badgeText}</div>
@@ -201,11 +201,11 @@ export function generateTuzoEmailHtml({
         }
       </div>
       <div class="footer">
-        <p>From <a href="${APP_URL}" target="_blank">Tuzo</a></p>
-        <p>© 2026 Tuzo. All rights reserved.</p>
+        <p>From <a href="${APP_URL}" target="_blank">Tezra</a></p>
+        <p>© 2026 Tezra. All rights reserved.</p>
         <p>
           <a href="${TELEGRAM_URL}" target="_blank" class="telegram-btn">
-            ✈️ Join Tuzo Telegram Channel for Updates & Giveaways
+            ✈️ Join Tezra Telegram Channel for Updates & Giveaways
           </a>
         </p>
       </div>
@@ -233,7 +233,7 @@ export async function sendEmail({
       return false;
     }
     const info = await getTransporter().sendMail({
-      from: `"Tuzo" <${smtpUser}>`,
+      from: `"Tezra" <${smtpUser}>`,
       to,
       subject,
       html,
@@ -253,36 +253,36 @@ export async function sendWelcomeGiftEmail(toEmail: string, isFirst10: boolean):
     ? `🎁 <strong>SPECIAL BONUS UNLOCKED!</strong> You are one of our first 10 early members! You have received a <strong>$1.00 Task Creation Credit</strong>, <strong>50 XP</strong>, and the exclusive <strong>Pioneer Badge</strong>.`
     : `🎁 You have unlocked <strong>50 XP</strong> and the exclusive <strong>Pioneer Badge</strong>!`;
 
-  const html = generateTuzoEmailHtml({
-    title: "Welcome to Tuzo! Claim Your Gift 🎁",
-    preheader: "Your welcome gift is waiting for you on Tuzo",
+  const html = generateTezraEmailHtml({
+    title: "Welcome to Tezra! Claim Your Gift 🎁",
+    preheader: "Your welcome gift is waiting for you on Tezra",
     badgeText: "Welcome Gift",
     bodyHtml: `
       <p>Hey there,</p>
-      <p>Thank you for joining <strong>Tuzo</strong> — the premier micro-tasking platform for web3 & crypto rewards!</p>
+      <p>Thank you for joining <strong>Tezra</strong> — the premier micro-tasking platform for web3 & crypto rewards!</p>
       <div class="highlight-box">
         <p style="margin:0;color:#f8fafc;">${giftDetails}</p>
       </div>
-      <p>Log in to Tuzo to see your Pioneer Badge, check your updated XP, and start completing tasks or launching your own campaigns.</p>
+      <p>Log in to Tezra to see your Pioneer Badge, check your updated XP, and start completing tasks or launching your own campaigns.</p>
     `,
-    ctaText: "Claim Gift on Tuzo 🚀",
+    ctaText: "Claim Gift on Tezra 🚀",
     ctaUrl: APP_URL,
   });
 
   return sendEmail({
     to: toEmail,
-    subject: "🎁 Claim Your Tuzo Welcome Gift!",
+    subject: "🎁 Claim Your Tezra Welcome Gift!",
     html,
   });
 }
 
 export async function sendAdminNewUserEmail(userEmail: string, walletAddress: string, isFirst10: boolean): Promise<boolean> {
-  const html = generateTuzoEmailHtml({
+  const html = generateTezraEmailHtml({
     title: "New User Registered 🚀",
-    preheader: `New user ${userEmail} registered on Tuzo`,
+    preheader: `New user ${userEmail} registered on Tezra`,
     badgeText: "Admin Alert",
     bodyHtml: `
-      <p>A new user has registered their email on Tuzo:</p>
+      <p>A new user has registered their email on Tezra:</p>
       <ul>
         <li><strong>Email:</strong> ${userEmail}</li>
         <li><strong>Wallet:</strong> ${walletAddress}</li>
@@ -302,17 +302,17 @@ export async function sendAdminNewUserEmail(userEmail: string, walletAddress: st
 }
 
 export async function sendTaskCreatedEmail(creatorEmail: string, taskTitle: string, taskId: string): Promise<boolean> {
-  const html = generateTuzoEmailHtml({
+  const html = generateTezraEmailHtml({
     title: "Campaign Submitted Successfully!",
     preheader: `Your task "${taskTitle}" has been created`,
     badgeText: "Campaign Created",
     bodyHtml: `
       <p>Hello Creator,</p>
-      <p>Your campaign <strong>"${taskTitle}"</strong> has been successfully submitted to Tuzo.</p>
+      <p>Your campaign <strong>"${taskTitle}"</strong> has been successfully submitted to Tezra.</p>
       <div class="highlight-box">
         <p style="margin:0;">Task ID: <code>${taskId}</code></p>
       </div>
-      <p>Once funded or verified, workers across Tuzo will start completing your campaign!</p>
+      <p>Once funded or verified, workers across Tezra will start completing your campaign!</p>
     `,
     ctaText: "View Your Campaign",
     ctaUrl: `${APP_URL}?task=${taskId}`,
@@ -326,12 +326,12 @@ export async function sendTaskCreatedEmail(creatorEmail: string, taskTitle: stri
 }
 
 export async function sendAdminTaskSubmittedEmail(creatorWallet: string, taskTitle: string, taskId: string, paymentMethod: string): Promise<boolean> {
-  const html = generateTuzoEmailHtml({
+  const html = generateTezraEmailHtml({
     title: "New Campaign Submitted for Review",
     preheader: `New campaign "${taskTitle}" by ${creatorWallet}`,
     badgeText: "Admin Alert",
     bodyHtml: `
-      <p>A campaign has been created on Tuzo:</p>
+      <p>A campaign has been created on Tezra:</p>
       <ul>
         <li><strong>Title:</strong> ${taskTitle}</li>
         <li><strong>Task ID:</strong> ${taskId}</li>
@@ -351,9 +351,9 @@ export async function sendAdminTaskSubmittedEmail(creatorWallet: string, taskTit
 }
 
 export async function sendTaskLiveEmail(creatorEmail: string, taskTitle: string, taskId: string, paymentType: string): Promise<boolean> {
-  const html = generateTuzoEmailHtml({
+  const html = generateTezraEmailHtml({
     title: "Your Campaign is Now LIVE! 🎉",
-    preheader: `Your campaign "${taskTitle}" is now active on Tuzo`,
+    preheader: `Your campaign "${taskTitle}" is now active on Tezra`,
     badgeText: "Campaign Live",
     bodyHtml: `
       <p>Great news!</p>
@@ -377,15 +377,15 @@ export async function sendTaskApprovalEmail(workerEmail: string, taskTitle: stri
   const bodyHtml = approved
     ? `<p>Congratulations! Your proof submission for <strong>"${taskTitle}"</strong> was approved.</p>
        <div class="highlight-box"><p style="margin:0;">Reward: <strong>${reward}</strong> added to your balance!</p></div>`
-    : `<p>Your submission for <strong>"${taskTitle}"</strong> was rejected by the campaign creator.</p>
-       <p>If you believe this is an error, you can submit a dispute from your Tuzo dashboard.</p>`;
+     : `<p>Your submission for <strong>"${taskTitle}"</strong> was rejected by the campaign creator.</p>
+        <p>If you believe this is an error, you can submit a dispute from your Tezra dashboard.</p>`;
 
-  const html = generateTuzoEmailHtml({
+  const html = generateTezraEmailHtml({
     title,
     preheader: `Task submission update for ${taskTitle}`,
     badgeText,
     bodyHtml,
-    ctaText: "Go to Tuzo Dashboard",
+    ctaText: "Go to Tezra Dashboard",
     ctaUrl: APP_URL,
   });
 
@@ -397,7 +397,7 @@ export async function sendTaskApprovalEmail(workerEmail: string, taskTitle: stri
 }
 
 export async function sendDisputeEmail(toEmail: string, isAdmin: boolean, taskTitle: string, disputeReason: string): Promise<boolean> {
-  const html = generateTuzoEmailHtml({
+  const html = generateTezraEmailHtml({
     title: isAdmin ? "New Dispute Raised ⚠️" : "Dispute Filed on Your Task ⚠️",
     preheader: `Dispute logged for ${taskTitle}`,
     badgeText: "Dispute Alert",
@@ -414,22 +414,22 @@ export async function sendDisputeEmail(toEmail: string, isAdmin: boolean, taskTi
 
   return sendEmail({
     to: toEmail,
-    subject: `⚠️ Tuzo Dispute: ${taskTitle}`,
+    subject: `⚠️ Tezra Dispute: ${taskTitle}`,
     html,
   });
 }
 
 export async function sendStreakEmail(userEmail: string, streakCount: number, isWarning = false): Promise<boolean> {
-  const title = isWarning ? "Don't lose your Tuzo Streak! 🔥" : `Streak Milestone: ${streakCount} Days! 🔥`;
+  const title = isWarning ? "Don't lose your Tezra Streak! 🔥" : `Streak Milestone: ${streakCount} Days! 🔥`;
   const bodyHtml = isWarning
     ? `<p>Your daily streak is about to reset!</p>
-       <p>Complete at least 1 task today on Tuzo to keep your <strong>${streakCount}-day streak</strong> alive and earn bonus XP rewards.</p>`
+       <p>Complete at least 1 task today on Tezra to keep your <strong>${streakCount}-day streak</strong> alive and earn bonus XP rewards.</p>`
     : `<p>Awesome job!</p>
-       <p>You've reached a <strong>${streakCount}-day activity streak</strong> on Tuzo! Keep completing tasks to level up and unlock exclusive badges.</p>`;
+       <p>You've reached a <strong>${streakCount}-day activity streak</strong> on Tezra! Keep completing tasks to level up and unlock exclusive badges.</p>`;
 
-  const html = generateTuzoEmailHtml({
+  const html = generateTezraEmailHtml({
     title,
-    preheader: isWarning ? "Keep your Tuzo streak alive" : `${streakCount} day streak achieved!`,
+    preheader: isWarning ? "Keep your Tezra streak alive" : `${streakCount} day streak achieved!`,
     badgeText: "Streak Alert",
     bodyHtml,
     ctaText: "Complete Task Now 🔥",
@@ -448,16 +448,16 @@ export async function sendBroadcastEmail(recipientEmails: string[], subject: str
   let failureCount = 0;
 
   for (const email of recipientEmails) {
-    const html = generateTuzoEmailHtml({
+    const html = generateTezraEmailHtml({
       title: subject,
       preheader: subject,
       badgeText: "Announcement",
       bodyHtml: `<p>${messageContent.replace(/\n/g, "<br/>")}</p>`,
-      ctaText: "Explore Tuzo ⚡",
+      ctaText: "Explore Tezra ⚡",
       ctaUrl: APP_URL,
     });
 
-    const sent = await sendEmail({ to: email, subject: `📢 Tuzo Update: ${subject}`, html });
+    const sent = await sendEmail({ to: email, subject: `📢 Tezra Update: ${subject}`, html });
     if (sent) successCount++;
     else failureCount++;
   }

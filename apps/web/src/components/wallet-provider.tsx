@@ -13,7 +13,7 @@ const projectId =
   "202cc0d29cc96ae3343a5891647bb566";
 
 const wagmiConfig = getDefaultConfig({
-  appName: "tuzo",
+  appName: "tezra",
   projectId,
   chains: [celo, celoSepolia],
   ssr: true,

@@ -8,7 +8,7 @@ import { WalletProvider } from "@/components/wallet-provider"
 const inter = Inter({ subsets: ['latin'] });
 
 export const viewport: Viewport = {
-  themeColor: '#2563eb', // Gradient Blue brand color matching Tuzo theme
+  themeColor: '#2563eb', // Gradient Blue brand color matching Tezra theme
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -16,20 +16,20 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Tuzo | Earn Crypto Rewards for Micro-Tasks',
-  description: 'Earn stablecoins instantly by completing micro-tasks, social engagements, surveys, and app testing on Tuzo (Swahili for "Reward")—the premier MiniPay-powered microwork marketplace.',
+  title: 'Tezra | Earn Crypto Rewards for Micro-Tasks',
+  description: 'Earn stablecoins instantly by completing micro-tasks, social engagements, surveys, and app testing on Tezra—the premier MiniPay-powered microwork marketplace.',
   keywords: ['Celo', 'MiniPay', 'Stablecoins', 'Microwork', 'Earn Crypto', 'Micro-tasks', 'USDm', 'Valora', 'Opera Mini'],
   authors: [{ name: 'TMB', url: 'https://www.tmb.it.com' }],
   openGraph: {
-    title: 'Tuzo | Earn Crypto Rewards for Micro-Tasks',
+    title: 'Tezra | Earn Crypto Rewards for Micro-Tasks',
     description: 'Earn stablecoins instantly by completing micro-tasks on Celo.',
-    siteName: 'Tuzo',
+    siteName: 'Tezra',
     images: [
       {
         url: '/icon.png',
         width: 512,
         height: 512,
-        alt: 'Tuzo Logo',
+        alt: 'Tezra Logo',
       },
     ],
     locale: 'en_US',
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary',
-    title: 'Tuzo | Earn Crypto Rewards for Micro-Tasks',
+    title: 'Tezra | Earn Crypto Rewards for Micro-Tasks',
     description: 'Earn stablecoins instantly by completing micro-tasks on Celo.',
     images: ['/icon.png'],
   },

@@ -8,8 +8,8 @@ export async function POST(req: Request) {
     const { subject, message, secretKey } = await req.json();
 
     // Basic admin check - compare with ADMIN_PRIVATE_KEY or custom secret
-    const adminKey = process.env.ADMIN_PRIVATE_KEY || "tuzo-admin";
-    if (secretKey !== adminKey && secretKey !== "tuzo-admin") {
+    const adminKey = process.env.ADMIN_PRIVATE_KEY || "tezra-admin";
+    if (secretKey !== adminKey && secretKey !== "tezra-admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

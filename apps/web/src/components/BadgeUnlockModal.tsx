@@ -38,12 +38,12 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({ badge, onClo
 
   if (!badge) return null;
 
-  const appUrl = "https://tuzo.xyz";
-  const shareText = `I just unlocked the "${badge.title}" badge on Tuzo! 🏆 Earn crypto rewards by completing micro-tasks.`;
+  const appUrl = "https://tezra.xyz";
+  const shareText = `I just unlocked the "${badge.title}" badge on Tezra! 🏆 Earn crypto rewards by completing micro-tasks.`;
   const encodedText = encodeURIComponent(shareText);
   const encodedUrl = encodeURIComponent(appUrl);
 
-  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}&hashtags=Tuzo,Celo,Web3,CryptoRewards`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}&hashtags=Tezra,Celo,Web3,CryptoRewards`;
   const telegramUrl = `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`;
   const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}%20${encodedUrl}`;
 
@@ -83,7 +83,7 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({ badge, onClo
       ctx.lineWidth = 2;
       ctx.strokeRect(24, 24, 752, 752);
 
-      // 3. Draw Tuzo Brand Logo and Header
+      // 3. Draw Tezra Brand Logo and Header
       try {
         ctx.drawImage(logo, 375, 48, 50, 50);
       } catch (err) {
@@ -92,7 +92,7 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({ badge, onClo
       ctx.textAlign = "center";
       ctx.fillStyle = "#10b981";
       ctx.font = "bold 26px sans-serif";
-      ctx.fillText("TUZO ACHIEVEMENT", 400, 130);
+      ctx.fillText("TEZRA ACHIEVEMENT", 400, 130);
 
       // 4. Draw Glowing Badge Icon Backdrop
       const auraGrad = ctx.createRadialGradient(400, 310, 0, 400, 310, 160);
@@ -153,12 +153,12 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({ badge, onClo
       // 7. Footer
       ctx.fillStyle = "#94a3b8";
       ctx.font = "600 18px sans-serif";
-      ctx.fillText("Earn stablecoins & complete quests at tuzo.xyz", 400, 735);
+      ctx.fillText("Earn stablecoins & complete quests at tezra.xyz", 400, 735);
 
       // Trigger actual download link
       const dataUrl = canvas.toDataURL("image/png");
       const link = document.createElement("a");
-      link.download = `tuzo_badge_${badge.id}.png`;
+      link.download = `tezra_badge_${badge.id}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
