@@ -225,6 +225,42 @@ export async function sendEmail({
   subject: string;
   html: string;
 }): Promise<boolean> {
+  // If cPanel API is configured, route through it to bypass Vercel port/SMTP blocks
+  const cpanelUrl = process.env.CPANEL_EMAIL_API_URL;
+  if (cpanelUrl) {
+    try {
+      console.log(`Forwarding email via cPanel API gateway for ${to}`);
+      const apiKey = process.env.CPANEL_EMAIL_API_KEY || "tezra_secure_email_key_2026";
+      const smtpUser = process.env.SMTP_USER || "mosesbakare48@gmail.com";
+
+      const res = await fetch(cpanelUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Api-Key": apiKey,
+        },
+        body: JSON.stringify({
+          to,
+          subject,
+          html,
+          fromEmail: smtpUser,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`cPanel email forwarding returned status ${res.status}:`, errText);
+        return false;
+      }
+
+      const data = await res.json();
+      return !!data.success;
+    } catch (err) {
+      console.error(`Failed to forward email to cPanel API for ${to}:`, err);
+      return false;
+    }
+  }
+
   try {
     const smtpPass = process.env.SMTP_PASS || "";
     const smtpUser = process.env.SMTP_USER || "mosesbakare48@gmail.com";
