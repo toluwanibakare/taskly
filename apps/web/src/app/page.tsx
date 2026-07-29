@@ -60,7 +60,8 @@ import {
   Loader2,
   Zap,
   ArrowRight,
-  ChevronLeft
+  ChevronLeft,
+  Share2
 } from "lucide-react";
 import { EmailModal } from "../components/EmailModal";
 import { BadgeUnlockModal, BadgeUnlockInfo } from "../components/BadgeUnlockModal";
