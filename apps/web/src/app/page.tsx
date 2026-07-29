@@ -3691,11 +3691,17 @@ try {
 
                   {/* Campaign 2: Referral Contest */}
                   <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 bg-blue-50 text-blue-600 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-blue-100">
-                      ⚡ Registration Open
-                    </div>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-[9px] font-black uppercase tracking-wider mb-3">
-                      <span>Leaderboard Campaign</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-[9px] font-black uppercase tracking-wider">
+                        <span>Leaderboard Campaign</span>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-600 text-[9px] font-extrabold uppercase tracking-wider rounded-full border border-blue-100">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
+                        </span>
+                        Registration Open
+                      </div>
                     </div>
                     <h3 className="text-lg font-black tracking-tight text-slate-900">Referral Champion Contest</h3>
                     <p className="text-slate-500 text-xs mt-2 leading-relaxed font-medium">
@@ -8221,17 +8227,32 @@ try {
                       }
 
                       if (profileEditAvatar) {
+                        // Validate file size (max 5MB)
+                        if (profileEditAvatar.size > 5 * 1024 * 1024) {
+                          alert("Avatar image must be under 5MB. Please choose a smaller file.");
+                          setProfileSaving(false);
+                          return;
+                        }
                         const storageRef = ref(storage, `avatars/${activeAddress.toLowerCase()}`);
-                        await uploadBytes(storageRef, profileEditAvatar);
-                        const downloadUrl = await getDownloadURL(storageRef);
+                        const uploadResult = await uploadBytes(storageRef, profileEditAvatar, {
+                          contentType: profileEditAvatar.type || "image/jpeg",
+                        });
+                        const downloadUrl = await getDownloadURL(uploadResult.ref);
                         updateData.avatarUrl = downloadUrl;
                       }
 
                       await updateDoc(userRef, updateData);
+                      setDbUserProfile((prev: any) => ({ ...prev, ...updateData }));
                       setShowProfileEdit(false);
                     } catch (err: any) {
-                      console.error("Failed to save profile:", err);
-                      alert("Failed to save profile. Please try again.");
+                      console.error("Failed to save profile:", err?.code, err?.message, err);
+                      const msg = err?.code === "storage/unauthorized"
+                        ? "Storage permission denied. Please contact support."
+                        : err?.code === "storage/quota-exceeded"
+                        ? "Storage quota exceeded. Please contact support."
+                        : err?.code === "storage/canceled"
+                        ? "Upload was cancelled. Please try again."
+                        : "Failed to save profile. Please try again.";
                     } finally {
                       setProfileSaving(false);
                     }
