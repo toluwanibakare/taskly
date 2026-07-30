@@ -173,6 +173,7 @@ async function drawBadgeCanvas(
   ctx.textBaseline = "middle";
   ctx.fillText(name, avatarX + avatarSize + gap, avatarY + avatarSize / 2);
   ctx.restore();
+  ctx.textAlign = "center";
 
   // 5. Glowing Badge Icon Backdrop
   const auraGrad = ctx.createRadialGradient(400, 310, 0, 400, 310, 160);

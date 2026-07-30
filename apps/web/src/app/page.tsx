@@ -3927,7 +3927,7 @@ try {
                                 Click here to launch your campaign & apply credit 🚀
                               </span>
                             </div>
-                            <span className="text-xs bg-emerald-500 text-white font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider scale-95 shadow-sm shadow-emerald-500/20">
+                            <span className="text-xs bg-emerald-500 text-white font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider scale-95 shadow-sm shadow-emerald-500/20 whitespace-nowrap flex-shrink-0">
                               🎁 Use Credit
                             </span>
                           </button>
