@@ -2566,8 +2566,9 @@ try {
 
         // Send submission notification email to the task creator
         try {
-          if (selectedTask.created_by_wallet && selectedTask.created_by_wallet !== "unknown") {
-            const creatorDocRef = doc(db, "users", selectedTask.created_by_wallet.toLowerCase());
+          const creatorWallet = selectedTask.createdByWallet || (selectedTask as any).created_by_wallet;
+          if (creatorWallet && creatorWallet !== "unknown") {
+            const creatorDocRef = doc(db, "users", creatorWallet.toLowerCase());
             getDoc(creatorDocRef).then((creatorSnap) => {
               if (creatorSnap.exists()) {
                 const creatorData = creatorSnap.data();
