@@ -2564,6 +2564,34 @@ try {
 
         await setDoc(doc(db, "submissions", submissionId), submissionData);
 
+        // Send submission notification email to the task creator
+        try {
+          if (selectedTask.created_by_wallet && selectedTask.created_by_wallet !== "unknown") {
+            const creatorDocRef = doc(db, "users", selectedTask.created_by_wallet.toLowerCase());
+            getDoc(creatorDocRef).then((creatorSnap) => {
+              if (creatorSnap.exists()) {
+                const creatorData = creatorSnap.data();
+                if (creatorData.email) {
+                  fetch("/api/send-email", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      action: "submission_created",
+                      payload: {
+                        creatorEmail: creatorData.email,
+                        taskTitle: selectedTask.title,
+                        taskId: selectedTask.id
+                      }
+                    })
+                  }).catch(err => console.error("Failed to send submission email to creator:", err));
+                }
+              }
+            }).catch(e => console.error("Error reading creator profile for email:", e));
+          }
+        } catch (emailErr) {
+          console.error("Error sending submission email notification:", emailErr);
+        }
+
         // Update streak immediately on submission (not waiting for approval)
         await updateStreakOnSubmission(wagmiAddress.toLowerCase());
 

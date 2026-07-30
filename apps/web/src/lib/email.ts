@@ -185,8 +185,11 @@ export function generateTezraEmailHtml({
     </div>
     <div class="card">
       <div class="header">
-        <div class="brand-title">⚡ TEZRA</div>
-        <div class="brand-sub">Micro-Tasks & Web3 Rewards</div>
+        <div style="text-align: center; margin-bottom: 12px;">
+          <img src="https://tezra.xyz/logo.png" alt="Tezra Logo" style="width: 56px; height: 56px; display: inline-block; vertical-align: middle; border-radius: 14px; background-color: #ffffff; padding: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);" />
+        </div>
+        <div class="brand-title">Tezra</div>
+        <div class="brand-sub">Microwork for Stablecoins</div>
       </div>
       <div class="content">
         <div class="badge">${badgeText}</div>
@@ -406,6 +409,30 @@ export async function sendTaskCreatedEmail(creatorEmail: string, taskTitle: stri
   });
 }
 
+export async function sendSubmissionCreatedEmail(creatorEmail: string, taskTitle: string, taskId: string): Promise<boolean> {
+  const html = generateTezraEmailHtml({
+    title: "New Task Submission Received!",
+    preheader: `A worker just made a submission for "${taskTitle}"`,
+    badgeText: "New Submission",
+    bodyHtml: `
+      <p>Hello Creator,</p>
+      <p>Someone just made a submission for your campaign: <strong>"${taskTitle}"</strong>.</p>
+      <div class="highlight-box">
+        <p style="margin:0;">Task ID: <code>${taskId}</code></p>
+      </div>
+      <p>Please review and approve or reject this submission in your campaign dashboard to release rewards or release slots.</p>
+    `,
+    ctaText: "Review Submission Now",
+    ctaUrl: `${APP_URL}?task=${taskId}`,
+  });
+
+  return sendEmail({
+    to: creatorEmail,
+    subject: `📝 New Submission: ${taskTitle}`,
+    html,
+  });
+}
+
 export async function sendAdminTaskSubmittedEmail(creatorWallet: string, taskTitle: string, taskId: string, paymentMethod: string): Promise<boolean> {
   const html = generateTezraEmailHtml({
     title: "New Campaign Submitted for Review",
@@ -500,13 +527,30 @@ export async function sendDisputeEmail(toEmail: string, isAdmin: boolean, taskTi
   });
 }
 
-export async function sendStreakEmail(userEmail: string, streakCount: number, isWarning = false): Promise<boolean> {
-  const title = isWarning ? "Don't lose your Tezra Streak! 🔥" : `Streak Milestone: ${streakCount} Days! 🔥`;
-  const bodyHtml = isWarning
-    ? `<p>Your daily streak is about to reset!</p>
-       <p>Complete at least 1 task today on Tezra to keep your <strong>${streakCount}-day streak</strong> alive and earn bonus XP rewards.</p>`
-    : `<p>Awesome job!</p>
+export async function sendStreakEmail(userEmail: string, streakCount: number, isWarning = false, warningType?: "2hour" | "30min"): Promise<boolean> {
+  let title = isWarning ? "Don't lose your Tezra Streak! 🔥" : `Streak Milestone: ${streakCount} Days! 🔥`;
+  if (isWarning && warningType === "2hour") {
+    title = "Only 2 Hours Left to Keep Your Streak! 🔥";
+  } else if (isWarning && warningType === "30min") {
+    title = "⚠️ CRITICAL: 30 Minutes Left to Keep Your Streak! 🔥";
+  }
+
+  let bodyHtml = "";
+  if (isWarning) {
+    if (warningType === "2hour") {
+      bodyHtml = `<p>Your daily streak is about to reset in <strong>2 hours</strong>!</p>
+         <p>Complete at least 1 task now on Tezra to keep your <strong>${streakCount}-day streak</strong> alive and earn bonus XP rewards.</p>`;
+    } else if (warningType === "30min") {
+      bodyHtml = `<p>Your daily streak is about to reset in <strong>30 minutes</strong>!</p>
+         <p>Complete at least 1 task immediately on Tezra to keep your <strong>${streakCount}-day streak</strong> alive and avoid starting over.</p>`;
+    } else {
+      bodyHtml = `<p>Your daily streak is about to reset!</p>
+         <p>Complete at least 1 task today on Tezra to keep your <strong>${streakCount}-day streak</strong> alive and earn bonus XP rewards.</p>`;
+    }
+  } else {
+    bodyHtml = `<p>Awesome job!</p>
        <p>You've reached a <strong>${streakCount}-day activity streak</strong> on Tezra! Keep completing tasks to level up and unlock exclusive badges.</p>`;
+  }
 
   const html = generateTezraEmailHtml({
     title,
@@ -517,9 +561,16 @@ export async function sendStreakEmail(userEmail: string, streakCount: number, is
     ctaUrl: APP_URL,
   });
 
+  let subject = isWarning ? `🔥 Warning: Keep your ${streakCount}-day streak alive!` : `🔥 ${streakCount}-Day Streak Milestone!`;
+  if (isWarning && warningType === "2hour") {
+    subject = `⏰ 2 Hours Left: Keep your ${streakCount}-day streak alive!`;
+  } else if (isWarning && warningType === "30min") {
+    subject = `🚨 30 Minutes Left: Keep your ${streakCount}-day streak alive!`;
+  }
+
   return sendEmail({
     to: userEmail,
-    subject: isWarning ? `🔥 Warning: Keep your ${streakCount}-day streak alive!` : `🔥 ${streakCount}-Day Streak Milestone!`,
+    subject,
     html,
   });
 }

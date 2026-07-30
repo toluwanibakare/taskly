@@ -200,7 +200,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
 
     // Signature
     ctx.fillStyle = "#1d4ed8"; // Ink blue signature color
-    ctx.font = "italic 36px cursive";
+    ctx.font = "italic 38px 'Brush Script MT', 'Lucida Handwriting', 'Segoe Script', cursive";
     ctx.fillText("TMB", 450, 502);
 
     // Footer signature line

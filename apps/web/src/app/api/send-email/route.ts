@@ -3,6 +3,7 @@ import {
   sendWelcomeGiftEmail,
   sendAdminNewUserEmail,
   sendTaskCreatedEmail,
+  sendSubmissionCreatedEmail,
   sendAdminTaskSubmittedEmail,
   sendTaskLiveEmail,
   sendTaskApprovalEmail,
@@ -45,6 +46,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true });
       }
 
+      case "submission_created": {
+        const { creatorEmail, taskTitle, taskId } = payload || {};
+        if (creatorEmail && taskTitle && taskId) {
+          await sendSubmissionCreatedEmail(creatorEmail, taskTitle, taskId);
+        }
+        return NextResponse.json({ success: true });
+      }
+
       case "task_live": {
         const { creatorEmail, taskTitle, taskId, paymentType } = payload || {};
         if (creatorEmail && taskTitle && taskId) {
@@ -75,9 +84,9 @@ export async function POST(req: Request) {
       }
 
       case "streak": {
-        const { userEmail, streakCount, isWarning } = payload || {};
+        const { userEmail, streakCount, isWarning, warningType } = payload || {};
         if (userEmail && streakCount) {
-          await sendStreakEmail(userEmail, streakCount, !!isWarning);
+          await sendStreakEmail(userEmail, streakCount, !!isWarning, warningType);
         }
         return NextResponse.json({ success: true });
       }
