@@ -2469,6 +2469,25 @@ export default function Home() {
         }, { merge: true });
       });
 
+      // Send task created email notification
+      const creatorEmail = dbUserProfile?.email || "";
+      if (creatorEmail) {
+        fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "task_created",
+            payload: {
+              creatorEmail: creatorEmail,
+              creatorWallet: activeAddress || "unknown",
+              taskTitle: newTask.title,
+              taskId: newTask.id,
+              paymentMethod: (newTask as any).transactionHash === "welcome-credit" ? "Welcome Credit 🎁" : activeTransaction?.status || "crypto"
+            }
+          })
+        }).catch((e) => console.error("Error sending task created email:", e));
+      }
+
     } catch (err) {
       console.error("Firestore save task failed:", err);
     }
@@ -6855,13 +6874,18 @@ try {
                     type="button"
                     disabled={isDepositing || (isConnected && paymentMethod !== "naira" && userUsdmBalance < Math.max(0, (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)) - (useWelcomeCredit ? (dbUserProfile?.taskCredit || 0) : 0)))}
                     onClick={async () => {
+                      const budget = payoutValue * slotsValue;
+                      const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
+                      const credit = useWelcomeCredit ? (dbUserProfile?.taskCredit || 0) : 0;
+                      const total = Math.max(0, budget + fee - credit);
+
+                      // Prevent execution if disabled conditions are met
+                      if (isDepositing || (isConnected && paymentMethod !== "naira" && userUsdmBalance < total)) {
+                        return;
+                      }
+
                       setIsDepositing(true);
                       try {
-                        const budget = payoutValue * slotsValue;
-                        const fee = budget * (PLATFORM_FEE_PERCENTAGE / 100);
-                        const credit = useWelcomeCredit ? (dbUserProfile?.taskCredit || 0) : 0;
-                        const total = Math.max(0, budget + fee - credit);
-
                         const task = pendingTxData?.newTask;
                         if (!task) return;
 
@@ -6971,7 +6995,7 @@ try {
                       }
                     }}
                     className={`flex-1 py-3 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 ${
-                      isDepositing || (isConnected && paymentMethod !== "naira" && userUsdmBalance < (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)))
+                      isDepositing || (isConnected && paymentMethod !== "naira" && userUsdmBalance < Math.max(0, (payoutValue * slotsValue * (1 + PLATFORM_FEE_PERCENTAGE / 100)) - (useWelcomeCredit ? (dbUserProfile?.taskCredit || 0) : 0)))
                         ? "bg-slate-400 cursor-not-allowed opacity-60" 
                         : "bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-700 hover:to-emerald-600"
                     }`}

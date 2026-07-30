@@ -113,18 +113,18 @@ async function drawBadgeCanvas(
   const avatarX = userStartX;
   const avatarY = 105;
 
-  // Draw avatar circle and content
+  // Draw avatar background
   ctx.save();
   ctx.beginPath();
   ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
   ctx.closePath();
 
-  // Background gradient for avatar
   const avatarGrad = ctx.createLinearGradient(avatarX, avatarY, avatarX + avatarSize, avatarY + avatarSize);
   avatarGrad.addColorStop(0, design.bg1);
   avatarGrad.addColorStop(1, design.bg2);
   ctx.fillStyle = avatarGrad;
   ctx.fill();
+  ctx.restore();
 
   let imgDrawn = false;
   if (avatarUrl) {
@@ -136,16 +136,20 @@ async function drawBadgeCanvas(
         avatarImg.onload = resolve;
         avatarImg.onerror = reject;
       });
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+      ctx.closePath();
       ctx.clip();
       ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+      ctx.restore();
       imgDrawn = true;
     } catch (e) {
       console.error("Failed to draw avatar image on badge canvas:", e);
     }
   }
 
-  ctx.restore();
-
+  // Draw initials if no image drawn
   if (!imgDrawn) {
     ctx.save();
     ctx.fillStyle = "#ffffff";
@@ -173,7 +177,10 @@ async function drawBadgeCanvas(
   ctx.textBaseline = "middle";
   ctx.fillText(name, avatarX + avatarSize + gap, avatarY + avatarSize / 2);
   ctx.restore();
+
+  // Reset alignment styles for subsequent centered badge content
   ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
 
   // 5. Glowing Badge Icon Backdrop
   const auraGrad = ctx.createRadialGradient(400, 310, 0, 400, 310, 160);
