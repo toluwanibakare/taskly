@@ -3524,7 +3524,7 @@ try {
       
       {/* 1. SPLASH SCREEN */}
       {screen === "splash" && (
-        <div className="absolute inset-0 z-50 bg-[#FAFAFC] flex flex-col items-center justify-between py-12 px-6 animate-fade-in">
+        <div className="absolute inset-0 z-50 bg-[#FAFAFC] flex flex-col items-center justify-between py-6 px-6 animate-fade-in">
           <div className="flex-1 flex flex-col items-center justify-center">
             {/* Steady Logo (no bouncing) */}
             <div className="mb-6 p-4 bg-white rounded-3xl shadow-md border border-slate-50 flex items-center justify-center">
@@ -3554,7 +3554,7 @@ try {
               Built by TMB
             </a>
             <span className="text-xs text-slate-300 block mt-1 font-medium">
-              v2.0.1
+              Version 2.0.1
             </span>
           </div>
         </div>
@@ -5848,7 +5848,7 @@ try {
                     Built by TMB
                   </a>
                   <span className="text-[10px] text-slate-300 block mt-0.5 font-semibold">
-                    Version 1.1.0
+                    Version 2.0.1
                   </span>
                 </div>
               </div>
