@@ -16,12 +16,12 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Tezra | Earn Crypto Rewards for Micro-Tasks',
+  title: 'Tezra',
   description: 'Earn stablecoins instantly by completing micro-tasks, social engagements, surveys, and app testing on Tezra—the premier MiniPay-powered microwork marketplace.',
   keywords: ['Celo', 'MiniPay', 'Stablecoins', 'Microwork', 'Earn Crypto', 'Micro-tasks', 'USDm', 'Valora', 'Opera Mini'],
   authors: [{ name: 'TMB', url: 'https://www.tmb.it.com' }],
   openGraph: {
-    title: 'Tezra | Earn Crypto Rewards for Micro-Tasks',
+    title: 'Tezra',
     description: 'Earn stablecoins instantly by completing micro-tasks on Celo.',
     siteName: 'Tezra',
     images: [
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary',
-    title: 'Tezra | Earn Crypto Rewards for Micro-Tasks',
+    title: 'Tezra',
     description: 'Earn stablecoins instantly by completing micro-tasks on Celo.',
     images: ['/icon.png'],
   },
@@ -53,6 +53,9 @@ export const metadata: Metadata = {
     title: 'Tezra'
   },
   other: {
+    'apple-mobile-web-app-title': 'Tezra',
+    'apple-mobile-web-app-capable': 'yes',
+    'mobile-web-app-capable': 'yes',
     'talentapp:project_verification': '7d6b9b5add3e75246b442d6d5c5dce8cb112e3b53f8330f5b04be83d6e68f4f199896ff6f98b6359e721fa7288c2adbc998fec2c5a9ec87d4f17d149af8cc0ea',
   },
 };
