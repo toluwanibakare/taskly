@@ -14,6 +14,8 @@ import {
   sendEmail,
 } from "@/lib/email";
 
+import { sendPushNotification } from "@/lib/push";
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -47,9 +49,12 @@ export async function POST(req: Request) {
       }
 
       case "submission_created": {
-        const { creatorEmail, taskTitle, taskId } = payload || {};
+        const { creatorEmail, creatorWallet, taskTitle, taskId } = payload || {};
         if (creatorEmail && taskTitle && taskId) {
           await sendSubmissionCreatedEmail(creatorEmail, taskTitle, taskId);
+        }
+        if (creatorWallet && taskTitle) {
+          await sendPushNotification(creatorWallet, "New Task Submission 📤", `Someone just made a submission to your campaign "${taskTitle}".`);
         }
         return NextResponse.json({ success: true });
       }
@@ -63,9 +68,16 @@ export async function POST(req: Request) {
       }
 
       case "task_approval": {
-        const { workerEmail, taskTitle, reward, approved } = payload || {};
+        const { workerEmail, workerWallet, taskTitle, reward, approved } = payload || {};
         if (workerEmail && taskTitle) {
           await sendTaskApprovalEmail(workerEmail, taskTitle, reward || "Reward", !!approved);
+        }
+        if (workerWallet && taskTitle) {
+          if (approved) {
+            await sendPushNotification(workerWallet, "Task Approved! 🎉", `Your submission for "${taskTitle}" was approved. You earned ${reward || "0.05 USDm"}!`);
+          } else {
+            await sendPushNotification(workerWallet, "Submission Rejected ⚠️", `Your submission for "${taskTitle}" was rejected. Tap to view details.`);
+          }
         }
         return NextResponse.json({ success: true });
       }
@@ -84,17 +96,24 @@ export async function POST(req: Request) {
       }
 
       case "streak": {
-        const { userEmail, streakCount, isWarning, warningType } = payload || {};
+        const { userEmail, userWallet, streakCount, isWarning, warningType } = payload || {};
         if (userEmail && streakCount) {
           await sendStreakEmail(userEmail, streakCount, !!isWarning, warningType);
+        }
+        if (userWallet && isWarning && streakCount) {
+          const hoursStr = warningType === "2hour" ? "2 hours" : "30 minutes";
+          await sendPushNotification(userWallet, "Keep Your Streak Alive! 🔥", `You only have ${hoursStr} left to keep your ${streakCount}-day streak!`);
         }
         return NextResponse.json({ success: true });
       }
 
       case "badge_unlock": {
-        const { toEmail, badgeName, badgeEmoji, badgeDescription, xpReward } = payload || {};
+        const { toEmail, recipientWallet, badgeName, badgeEmoji, badgeDescription, xpReward } = payload || {};
         if (toEmail && badgeName) {
           await sendBadgeUnlockEmail(toEmail, badgeName, badgeEmoji || "", badgeDescription || "", xpReward || 0);
+        }
+        if (recipientWallet && badgeName) {
+          await sendPushNotification(recipientWallet, `Badge Unlocked: ${badgeName}! 🏆`, `Congratulations! You unlocked the ${badgeEmoji || "✨"} badge and earned +${xpReward || 0} XP.`);
         }
         return NextResponse.json({ success: true });
       }

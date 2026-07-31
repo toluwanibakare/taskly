@@ -1056,6 +1056,96 @@ export default function Home() {
   const [profileEditAvatar, setProfileEditAvatar] = useState<File | null>(null);
   const [profileEditAvatarPreview, setProfileEditAvatarPreview] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+  // Register Service Worker on Load for PWA notifications
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js")
+        .then((reg) => {
+          console.log("Service Worker registered successfully:", reg);
+          reg.pushManager.getSubscription().then((sub) => {
+            if (sub && dbUserProfile?.notificationsEnabled) {
+              setNotificationsEnabled(true);
+            }
+          });
+        })
+        .catch((err) => console.error("Service Worker registration failed:", err));
+    }
+  }, [dbUserProfile?.notificationsEnabled]);
+
+  const togglePushSubscription = async () => {
+    if (!activeAddress) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+
+    if (notificationsEnabled) {
+      try {
+        const userRef = doc(db, "users", activeAddress.toLowerCase());
+        await updateDoc(userRef, { notificationsEnabled: false });
+        setNotificationsEnabled(false);
+        alert("Push notifications disabled.");
+      } catch (err) {
+        console.error("Failed to disable notifications:", err);
+      }
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        alert("Permission denied. Please enable notifications in your browser/device settings.");
+        return;
+      }
+
+      const res = await fetch("/api/notifications/subscribe");
+      const { publicKey } = await res.json();
+
+      if (!publicKey) {
+        throw new Error("VAPID public key not returned from server.");
+      }
+
+      const reg = await navigator.serviceWorker.ready;
+      
+      const urlBase64ToUint8Array = (base64String: string) => {
+        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+      };
+
+      const subscribeOptions = {
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      };
+
+      const subscription = await reg.pushManager.subscribe(subscribeOptions);
+
+      const saveRes = await fetch("/api/notifications/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          walletAddress: activeAddress,
+          subscription,
+        }),
+      });
+
+      if (saveRes.ok) {
+        setNotificationsEnabled(true);
+        alert("Push notifications enabled successfully! 🚀");
+      } else {
+        alert("Failed to save notification subscription to server.");
+      }
+    } catch (err) {
+      console.error("Push subscription process failed:", err);
+      alert("Failed to enable notifications. Ensure you have added the app to your Home Screen.");
+    }
+  };
 
   useEffect(() => {
     setVisitedLink(false);
@@ -4084,6 +4174,30 @@ try {
                                 Naira (₦)
                               </button>
                             </div>
+                        </div>
+
+                        {/* 4.5 Push Notifications Settings Selector */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-slate-900 block">
+                                Push Notifications
+                              </span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">
+                                Get instant alerts on approvals & milestones
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={togglePushSubscription}
+                              className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-95 border shadow-sm ${
+                                notificationsEnabled
+                                  ? "bg-emerald-50 border-emerald-100 text-emerald-600"
+                                  : "bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                              }`}
+                            >
+                              {notificationsEnabled ? "✓ Enabled" : "Enable Alerts"}
+                            </button>
                           </div>
                         </div>
 

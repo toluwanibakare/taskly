@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
 import { sendStreakEmail } from "@/lib/email";
+import { sendPushNotification } from "@/lib/push";
 
 export async function GET(req: Request) {
   try {
@@ -66,6 +67,15 @@ export async function GET(req: Request) {
       try {
         const success = await sendStreakEmail(email, streakCount, true, activeWarningType);
         if (success) {
+          // Send push alert too!
+          const hoursStr = activeWarningType === "2hour" ? "2 hours" : "30 minutes";
+          await sendPushNotification(
+            userDoc.id,
+            "Keep Your Streak Alive! 🔥",
+            `You only have ${hoursStr} left to keep your ${streakCount}-day streak!`,
+            "/"
+          );
+
           // Update the user document to record that we sent the warning today
           const userRef = doc(db, "users", userDoc.id);
           await updateDoc(userRef, {
