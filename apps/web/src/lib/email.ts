@@ -520,7 +520,7 @@ export async function sendNewTaskBroadcastEmail(userEmail: string, taskTitle: st
 
   return sendEmail({
     to: userEmail,
-    subject: `⚡ New Task Live: ${taskTitle}`,
+    subject: `New Task Live: ${taskTitle}`,
     html,
   });
 }

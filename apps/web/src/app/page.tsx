@@ -1075,6 +1075,28 @@ export default function Home() {
     }
   }, [dbUserProfile?.notificationsEnabled]);
 
+  // Lock body scroll completely when splash loading screen is active
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (screen === "splash") {
+      document.body.style.overflow = "hidden";
+      document.body.style.height = "100vh";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100vw";
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.height = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.height = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+    };
+  }, [screen]);
+
   const togglePushSubscription = async () => {
     if (!activeAddress) {
       alert("Please connect your wallet first.");
@@ -4700,14 +4722,14 @@ try {
                                   <button
                                     type="button"
                                     onClick={async () => {
-                                      if (confirm("Send 'Notifications are LIVE!' PWA push alert to all registered users?")) {
+                                      if (confirm("Send 'Notifications are LIVE' PWA push alert to all registered users?")) {
                                         try {
                                           const res = await fetch("/api/admin/broadcast-push", {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
                                             body: JSON.stringify({
-                                              title: "Notifications are LIVE! 🚀",
-                                              body: "Tezra PWA alerts are officially active. Get notified instantly on task approvals, rejections, and new campaign streaks!",
+                                              title: "Notifications are LIVE",
+                                              body: "Tezra PWA alerts are officially active. Get notified instantly on task approvals, rejections, and new campaign streaks.",
                                               secretKey: "tezra-admin"
                                             })
                                           });
@@ -6030,14 +6052,18 @@ try {
                 setLockWelcomeCredit(false);
                 handleAuthAction(() => setScreen("create-task"));
               }}
-              className="fixed bottom-24 right-6 w-14 h-14 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-95 hover:scale-105 transition-all duration-300 z-40"
+              className={`fixed right-6 w-14 h-14 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-95 hover:scale-105 transition-all duration-300 z-40 ${
+                isStandaloneMode ? "bottom-28" : "bottom-24"
+              }`}
             >
               <Plus className="w-6 h-6" />
             </button>
           )}
 
           {/* BOTTOM NAVIGATION BAR */}
-          <nav className="fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto h-20 bg-white/90 backdrop-blur-md border-t border-slate-100 px-6 flex items-center justify-between z-40">
+          <nav className={`fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto bg-white/90 backdrop-blur-md border-t border-slate-100 px-6 flex items-center justify-between z-40 ${
+            isStandaloneMode ? "h-[92px] pb-6" : "h-20"
+          }`}>
             {[
               { id: "home", label: "Home", icon: <TezraLogo className="w-5 h-5 opacity-70" /> },
               { id: "earn", label: "Earn", icon: <Trophy className="w-5 h-5" />, elementId: "nav-tab-earn" },

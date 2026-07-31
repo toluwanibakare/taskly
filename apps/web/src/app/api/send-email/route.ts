@@ -48,24 +48,30 @@ export async function POST(req: Request) {
         if (creatorWallet && taskTitle && taskId) {
           await sendAdminTaskSubmittedEmail(creatorWallet, taskTitle, taskId, paymentMethod || "crypto");
           // Send push to admin/creator
-          await sendPushNotification(creatorWallet, "Campaign Submitted 🚀", `Your campaign "${taskTitle}" is submitted and pending launch.`);
+          await sendPushNotification(creatorWallet, "Campaign Submitted", `Your campaign "${taskTitle}" is submitted and pending launch.`);
         }
         // Broadcast to all users if live immediately
         if (status !== "pending_payment" && taskTitle && taskId) {
           try {
             const usersSnap = await getDocs(collection(db, "users"));
+            const promises: Promise<any>[] = [];
             usersSnap.forEach((userDoc) => {
               const uData = userDoc.data();
               const userEmail = uData.email;
               if (userEmail && userEmail.trim()) {
-                sendNewTaskBroadcastEmail(userEmail.trim(), taskTitle, reward || "0.05 USDm", taskId)
-                  .catch(e => console.error("Broadcast email error:", e));
+                promises.push(
+                  sendNewTaskBroadcastEmail(userEmail.trim(), taskTitle, reward || "0.05 USDm", taskId)
+                    .catch(e => console.error("Broadcast email error:", e))
+                );
               }
               if (userDoc.id !== creatorWallet) {
-                sendPushNotification(userDoc.id, "New Task Available! ⚡", `Earn rewards on "${taskTitle}" now.`, `/?task=${taskId}`)
-                  .catch(e => console.error("Broadcast push error:", e));
+                promises.push(
+                  sendPushNotification(userDoc.id, "New Task Available", `Earn rewards on "${taskTitle}" now.`, `/?task=${taskId}`)
+                    .catch(e => console.error("Broadcast push error:", e))
+                );
               }
             });
+            await Promise.all(promises);
           } catch (broadcastErr) {
             console.error("Failed to broadcast new task alerts:", broadcastErr);
           }
@@ -79,7 +85,7 @@ export async function POST(req: Request) {
           await sendSubmissionCreatedEmail(creatorEmail, taskTitle, taskId);
         }
         if (creatorWallet && taskTitle) {
-          await sendPushNotification(creatorWallet, "New Task Submission 📤", `Someone just made a submission to your campaign "${taskTitle}".`);
+          await sendPushNotification(creatorWallet, "New Task Submission", `Someone just made a submission to your campaign "${taskTitle}".`);
         }
         return NextResponse.json({ success: true });
       }
@@ -90,23 +96,29 @@ export async function POST(req: Request) {
           await sendTaskLiveEmail(creatorEmail, taskTitle, taskId, paymentType || "Naira Automated");
         }
         if (creatorWallet && taskTitle) {
-          await sendPushNotification(creatorWallet, "Campaign Live! 🟢", `Congratulations! Your campaign "${taskTitle}" is now live and accepting workers.`);
+          await sendPushNotification(creatorWallet, "Campaign Live", `Congratulations! Your campaign "${taskTitle}" is now live and accepting workers.`);
         }
         if (taskTitle && taskId) {
           try {
             const usersSnap = await getDocs(collection(db, "users"));
+            const promises: Promise<any>[] = [];
             usersSnap.forEach((userDoc) => {
               const uData = userDoc.data();
               const userEmail = uData.email;
               if (userEmail && userEmail.trim()) {
-                sendNewTaskBroadcastEmail(userEmail.trim(), taskTitle, reward || "0.05 USDm", taskId)
-                  .catch(e => console.error("Broadcast email error:", e));
+                promises.push(
+                  sendNewTaskBroadcastEmail(userEmail.trim(), taskTitle, reward || "0.05 USDm", taskId)
+                    .catch(e => console.error("Broadcast email error:", e))
+                );
               }
               if (userDoc.id !== creatorWallet) {
-                sendPushNotification(userDoc.id, "New Task Available! ⚡", `Earn rewards on "${taskTitle}" now.`, `/?task=${taskId}`)
-                  .catch(e => console.error("Broadcast push error:", e));
+                promises.push(
+                  sendPushNotification(userDoc.id, "New Task Available", `Earn rewards on "${taskTitle}" now.`, `/?task=${taskId}`)
+                    .catch(e => console.error("Broadcast push error:", e))
+                );
               }
             });
+            await Promise.all(promises);
           } catch (broadcastErr) {
             console.error("Failed to broadcast new task alerts:", broadcastErr);
           }
@@ -121,9 +133,9 @@ export async function POST(req: Request) {
         }
         if (workerWallet && taskTitle) {
           if (approved) {
-            await sendPushNotification(workerWallet, "Task Approved! 🎉", `Your submission for "${taskTitle}" was approved. You earned ${reward || "0.05 USDm"}!`);
+            await sendPushNotification(workerWallet, "Task Approved", `Your submission for "${taskTitle}" was approved. You earned ${reward || "0.05 USDm"}!`);
           } else {
-            await sendPushNotification(workerWallet, "Submission Rejected ⚠️", `Your submission for "${taskTitle}" was rejected. Tap to view details.`);
+            await sendPushNotification(workerWallet, "Submission Rejected", `Your submission for "${taskTitle}" was rejected. Tap to view details.`);
           }
         }
         return NextResponse.json({ success: true });
