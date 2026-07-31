@@ -11,8 +11,11 @@ import {
   sendStreakEmail,
   sendBroadcastEmail,
   sendBadgeUnlockEmail,
+  sendNewTaskBroadcastEmail,
   sendEmail,
 } from "@/lib/email";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 import { sendPushNotification } from "@/lib/push";
 
@@ -38,12 +41,34 @@ export async function POST(req: Request) {
       }
 
       case "task_created": {
-        const { creatorEmail, creatorWallet, taskTitle, taskId, paymentMethod } = payload || {};
+        const { creatorEmail, creatorWallet, taskTitle, taskId, paymentMethod, reward, status } = payload || {};
         if (creatorEmail && taskTitle && taskId) {
           await sendTaskCreatedEmail(creatorEmail, taskTitle, taskId);
         }
         if (creatorWallet && taskTitle && taskId) {
           await sendAdminTaskSubmittedEmail(creatorWallet, taskTitle, taskId, paymentMethod || "crypto");
+          // Send push to admin/creator
+          await sendPushNotification(creatorWallet, "Campaign Submitted 🚀", `Your campaign "${taskTitle}" is submitted and pending launch.`);
+        }
+        // Broadcast to all users if live immediately
+        if (status !== "pending_payment" && taskTitle && taskId) {
+          try {
+            const usersSnap = await getDocs(collection(db, "users"));
+            usersSnap.forEach((userDoc) => {
+              const uData = userDoc.data();
+              const userEmail = uData.email;
+              if (userEmail && userEmail.trim()) {
+                sendNewTaskBroadcastEmail(userEmail.trim(), taskTitle, reward || "0.05 USDm", taskId)
+                  .catch(e => console.error("Broadcast email error:", e));
+              }
+              if (userDoc.id !== creatorWallet) {
+                sendPushNotification(userDoc.id, "New Task Available! ⚡", `Earn rewards on "${taskTitle}" now.`, `/?task=${taskId}`)
+                  .catch(e => console.error("Broadcast push error:", e));
+              }
+            });
+          } catch (broadcastErr) {
+            console.error("Failed to broadcast new task alerts:", broadcastErr);
+          }
         }
         return NextResponse.json({ success: true });
       }
@@ -60,9 +85,31 @@ export async function POST(req: Request) {
       }
 
       case "task_live": {
-        const { creatorEmail, taskTitle, taskId, paymentType } = payload || {};
+        const { creatorEmail, creatorWallet, taskTitle, taskId, paymentType, reward } = payload || {};
         if (creatorEmail && taskTitle && taskId) {
           await sendTaskLiveEmail(creatorEmail, taskTitle, taskId, paymentType || "Naira Automated");
+        }
+        if (creatorWallet && taskTitle) {
+          await sendPushNotification(creatorWallet, "Campaign Live! 🟢", `Congratulations! Your campaign "${taskTitle}" is now live and accepting workers.`);
+        }
+        if (taskTitle && taskId) {
+          try {
+            const usersSnap = await getDocs(collection(db, "users"));
+            usersSnap.forEach((userDoc) => {
+              const uData = userDoc.data();
+              const userEmail = uData.email;
+              if (userEmail && userEmail.trim()) {
+                sendNewTaskBroadcastEmail(userEmail.trim(), taskTitle, reward || "0.05 USDm", taskId)
+                  .catch(e => console.error("Broadcast email error:", e));
+              }
+              if (userDoc.id !== creatorWallet) {
+                sendPushNotification(userDoc.id, "New Task Available! ⚡", `Earn rewards on "${taskTitle}" now.`, `/?task=${taskId}`)
+                  .catch(e => console.error("Broadcast push error:", e));
+              }
+            });
+          } catch (broadcastErr) {
+            console.error("Failed to broadcast new task alerts:", broadcastErr);
+          }
         }
         return NextResponse.json({ success: true });
       }

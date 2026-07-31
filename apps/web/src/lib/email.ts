@@ -504,6 +504,27 @@ export async function sendTaskApprovalEmail(workerEmail: string, taskTitle: stri
   });
 }
 
+export async function sendNewTaskBroadcastEmail(userEmail: string, taskTitle: string, reward: string, taskId: string): Promise<boolean> {
+  const html = generateTezraEmailHtml({
+    title: "New Task Available! ⚡",
+    preheader: `New task live: ${taskTitle}`,
+    badgeText: "New Task",
+    bodyHtml: `
+      <p>A new campaign <strong>"${taskTitle}"</strong> is live on Tezra!</p>
+      <p>Go ahead and complete it immediately to earn stablecoin rewards.</p>
+      <div class="highlight-box"><p style="margin:0;">Reward Payout: <strong>${reward}</strong></p></div>
+    `,
+    ctaText: "Complete Task Now 🔥",
+    ctaUrl: `${APP_URL}?task=${taskId}`,
+  });
+
+  return sendEmail({
+    to: userEmail,
+    subject: `⚡ New Task Live: ${taskTitle}`,
+    html,
+  });
+}
+
 export async function sendDisputeEmail(toEmail: string, isAdmin: boolean, taskTitle: string, disputeReason: string): Promise<boolean> {
   const html = generateTezraEmailHtml({
     title: isAdmin ? "New Dispute Raised ⚠️" : "Dispute Filed on Your Task ⚠️",

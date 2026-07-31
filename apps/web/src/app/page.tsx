@@ -1147,6 +1147,15 @@ export default function Home() {
     }
   };
 
+  const isStandaloneMode = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as any).standalone === true ||
+      document.referrer.includes("android-app://")
+    );
+  }, []);
+
   useEffect(() => {
     setVisitedLink(false);
   }, [selectedTask]);
@@ -2581,6 +2590,8 @@ export default function Home() {
               creatorWallet: activeAddress || "unknown",
               taskTitle: newTask.title,
               taskId: newTask.id,
+              reward: newTask.amount,
+              status: taskData.status,
               paymentMethod: (newTask as any).transactionHash === "welcome-credit" ? "Welcome Credit 🎁" : activeTransaction?.status || "crypto"
             }
           })
@@ -4175,30 +4186,32 @@ try {
                           </div>
                         </div>
 
-                        {/* 4.5 Push Notifications Settings Selector */}
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="text-xs font-bold text-slate-900 block">
-                                Push Notifications
-                              </span>
-                              <span className="text-[10px] text-slate-400 block mt-0.5">
-                                Get instant alerts on approvals & milestones
-                              </span>
+                        {/* 4.5 Push Notifications Settings Selector (Only show on PWA App standalone version) */}
+                        {isStandaloneMode && (
+                          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="text-xs font-bold text-slate-900 block">
+                                  Push Notifications
+                                </span>
+                                <span className="text-[10px] text-slate-400 block mt-0.5">
+                                  Get instant alerts on approvals & milestones
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={togglePushSubscription}
+                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-95 border shadow-sm ${
+                                  notificationsEnabled
+                                    ? "bg-emerald-50 border-emerald-100 text-emerald-600"
+                                    : "bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                                }`}
+                              >
+                                {notificationsEnabled ? "✓ Enabled" : "Enable Alerts"}
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={togglePushSubscription}
-                              className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-95 border shadow-sm ${
-                                notificationsEnabled
-                                  ? "bg-emerald-50 border-emerald-100 text-emerald-600"
-                                  : "bg-blue-600 hover:bg-blue-700 text-white border-transparent"
-                              }`}
-                            >
-                              {notificationsEnabled ? "✓ Enabled" : "Enable Alerts"}
-                            </button>
                           </div>
-                        </div>
+                        )}
 
                         {/* 5. XP, Level, Streaks and Badges Card */}
                         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 animate-fade-in">
