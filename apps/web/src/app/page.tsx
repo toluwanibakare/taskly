@@ -4172,6 +4172,7 @@ try {
                                 Naira (₦)
                               </button>
                             </div>
+                          </div>
                         </div>
 
                         {/* 4.5 Push Notifications Settings Selector */}
