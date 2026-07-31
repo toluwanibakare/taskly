@@ -3520,11 +3520,13 @@ try {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto min-h-screen bg-[#FAFAFC] text-[#1E293B] flex flex-col relative shadow-xl overflow-hidden font-sans border-x border-slate-100">
+    <div className={`w-full max-w-md mx-auto bg-[#FAFAFC] text-[#1E293B] flex flex-col relative shadow-xl font-sans border-x border-slate-100 ${
+      screen === "splash" ? "h-screen max-h-screen overflow-hidden" : "min-h-screen overflow-x-hidden"
+    }`}>
       
       {/* 1. SPLASH SCREEN */}
       {screen === "splash" && (
-        <div className="absolute inset-0 z-50 bg-[#FAFAFC] flex flex-col items-center justify-between py-6 px-6 animate-fade-in">
+        <div className="fixed inset-x-0 top-0 bottom-0 z-50 max-w-md mx-auto bg-[#FAFAFC] flex flex-col items-center justify-between py-8 px-6 animate-fade-in overflow-hidden h-screen max-h-screen">
           <div className="flex-1 flex flex-col items-center justify-center">
             {/* Steady Logo (no bouncing) */}
             <div className="mb-6 p-4 bg-white rounded-3xl shadow-md border border-slate-50 flex items-center justify-center">
