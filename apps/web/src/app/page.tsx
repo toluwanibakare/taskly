@@ -1555,7 +1555,15 @@ export default function Home() {
       snapshot.forEach((docSnap) => {
         participants.push(docSnap.data());
       });
-      participants.sort((a, b) => (b.contestReferralEarnings || 0) - (a.contestReferralEarnings || 0));
+      if (contestConfig.status === "coming_soon") {
+        participants.sort((a, b) => {
+          const nameA = (a.username || a.displayName || a.wallet_address || "").toLowerCase();
+          const nameB = (b.username || b.displayName || b.wallet_address || "").toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+      } else {
+        participants.sort((a, b) => (b.contestReferralEarnings || 0) - (a.contestReferralEarnings || 0));
+      }
       setContestLeaderboard(participants);
     });
     return () => unsubscribeLeaderboard();
@@ -2708,8 +2716,12 @@ try {
         const workerWallet = subDocSnap.data().wallet_address;
         if (workerWallet) {
           const workerUserRef = doc(db, "users", workerWallet.toLowerCase());
+          let workerEmail = "";
           await runTransaction(db, async (transaction) => {
             const workerDoc = await transaction.get(workerUserRef);
+            if (workerDoc.exists()) {
+              workerEmail = workerDoc.data().email || "";
+            }
             const currentEarnings = workerDoc.exists() ? workerDoc.data().total_earnings || 0 : 0;
             const currentBalance = workerDoc.exists() ? workerDoc.data().balance || 0 : 0;
             const completedCount = workerDoc.exists() ? workerDoc.data().tasks_completed || 0 : 0;
@@ -2721,6 +2733,23 @@ try {
             }, { merge: true });
           });
           await updateWorkerGamification(workerWallet, true, subDocSnap.data().date);
+
+          // Send approval email to worker
+          if (workerEmail) {
+            fetch("/api/send-email", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "task_approval",
+                payload: {
+                  workerEmail: workerEmail,
+                  taskTitle: tk?.title || "Tezra Task",
+                  reward: `${payoutVal.toFixed(2)} USDm`,
+                  approved: true
+                }
+              })
+            }).catch(e => console.error("Error sending approval email to worker:", e));
+          }
         }
       }
 
@@ -2729,20 +2758,8 @@ try {
     }
   };
 
-  // Calculate if rejection rate cap is reached (Max 40% rejection rate for a task)
+  // Calculate if rejection rate cap is reached (Max 40% rejection rate for a task) - Disabled to allow free rejections
   const isRejectionCapReached = (taskId: string): boolean => {
-    const taskSubs = creatorSubmissions.filter(s => s.taskId === taskId);
-    const approvedCount = taskSubs.filter(s => s.status === "approved").length;
-    const rejectedCount = taskSubs.filter(s => s.status === "rejected" || s.status === "rejected-final" || s.status === "disputed").length;
-    const totalReviewed = approvedCount + rejectedCount;
-    
-    // We only enforce the 40% cap after at least 3 reviewed submissions
-    if (totalReviewed >= 3) {
-      const proposedRejectionRate = ((rejectedCount + 1) / (totalReviewed + 1)) * 100;
-      if (proposedRejectionRate > 40) {
-        return true;
-      }
-    }
     return false;
   };
 
@@ -2775,6 +2792,34 @@ try {
 
       if (workerWallet) {
         await updateWorkerGamification(workerWallet, false, subDocSnap.data().date);
+
+        // Send rejection email to worker
+        try {
+          const workerUserRef = doc(db, "users", workerWallet.toLowerCase());
+          getDoc(workerUserRef).then((workerSnap) => {
+            if (workerSnap.exists()) {
+              const workerEmail = workerSnap.data().email;
+              if (workerEmail) {
+                const tk = tasks.find((t) => t.id === subDocSnap.data().task_id);
+                fetch("/api/send-email", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    action: "task_approval",
+                    payload: {
+                      workerEmail: workerEmail,
+                      taskTitle: tk?.title || "Tezra Task",
+                      reward: tk ? tk.amount : "Reward",
+                      approved: false
+                    }
+                  })
+                }).catch(e => console.error("Error sending rejection email to worker:", e));
+              }
+            }
+          }).catch(e => console.error("Error fetching worker profile for rejection email:", e));
+        } catch (emailErr) {
+          console.error("Error sending rejection email notification:", emailErr);
+        }
       }
 
       setRejectingSubId(null);
@@ -4205,17 +4250,20 @@ try {
                               </div>
 
                               {/* Contest Leaderboard */}
-                              {contestConfig.status === "active" && (
+                              {(contestConfig.status === "active" || contestConfig.status === "coming_soon") && (
                                 <div className="space-y-2.5">
                                   <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                                     <span>Leaderboard Ranking</span>
-                                    <span className="text-[8px]">Updates daily at 11:00 PM WAT</span>
+                                    <span className="text-[8px]">{contestConfig.status === "coming_soon" ? "Arranged alphabetically before start" : "Updates daily at 11:00 PM WAT"}</span>
                                   </div>
 
                                   <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-0.5 scrollbar-none">
                                     {contestLeaderboard.length > 0 ? (
                                       contestLeaderboard.slice(0, 10).map((participant, index) => {
                                         const isCurrentUser = participant.wallet_address?.toLowerCase() === activeAddress?.toLowerCase();
+                                        const nameStr = participant.username 
+                                          ? `@${participant.username.replace(/^@/, '')}` 
+                                          : (participant.displayName || formatAddress(participant.wallet_address || ""));
                                         return (
                                           <div
                                             key={participant.wallet_address || index}
@@ -4227,9 +4275,9 @@ try {
                                           >
                                             <div className="flex items-center gap-2">
                                               <span className="text-slate-400 font-mono">#{index + 1}</span>
-                                              <span className="font-mono">
-                                                {formatAddress(participant.wallet_address || "")}
-                                                {isCurrentUser && <span className="ml-1 text-[9px] font-sans font-black">(You)</span>}
+                                              <span className="font-semibold text-slate-700">
+                                                {nameStr}
+                                                {isCurrentUser && <span className="ml-1 text-[9px] font-sans font-black text-blue-600">(You)</span>}
                                               </span>
                                             </div>
                                             <span className={isCurrentUser ? "text-blue-700" : "text-slate-900"}>
