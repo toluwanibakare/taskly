@@ -1037,6 +1037,7 @@ export default function Home() {
   const [adminDeleteTaskId, setAdminDeleteTaskId] = useState<string | null>(null);
   const [referredUsers, setReferredUsers] = useState<any[]>([]);
   const [showReferralsModal, setShowReferralsModal] = useState(false);
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
   const [historySubScreen, setHistorySubScreen] = useState<"tasks" | "ledger">("tasks");
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmountInput, setWithdrawAmountInput] = useState<number>(1.00);
@@ -4249,50 +4250,15 @@ try {
                                 </div>
                               </div>
 
-                              {/* Contest Leaderboard */}
+                              {/* View Leaderboard Button */}
                               {(contestConfig.status === "active" || contestConfig.status === "coming_soon") && (
-                                <div className="space-y-2.5">
-                                  <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                    <span>Leaderboard Ranking</span>
-                                    <span className="text-[8px]">{contestConfig.status === "coming_soon" ? "Arranged alphabetically before start" : "Updates daily at 11:00 PM WAT"}</span>
-                                  </div>
-
-                                  <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-0.5 scrollbar-none">
-                                    {contestLeaderboard.length > 0 ? (
-                                      contestLeaderboard.slice(0, 10).map((participant, index) => {
-                                        const isCurrentUser = participant.wallet_address?.toLowerCase() === activeAddress?.toLowerCase();
-                                        const nameStr = participant.username 
-                                          ? `@${participant.username.replace(/^@/, '')}` 
-                                          : (participant.displayName || formatAddress(participant.wallet_address || ""));
-                                        return (
-                                          <div
-                                            key={participant.wallet_address || index}
-                                            className={`flex items-center justify-between p-2.5 rounded-xl border text-[10px] font-bold ${
-                                              isCurrentUser
-                                                ? "bg-blue-50/40 border-blue-100 text-blue-700"
-                                                : "bg-white border-slate-100 text-slate-700 shadow-sm"
-                                            }`}
-                                          >
-                                            <div className="flex items-center gap-2">
-                                              <span className="text-slate-400 font-mono">#{index + 1}</span>
-                                              <span className="font-semibold text-slate-700">
-                                                {nameStr}
-                                                {isCurrentUser && <span className="ml-1 text-[9px] font-sans font-black text-blue-600">(You)</span>}
-                                              </span>
-                                            </div>
-                                            <span className={isCurrentUser ? "text-blue-700" : "text-slate-900"}>
-                                              {formatCurrencyVal(participant.contestReferralEarnings || 0)}
-                                            </span>
-                                          </div>
-                                        );
-                                      })
-                                    ) : (
-                                      <div className="text-center py-6 text-[10px] text-slate-400 font-semibold bg-slate-50 rounded-xl border border-slate-100">
-                                        No participants registered yet.
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowLeaderboardModal(true)}
+                                  className="w-full py-2.5 bg-blue-50/50 hover:bg-blue-100/50 text-blue-600 border border-blue-100/50 rounded-xl text-[10px] font-bold active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5"
+                                >
+                                  🏆 View Contest Leaderboard ({contestLeaderboard.length})
+                                </button>
                               )}
                             </div>
                           )}
@@ -7883,6 +7849,84 @@ try {
           </div>
         );
       })()}
+
+      {/* ===== REFERRAL CONTEST LEADERBOARD MODAL ===== */}
+      {showLeaderboardModal && (
+        <div className="fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+          <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 flex flex-col max-h-[80vh] animate-scale-up">
+            {/* Header */}
+            <div className="flex justify-between items-center pb-4 border-b border-slate-100 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 tracking-tight">Contest Leaderboard</h3>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                    {contestConfig?.status === "coming_soon" ? "Coming Soon • " : "Active • "}
+                    {contestLeaderboard.length} Users Registered
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLeaderboardModal(false)}
+                className="text-xs font-bold text-slate-400 hover:text-slate-600 bg-slate-50 border border-slate-100 p-1.5 rounded-lg active:scale-95 transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Leaderboard Scrollable Table List */}
+            <div className="flex-1 overflow-y-auto my-4 pr-1 space-y-2 scrollbar-none">
+              <div className="text-[8px] text-slate-400 font-bold uppercase tracking-wider pb-1 flex justify-between">
+                <span>Participant ({contestLeaderboard.length})</span>
+                <span>Earnings (USDm)</span>
+              </div>
+              
+              {contestLeaderboard.length > 0 ? (
+                contestLeaderboard.map((participant, index) => {
+                  const isCurrentUser = participant.wallet_address?.toLowerCase() === activeAddress?.toLowerCase();
+                  const nameStr = participant.username 
+                    ? `@${participant.username.replace(/^@/, '')}` 
+                    : (participant.displayName || formatAddress(participant.wallet_address || ""));
+                  return (
+                    <div
+                      key={participant.wallet_address || index}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border text-[10px] font-bold ${
+                        isCurrentUser
+                          ? "bg-blue-50/40 border-blue-100 text-blue-700"
+                          : "bg-white border-slate-100 text-slate-700 shadow-sm"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400 font-mono text-[9px]">#{index + 1}</span>
+                        <span className="font-semibold text-slate-700">
+                          {nameStr}
+                          {isCurrentUser && <span className="ml-1 text-[8px] font-sans font-black text-blue-600">(You)</span>}
+                        </span>
+                      </div>
+                      <span className={isCurrentUser ? "text-blue-700" : "text-slate-900 font-mono"}>
+                        {formatCurrencyVal(participant.contestReferralEarnings || 0)}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-[10px] text-slate-400 font-semibold bg-slate-50 rounded-2xl border border-slate-100/50">
+                  No participants registered yet.
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Actions */}
+            <button
+              type="button"
+              onClick={() => setShowLeaderboardModal(false)}
+              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex-shrink-0"
+            >
+              Close Leaderboard
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ===== CUSTOM WITHDRAWAL MODAL ===== */}
       {showWithdrawModal && (
