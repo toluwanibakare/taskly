@@ -3610,9 +3610,7 @@ try {
   };
 
   return (
-    <div className={`w-full max-w-md mx-auto bg-[#FAFAFC] text-[#1E293B] flex flex-col relative shadow-xl font-sans border-x border-slate-100 ${
-      screen === "splash" ? "h-screen max-h-screen overflow-hidden" : "min-h-screen overflow-x-hidden"
-    }`}>
+    <div className={screen === "splash" ? "w-full max-w-md mx-auto bg-[#FAFAFC] text-[#1E293B] flex flex-col relative shadow-xl font-sans border-x border-slate-100 h-screen max-h-screen overflow-hidden" : "w-full max-w-md mx-auto bg-[#FAFAFC] text-[#1E293B] flex flex-col relative shadow-xl font-sans border-x border-slate-100 min-h-screen overflow-x-hidden"}>
       
       {/* 1. SPLASH SCREEN */}
       {screen === "splash" && (
