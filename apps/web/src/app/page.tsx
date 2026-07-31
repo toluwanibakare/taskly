@@ -62,7 +62,8 @@ import {
   ArrowRight,
   ChevronLeft,
   Share2,
-  Pencil
+  Pencil,
+  Bell
 } from "lucide-react";
 import { EmailModal } from "../components/EmailModal";
 import { BadgeUnlockModal, BadgeUnlockInfo } from "../components/BadgeUnlockModal";
@@ -4691,6 +4692,45 @@ try {
                                       <span className="text-xs font-bold text-slate-800 block">Contract Settings</span>
                                       <span className="text-[9px] text-slate-400 font-medium">
                                         {escrowContractAddress !== "0x0000000000000000000000000000000000000000" ? "Escrow deployed · Set owner to admin wallet" : "Not deployed on this network"}
+                                      </span>
+                                    </div>
+                                  </button>
+
+                                  {/* Broadcast Push Notification */}
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      if (confirm("Send 'Notifications are LIVE!' PWA push alert to all registered users?")) {
+                                        try {
+                                          const res = await fetch("/api/admin/broadcast-push", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                              title: "Notifications are LIVE! 🚀",
+                                              body: "Tezra PWA alerts are officially active. Get notified instantly on task approvals, rejections, and new campaign streaks!",
+                                              secretKey: "tezra-admin"
+                                            })
+                                          });
+                                          const data = await res.json();
+                                          if (res.ok) {
+                                            alert(`Broadcast push sent successfully to ${data.sentCount} active PWA users!`);
+                                          } else {
+                                            alert("Failed to send broadcast push: " + (data.error || "Unknown error"));
+                                          }
+                                        } catch (err: any) {
+                                          alert("Failed to send broadcast push: " + err.message);
+                                        }
+                                      }
+                                    }}
+                                    className="col-span-2 p-3.5 bg-gradient-to-r from-blue-600/10 to-emerald-600/10 border border-blue-100 rounded-xl hover:from-blue-600/20 hover:to-emerald-600/20 transition-all flex flex-row items-center justify-center gap-3 active:scale-95"
+                                  >
+                                    <div className="p-2 bg-blue-500/15 rounded-lg">
+                                      <Bell className="w-5 h-5 text-blue-600" />
+                                    </div>
+                                    <div className="text-left">
+                                      <span className="text-xs font-black text-slate-900 block">Broadcast Launch Push</span>
+                                      <span className="text-[9px] text-slate-500 font-bold block mt-0.5">
+                                        Send live confirmation push alert to all PWA app users
                                       </span>
                                     </div>
                                   </button>
