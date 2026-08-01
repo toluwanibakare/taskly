@@ -1232,6 +1232,21 @@ export default function Home() {
     }
   };
 
+  const handlePromoImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const storageRef = ref(storage, `promotions/${Date.now()}_${file.name}`);
+      const uploadResult = await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(uploadResult.ref);
+      setPromoImageUrl(downloadUrl);
+      alert("Image uploaded successfully!");
+    } catch (err: any) {
+      console.error("Promo image upload failed:", err);
+      alert("Image upload failed: " + err.message);
+    }
+  };
+
   const isStandaloneMode = useMemo(() => {
     if (typeof window === "undefined") return false;
     return (
@@ -2930,6 +2945,7 @@ try {
                 action: "task_approval",
                 payload: {
                   workerEmail: workerEmail,
+                  workerWallet: workerWallet,
                   taskTitle: tk?.title || "Tezra Task",
                   reward: `${payoutVal.toFixed(2)} USDm`,
                   approved: true
@@ -2995,6 +3011,7 @@ try {
                     action: "task_approval",
                     payload: {
                       workerEmail: workerEmail,
+                      workerWallet: workerWallet,
                       taskTitle: tk?.title || "Tezra Task",
                       reward: tk ? tk.amount : "Reward",
                       approved: false
@@ -3776,6 +3793,33 @@ try {
             {activeTab === "home" && (
               <div className="space-y-6">
                 
+                {/* PWA Promotion / Installation Banner (Only show in web browser mode) */}
+                {!isStandaloneMode && (
+                  <div className="bg-gradient-to-r from-blue-600 to-emerald-500 rounded-3xl p-5 text-white shadow-lg space-y-4 animate-fade-in relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-4 translate-x-4"></div>
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 bg-white/15 rounded-2xl flex-shrink-0">
+                        <Zap className="w-6 h-6 text-yellow-300 fill-yellow-300 animate-pulse" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-black tracking-tight">Install Tezra App</h3>
+                        <p className="text-[11px] text-slate-100 font-medium leading-relaxed">
+                          Add Tezra to your home screen for a full-screen standalone experience, faster loading, and instant push notifications for task approvals!
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-black/15 p-3 rounded-2xl border border-white/10 text-[10px] font-semibold text-slate-100/90 leading-normal space-y-1.5">
+                      <p className="font-extrabold text-white">How to Install:</p>
+                      <ol className="list-decimal pl-4 space-y-1">
+                        <li>Tap the browser's <strong>Share</strong> button (on iOS Safari) or the <strong>Menu</strong> icon (on Android Chrome).</li>
+                        <li>Select <strong>Add to Home Screen</strong> from the list.</li>
+                        <li>Launch the app from your home screen & enable push alerts!</li>
+                      </ol>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Available Tasks Header with Sorting Toggle */}
                 <div className="flex items-center justify-between relative">
                   <div>
@@ -4286,13 +4330,15 @@ try {
                               <button
                                 type="button"
                                 onClick={togglePushSubscription}
-                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-95 border shadow-sm ${
-                                  notificationsEnabled
-                                    ? "bg-emerald-50 border-emerald-100 text-emerald-600"
-                                    : "bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                  notificationsEnabled ? 'bg-emerald-500' : 'bg-slate-200'
                                 }`}
                               >
-                                {notificationsEnabled ? "✓ Enabled" : "Enable Alerts"}
+                                <span
+                                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                    notificationsEnabled ? 'translate-x-5' : 'translate-x-0'
+                                  }`}
+                                />
                               </button>
                             </div>
                           </div>
@@ -4767,15 +4813,17 @@ try {
                                   <button
                                     type="button"
                                     onClick={() => setProfileSubScreen("admin-promotion")}
-                                    className="p-3.5 bg-white border border-slate-100 rounded-xl hover:border-emerald-200 hover:bg-emerald-50/50 transition-all flex flex-col items-center gap-2 active:scale-95"
+                                    className="col-span-2 p-3.5 bg-white border border-slate-100 rounded-xl hover:border-emerald-200 hover:bg-emerald-50/50 transition-all flex flex-row items-center justify-center gap-3 active:scale-95"
                                   >
                                     <div className="p-2 bg-emerald-50 rounded-lg">
                                       <Zap className="w-5 h-5 text-emerald-500" />
                                     </div>
-                                    <span className="text-xs font-bold text-slate-800">Promotion</span>
-                                    <span className="text-[9px] text-slate-400 font-medium">
-                                      Broadcast Alerts
-                                    </span>
+                                    <div className="text-left">
+                                      <span className="text-xs font-bold text-slate-800 block">Broadcast Promotions</span>
+                                      <span className="text-[9px] text-slate-400 font-medium">
+                                        Send custom HTML email & push alerts to all users
+                                      </span>
+                                    </div>
                                   </button>
 
                                   {/* Contract */}
@@ -5814,33 +5862,40 @@ try {
                         {/* Content Split: Form vs. Preview */}
                         <div className="space-y-6">
                           {/* Form Section */}
-                          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                            <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Campaign Settings</h3>
-                            
-                            {/* Target Channels */}
-                            <div className="space-y-1.5">
-                              <label className="text-[10px] font-black uppercase text-slate-700 block">Deliver Via</label>
-                              <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200/60">
-                                {["both", "email", "push"].map((c) => (
-                                  <button
-                                    key={c}
-                                    type="button"
-                                    onClick={() => setPromoChannel(c as any)}
-                                    className={`py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-                                      promoChannel === c
-                                        ? "bg-slate-950 text-white shadow-sm"
-                                        : "text-slate-500 hover:text-slate-800"
-                                    }`}
-                                  >
-                                    {c === "both" ? "Both" : c === "email" ? "Email" : "Push Alert"}
-                                  </button>
-                                ))}
+                          <div className="space-y-4">
+                            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                              <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Campaign Settings</h3>
+                              
+                              {/* Target Channels */}
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase text-slate-700 block">Deliver Via</label>
+                                <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200/60">
+                                  {["both", "email", "push"].map((c) => (
+                                    <button
+                                      key={c}
+                                      type="button"
+                                      onClick={() => setPromoChannel(c as any)}
+                                      className={`py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                                        promoChannel === c
+                                          ? "bg-slate-950 text-white shadow-sm"
+                                          : "text-slate-500 hover:text-slate-800"
+                                      }`}
+                                    >
+                                      {c === "both" ? "Both" : c === "email" ? "Email" : "Push Alert"}
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
                             </div>
 
-                            {/* Email-Only Fields */}
+                            {/* EMAIL ONLY OR BOTH - EMAIL FORM CARD */}
                             {(promoChannel === "email" || promoChannel === "both") && (
-                              <>
+                              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                                <div className="flex items-center gap-2 pb-1.5 border-b border-slate-50">
+                                  <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                  <h3 className="text-xs font-black uppercase text-slate-900 tracking-wide">Email Campaign Details</h3>
+                                </div>
+
                                 <div className="space-y-1">
                                   <label className="text-[10px] font-black uppercase text-slate-700 block">Email Subject Line</label>
                                   <input
@@ -5861,67 +5916,127 @@ try {
                                     className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
                                   />
                                 </div>
-                              </>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-black uppercase text-slate-700 block">Email Title / Headline</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Earn $5.00 USDm instantly!"
+                                    value={promoTitle}
+                                    onChange={(e) => setPromoTitle(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-black uppercase text-slate-700 block">Email Body Text (HTML)</label>
+                                  <textarea
+                                    rows={4}
+                                    placeholder="e.g. <p>A brand new task is available. Open the link and complete surveys now.</p>"
+                                    value={promoBodyHtml}
+                                    onChange={(e) => setPromoBodyHtml(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800 font-mono"
+                                  />
+                                </div>
+
+                                {/* Banner Image URL & File Upload */}
+                                <div className="space-y-2">
+                                  <label className="text-[10px] font-black uppercase text-slate-700 block">Banner Image (Optional)</label>
+                                  <div className="grid grid-cols-1 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <input
+                                      type="text"
+                                      placeholder="Paste Image URL"
+                                      value={promoImageUrl}
+                                      onChange={(e) => setPromoImageUrl(e.target.value)}
+                                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 transition-all text-slate-800"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                      <label className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase cursor-pointer transition-all active:scale-95 text-center">
+                                        <UploadCloud className="w-4 h-4" />
+                                        Upload Banner Image
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={handlePromoImageUpload}
+                                          className="hidden"
+                                        />
+                                      </label>
+                                      {promoImageUrl && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setPromoImageUrl("")}
+                                          className="py-2 px-3 border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl text-[10px] font-bold transition-all"
+                                        >
+                                          Clear
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-black uppercase text-slate-700 block">CTA Button Text</label>
+                                    <input
+                                      type="text"
+                                      placeholder="e.g. Open Task"
+                                      value={promoCtaText}
+                                      onChange={(e) => setPromoCtaText(e.target.value)}
+                                      className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-black uppercase text-slate-700 block">CTA Button Link</label>
+                                    <input
+                                      type="text"
+                                      placeholder="e.g. https://tezra.xyz/?task=123"
+                                      value={promoCtaUrl}
+                                      onChange={(e) => setPromoCtaUrl(e.target.value)}
+                                      className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
                             )}
 
-                            {/* Common Fields */}
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase text-slate-700 block">Notification Headline</label>
-                              <input
-                                type="text"
-                                placeholder="e.g. Earn $5.00 USDm instantly!"
-                                value={promoTitle}
-                                onChange={(e) => setPromoTitle(e.target.value)}
-                                className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
-                              />
-                            </div>
+                            {/* PUSH ONLY OR BOTH - PUSH FORM CARD */}
+                            {(promoChannel === "push" || promoChannel === "both") && (
+                              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                                <div className="flex items-center gap-2 pb-1.5 border-b border-slate-50">
+                                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                                  <h3 className="text-xs font-black uppercase text-slate-900 tracking-wide">Push Notification Details</h3>
+                                </div>
 
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase text-slate-700 block">Body text (supports HTML)</label>
-                              <textarea
-                                rows={4}
-                                placeholder="e.g. <p>A brand new task is available. Open the link and complete surveys now.</p>"
-                                value={promoBodyHtml}
-                                onChange={(e) => setPromoBodyHtml(e.target.value)}
-                                className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800 font-mono"
-                              />
-                            </div>
-
-                            {/* Banner Image URL */}
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase text-slate-700 block">Banner Image URL (Optional)</label>
-                              <input
-                                type="text"
-                                placeholder="e.g. https://domain.com/banner.png"
-                                value={promoImageUrl}
-                                onChange={(e) => setPromoImageUrl(e.target.value)}
-                                className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
-                              />
-                            </div>
-
-                            {/* CTA Action details */}
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase text-slate-700 block">Button Text (Optional)</label>
-                                <input
-                                  type="text"
-                                  placeholder="e.g. Open Task"
-                                  value={promoCtaText}
-                                  onChange={(e) => setPromoCtaText(e.target.value)}
-                                  className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
-                                />
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-black uppercase text-slate-700 block">Push Notification Title</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. New Task Live"
+                                    value={promoTitle}
+                                    onChange={(e) => setPromoTitle(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-black uppercase text-slate-700 block">Push Notification Body (Plain text)</label>
+                                  <textarea
+                                    rows={3}
+                                    placeholder="e.g. A brand new task has been uploaded! Complete now to earn stablecoins."
+                                    value={promoBodyHtml.replace(/<[^>]*>/g, "")}
+                                    onChange={(e) => setPromoBodyHtml(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800 font-sans"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-black uppercase text-slate-700 block">Push Redirect URL</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. /?task=123"
+                                    value={promoCtaUrl}
+                                    onChange={(e) => setPromoCtaUrl(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                  />
+                                </div>
                               </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase text-slate-700 block">Redirect URL (Optional)</label>
-                                <input
-                                  type="text"
-                                  placeholder="e.g. https://tezra.xyz/?task=123"
-                                  value={promoCtaUrl}
-                                  onChange={(e) => setPromoCtaUrl(e.target.value)}
-                                  className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
-                                />
-                              </div>
-                            </div>
+                            )}
 
                             {/* Submit Button */}
                             <button
@@ -5999,7 +6114,6 @@ try {
 
                                   {/* Template Footer */}
                                   <div className="bg-[#0f172a] p-4 text-center border-t border-slate-800 text-[10px] text-slate-500 font-semibold space-y-1">
-                                    <p>From Tezra</p>
                                     <p>© 2026 Tezra. All rights reserved.</p>
                                   </div>
                                 </div>
@@ -6728,7 +6842,7 @@ try {
 
       {/* 5. CREATE TASK SCREEN */}
       {screen === "create-task" && (
-        <div className="flex-1 flex flex-col bg-[#FAFAFC] pb-6">
+        <div className="flex-1 flex flex-col bg-[#FAFAFC]">
           <header className="h-14 bg-white border-b border-slate-100 sticky top-0 z-45 px-4 flex items-center justify-between">
             <button
               onClick={() => {
@@ -7153,7 +7267,9 @@ try {
               )}
             </main>
 
-            <div className="p-4 bg-white border-t border-slate-100 flex-shrink-0">
+            <div className={`p-4 bg-white border-t border-slate-100 flex-shrink-0 ${
+              isStandaloneMode ? "pb-8" : "pb-4"
+            }`}>
               <button
                 type="submit"
                 className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-xl text-xs font-bold hover:from-blue-700 hover:to-emerald-600 active:scale-95 transition-all shadow-md"

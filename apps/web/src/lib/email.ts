@@ -204,7 +204,6 @@ export function generateTezraEmailHtml({
         }
       </div>
       <div class="footer">
-        <p>From <a href="${APP_URL}" target="_blank">Tezra</a></p>
         <p>© 2026 Tezra. All rights reserved.</p>
         <p>
           <a href="${TELEGRAM_URL}" target="_blank" class="telegram-btn">
