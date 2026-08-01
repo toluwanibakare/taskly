@@ -1089,6 +1089,9 @@ export default function Home() {
   const [promoImageUrl, setPromoImageUrl] = useState("");
   const [promoCtaText, setPromoCtaText] = useState("");
   const [promoCtaUrl, setPromoCtaUrl] = useState("");
+  const [promoPushTitle, setPromoPushTitle] = useState("");
+  const [promoPushBody, setPromoPushBody] = useState("");
+  const [promoPushUrl, setPromoPushUrl] = useState("");
   const [promoChannel, setPromoChannel] = useState<"both" | "email" | "push">("both");
   const [promoSending, setPromoSending] = useState(false);
 
@@ -1208,9 +1211,18 @@ export default function Home() {
   };
 
   const handleSendPromotion = async () => {
-    if (!promoSubject.trim() || !promoTitle.trim() || !promoBodyHtml.trim()) {
-      alert("Please fill in the Subject, Title, and Body fields.");
-      return;
+    // Validate based on channel selected
+    if (promoChannel === "email" || promoChannel === "both") {
+      if (!promoSubject.trim() || !promoTitle.trim() || !promoBodyHtml.trim()) {
+        alert("Please fill in the Email Subject, Email Title, and Email Body fields.");
+        return;
+      }
+    }
+    if (promoChannel === "push" || promoChannel === "both") {
+      if (!promoPushTitle.trim() || !promoPushBody.trim()) {
+        alert("Please fill in the Push Notification Title and Body fields.");
+        return;
+      }
     }
 
     if (!confirm(`Are you sure you want to broadcast this promotion to all users via ${promoChannel === "both" ? "Email and Push Alerts" : promoChannel === "email" ? "Email" : "Push Alerts"}?`)) {
@@ -1230,6 +1242,9 @@ export default function Home() {
           imageUrl: promoImageUrl || undefined,
           ctaText: promoCtaText || undefined,
           ctaUrl: promoCtaUrl || undefined,
+          pushTitle: promoPushTitle,
+          pushBody: promoPushBody,
+          pushUrl: promoPushUrl || undefined,
           channels: promoChannel,
           secretKey: "tezra-admin"
         })
@@ -1246,6 +1261,9 @@ export default function Home() {
         setPromoImageUrl("");
         setPromoCtaText("");
         setPromoCtaUrl("");
+        setPromoPushTitle("");
+        setPromoPushBody("");
+        setPromoPushUrl("");
         setProfileSubScreen("profile-main");
       } else {
         alert("Failed to send broadcast promotion: " + (data.error || "Unknown error"));
@@ -6012,8 +6030,8 @@ try {
                                   <input
                                     type="text"
                                     placeholder="e.g. New Task Live"
-                                    value={promoTitle}
-                                    onChange={(e) => setPromoTitle(e.target.value)}
+                                    value={promoPushTitle}
+                                    onChange={(e) => setPromoPushTitle(e.target.value)}
                                     className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
                                   />
                                 </div>
@@ -6022,8 +6040,8 @@ try {
                                   <textarea
                                     rows={3}
                                     placeholder="e.g. A brand new task has been uploaded! Complete now to earn stablecoins."
-                                    value={promoBodyHtml.replace(/<[^>]*>/g, "")}
-                                    onChange={(e) => setPromoBodyHtml(e.target.value)}
+                                    value={promoPushBody}
+                                    onChange={(e) => setPromoPushBody(e.target.value)}
                                     className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800 font-sans"
                                   />
                                 </div>
@@ -6032,8 +6050,8 @@ try {
                                   <input
                                     type="text"
                                     placeholder="e.g. /?task=123"
-                                    value={promoCtaUrl}
-                                    onChange={(e) => setPromoCtaUrl(e.target.value)}
+                                    value={promoPushUrl}
+                                    onChange={(e) => setPromoPushUrl(e.target.value)}
                                     className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
                                   />
                                 </div>
@@ -6138,9 +6156,9 @@ try {
                                       <span className="text-[11px] font-bold text-slate-200">Tezra</span>
                                       <span className="text-[9px] text-slate-400 font-semibold">now</span>
                                     </div>
-                                    <h6 className="text-xs font-black text-white">{promoTitle || "Notification Headline"}</h6>
+                                    <h6 className="text-xs font-black text-white">{promoPushTitle || "Notification Headline"}</h6>
                                     <p className="text-[10px] text-slate-300 leading-normal line-clamp-2">
-                                      {promoBodyHtml.replace(/<[^>]*>/g, " ") || "Body notification text..."}
+                                      {promoPushBody || "Body notification text..."}
                                     </p>
                                   </div>
                                 </div>

@@ -14,6 +14,9 @@ export async function POST(req: Request) {
       imageUrl,
       ctaText,
       ctaUrl,
+      pushTitle,
+      pushBody,
+      pushUrl,
       channels, // "both" | "email" | "push"
       secretKey
     } = await req.json();
@@ -24,11 +27,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!subject || !title || !bodyHtml) {
-      return NextResponse.json({ error: "Missing subject, title, or body parameters" }, { status: 400 });
+    const selectedChannels = channels || "both";
+
+    // Validate email channel inputs
+    if ((selectedChannels === "email" || selectedChannels === "both") && (!subject || !title || !bodyHtml)) {
+      return NextResponse.json({ error: "Missing email subject, title, or body parameters" }, { status: 400 });
     }
 
-    const selectedChannels = channels || "both";
+    // Validate push channel inputs
+    if ((selectedChannels === "push" || selectedChannels === "both") && (!pushTitle || !pushBody)) {
+      return NextResponse.json({ error: "Missing push title or body parameters" }, { status: 400 });
+    }
 
     // Query all users from Firestore
     const usersSnap = await getDocs(collection(db, "users"));
@@ -36,9 +45,6 @@ export async function POST(req: Request) {
     
     let emailSentCount = 0;
     let pushSentCount = 0;
-
-    // Strip HTML tags for plain-text push alert body
-    const plainTextBody = bodyHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
     usersSnap.forEach((userDoc) => {
       const uData = userDoc.data();
@@ -68,9 +74,9 @@ export async function POST(req: Request) {
         promises.push(
           sendPushNotification(
             userDoc.id,
-            title, // Title of the push alert (without emoji)
-            plainTextBody.substring(0, 120) + (plainTextBody.length > 120 ? "..." : ""), // Plain-text excerpt
-            ctaUrl || "/"
+            pushTitle,
+            pushBody.substring(0, 120) + (pushBody.length > 120 ? "..." : ""),
+            pushUrl || "/"
           )
           .then((success) => {
             if (success) pushSentCount++;
