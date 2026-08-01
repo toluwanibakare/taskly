@@ -651,3 +651,35 @@ export async function sendBroadcastEmail(recipientEmails: string[], subject: str
 
   return { successCount, failureCount };
 }
+
+export async function sendBroadcastPromoEmail(
+  toEmail: string,
+  subject: string,
+  title: string,
+  badgeText: string,
+  bodyHtml: string,
+  imageUrl?: string,
+  ctaText?: string,
+  ctaUrl?: string
+): Promise<boolean> {
+  const contentHtml = `
+    ${imageUrl ? `<div style="margin-bottom: 20px; text-align: center;"><img src="${imageUrl}" alt="Promotion Banner" style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" /></div>` : ""}
+    ${bodyHtml}
+  `;
+
+  const html = generateTezraEmailHtml({
+    title,
+    preheader: subject,
+    badgeText: badgeText || "Promotion",
+    bodyHtml: contentHtml,
+    ctaText,
+    ctaUrl,
+  });
+
+  return sendEmail({
+    to: toEmail,
+    subject,
+    html,
+  });
+}
+

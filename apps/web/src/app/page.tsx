@@ -748,7 +748,7 @@ export default function Home() {
 
   // Profile Sub-Screen for Creator Dashboard
   // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-withdrawals" | "admin-contest"
-  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest" | "admin-contract" | "task-history" | "transaction-history">("profile-main");
+  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest" | "admin-contract" | "admin-promotion" | "task-history" | "transaction-history">("profile-main");
 
   // Selected task for Details and Submission
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -1059,6 +1059,17 @@ export default function Home() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
+  // Promotion Broadcast builder states
+  const [promoSubject, setPromoSubject] = useState("");
+  const [promoTitle, setPromoTitle] = useState("");
+  const [promoBadgeText, setPromoBadgeText] = useState("");
+  const [promoBodyHtml, setPromoBodyHtml] = useState("");
+  const [promoImageUrl, setPromoImageUrl] = useState("");
+  const [promoCtaText, setPromoCtaText] = useState("");
+  const [promoCtaUrl, setPromoCtaUrl] = useState("");
+  const [promoChannel, setPromoChannel] = useState<"both" | "email" | "push">("both");
+  const [promoSending, setPromoSending] = useState(false);
+
   // Register Service Worker on Load for PWA notifications
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
@@ -1167,6 +1178,57 @@ export default function Home() {
     } catch (err) {
       console.error("Push subscription process failed:", err);
       alert("Failed to enable notifications. Ensure you have added the app to your Home Screen.");
+    }
+  };
+
+  const handleSendPromotion = async () => {
+    if (!promoSubject.trim() || !promoTitle.trim() || !promoBodyHtml.trim()) {
+      alert("Please fill in the Subject, Title, and Body fields.");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to broadcast this promotion to all users via ${promoChannel === "both" ? "Email and Push Alerts" : promoChannel === "email" ? "Email" : "Push Alerts"}?`)) {
+      return;
+    }
+
+    setPromoSending(true);
+    try {
+      const res = await fetch("/api/admin/broadcast-promo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: promoSubject,
+          title: promoTitle,
+          badgeText: promoBadgeText || "Promo",
+          bodyHtml: promoBodyHtml,
+          imageUrl: promoImageUrl || undefined,
+          ctaText: promoCtaText || undefined,
+          ctaUrl: promoCtaUrl || undefined,
+          channels: promoChannel,
+          secretKey: "tezra-admin"
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Broadcast successfully completed!\nEmails sent: ${data.emailSentCount}\nPush notifications sent: ${data.pushSentCount}`);
+        // Reset states
+        setPromoSubject("");
+        setPromoTitle("");
+        setPromoBadgeText("");
+        setPromoBodyHtml("");
+        setPromoImageUrl("");
+        setPromoCtaText("");
+        setPromoCtaUrl("");
+        setProfileSubScreen("profile-main");
+      } else {
+        alert("Failed to send broadcast promotion: " + (data.error || "Unknown error"));
+      }
+    } catch (err: any) {
+      console.error("Promo sending failed:", err);
+      alert("An error occurred: " + err.message);
+    } finally {
+      setPromoSending(false);
     }
   };
 
@@ -4701,6 +4763,21 @@ try {
                                     </span>
                                   </button>
 
+                                  {/* Custom Promotions Broadcast */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setProfileSubScreen("admin-promotion")}
+                                    className="p-3.5 bg-white border border-slate-100 rounded-xl hover:border-emerald-200 hover:bg-emerald-50/50 transition-all flex flex-col items-center gap-2 active:scale-95"
+                                  >
+                                    <div className="p-2 bg-emerald-50 rounded-lg">
+                                      <Zap className="w-5 h-5 text-emerald-500" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-800">Promotion</span>
+                                    <span className="text-[9px] text-slate-400 font-medium">
+                                      Broadcast Alerts
+                                    </span>
+                                  </button>
+
                                   {/* Contract */}
                                   <button
                                     type="button"
@@ -5714,6 +5791,248 @@ try {
                         onConnect={openConnectModal}
                         onBack={() => setProfileSubScreen("profile-main")}
                       />
+                    )}
+
+                    {/* PROFILE: PROMOTIONS & BROADCAST BUILDER */}
+                    {profileSubScreen === "admin-promotion" && (
+                      <div className="space-y-6 animate-fade-in pb-12">
+                        {/* Header */}
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setProfileSubScreen("profile-main")}
+                            className="p-1.5 hover:bg-slate-100 active:scale-95 rounded-xl border border-slate-100 transition-all bg-white"
+                          >
+                            <ArrowLeft className="w-4 h-4 text-slate-700" />
+                          </button>
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Broadcast Promotions</h2>
+                            <p className="text-slate-500 text-xs mt-0.5 font-medium">Send custom email and push updates to all users</p>
+                          </div>
+                        </div>
+
+                        {/* Content Split: Form vs. Preview */}
+                        <div className="space-y-6">
+                          {/* Form Section */}
+                          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                            <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Campaign Settings</h3>
+                            
+                            {/* Target Channels */}
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase text-slate-700 block">Deliver Via</label>
+                              <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200/60">
+                                {["both", "email", "push"].map((c) => (
+                                  <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => setPromoChannel(c as any)}
+                                    className={`py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                                      promoChannel === c
+                                        ? "bg-slate-950 text-white shadow-sm"
+                                        : "text-slate-500 hover:text-slate-800"
+                                    }`}
+                                  >
+                                    {c === "both" ? "Both" : c === "email" ? "Email" : "Push Alert"}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Email-Only Fields */}
+                            {(promoChannel === "email" || promoChannel === "both") && (
+                              <>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-black uppercase text-slate-700 block">Email Subject Line</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. New Task Alert: Complete Surveys for stablecoins!"
+                                    value={promoSubject}
+                                    onChange={(e) => setPromoSubject(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-black uppercase text-slate-700 block">Badge Title</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Announcement, Reward, Special"
+                                    value={promoBadgeText}
+                                    onChange={(e) => setPromoBadgeText(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                  />
+                                </div>
+                              </>
+                            )}
+
+                            {/* Common Fields */}
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase text-slate-700 block">Notification Headline</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Earn $5.00 USDm instantly!"
+                                value={promoTitle}
+                                onChange={(e) => setPromoTitle(e.target.value)}
+                                className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase text-slate-700 block">Body text (supports HTML)</label>
+                              <textarea
+                                rows={4}
+                                placeholder="e.g. <p>A brand new task is available. Open the link and complete surveys now.</p>"
+                                value={promoBodyHtml}
+                                onChange={(e) => setPromoBodyHtml(e.target.value)}
+                                className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800 font-mono"
+                              />
+                            </div>
+
+                            {/* Banner Image URL */}
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase text-slate-700 block">Banner Image URL (Optional)</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. https://domain.com/banner.png"
+                                value={promoImageUrl}
+                                onChange={(e) => setPromoImageUrl(e.target.value)}
+                                className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                              />
+                            </div>
+
+                            {/* CTA Action details */}
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase text-slate-700 block">Button Text (Optional)</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Open Task"
+                                  value={promoCtaText}
+                                  onChange={(e) => setPromoCtaText(e.target.value)}
+                                  className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase text-slate-700 block">Redirect URL (Optional)</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. https://tezra.xyz/?task=123"
+                                  value={promoCtaUrl}
+                                  onChange={(e) => setPromoCtaUrl(e.target.value)}
+                                  className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Submit Button */}
+                            <button
+                              type="button"
+                              onClick={handleSendPromotion}
+                              disabled={promoSending}
+                              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold tracking-wider transition-all flex items-center justify-center gap-2 shadow-md active:scale-95 uppercase"
+                            >
+                              {promoSending ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Broadcasting Alerts...
+                                </>
+                              ) : (
+                                <>
+                                  <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
+                                  Send Broadcast Notification
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Live Preview Section */}
+                          <div className="space-y-3">
+                            <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Live Template Preview</h3>
+                            
+                            {/* Email Live Template Mockup */}
+                            {(promoChannel === "email" || promoChannel === "both") && (
+                              <div className="bg-[#0f172a] rounded-2xl p-4 shadow-md text-slate-200 overflow-hidden font-sans border border-slate-800 text-[13px] scale-95 origin-top transition-all">
+                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-3 border-b border-slate-800 pb-1.5">
+                                  📧 Email Inbox Preview (Subject: {promoSubject || "Tezra Update"})
+                                </span>
+                                
+                                <div className="bg-[#1e293b] rounded-xl overflow-hidden border border-slate-700/50">
+                                  {/* Template Header */}
+                                  <div className="bg-gradient-to-br from-emerald-600 to-blue-600 p-6 text-center text-white">
+                                    <div className="w-10 h-10 bg-white p-1 rounded-xl mx-auto mb-2 flex items-center justify-center">
+                                      <TezraLogo className="w-7 h-7" />
+                                    </div>
+                                    <h4 className="text-lg font-black tracking-tight margin-0 text-white">Tezra</h4>
+                                    <span className="text-[9px] uppercase tracking-widest text-slate-100 font-bold">Microwork for Stablecoins</span>
+                                  </div>
+
+                                  {/* Template Content */}
+                                  <div className="p-6 space-y-4">
+                                    <span className="inline-block px-2.5 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-extrabold text-[9px] rounded-full uppercase tracking-wider">
+                                      {promoBadgeText || "Promo"}
+                                    </span>
+                                    <h5 className="text-sm font-black text-white leading-snug">{promoTitle || "Notification Headline"}</h5>
+                                    
+                                    {/* Optional Image */}
+                                    {promoImageUrl && (
+                                      <img
+                                        src={promoImageUrl}
+                                        alt="Promotion Banner"
+                                        className="max-w-full h-auto rounded-lg mx-auto border border-slate-700/60 my-2"
+                                      />
+                                    )}
+                                    
+                                    {/* Body HTML */}
+                                    <div
+                                      className="text-slate-300 leading-relaxed space-y-2 text-xs"
+                                      dangerouslySetInnerHTML={{ __html: promoBodyHtml || "<p>Type body content above to preview template layout...</p>" }}
+                                    />
+
+                                    {/* CTA Button */}
+                                    {promoCtaText && (
+                                      <div className="text-center pt-2">
+                                        <span className="inline-block bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold text-xs px-6 py-2.5 rounded-xl shadow-md cursor-pointer hover:opacity-95 transition-opacity">
+                                          {promoCtaText}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Template Footer */}
+                                  <div className="bg-[#0f172a] p-4 text-center border-t border-slate-800 text-[10px] text-slate-500 font-semibold space-y-1">
+                                    <p>From Tezra</p>
+                                    <p>© 2026 Tezra. All rights reserved.</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Push Alert Mockup */}
+                            {(promoChannel === "push" || promoChannel === "both") && (
+                              <div className="bg-slate-900 rounded-2xl p-4 shadow-md text-white border border-slate-800 scale-95 origin-top transition-all">
+                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-3 border-b border-slate-800/80 pb-1.5">
+                                  🔔 PWA Lockscreen Push Preview
+                                </span>
+                                
+                                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 flex items-start gap-3 shadow-md max-w-sm mx-auto">
+                                  <div className="w-10 h-10 bg-white p-1.5 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                                    <TezraLogo className="w-7 h-7" />
+                                  </div>
+                                  <div className="flex-1 space-y-0.5">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[11px] font-bold text-slate-200">Tezra</span>
+                                      <span className="text-[9px] text-slate-400 font-semibold">now</span>
+                                    </div>
+                                    <h6 className="text-xs font-black text-white">{promoTitle || "Notification Headline"}</h6>
+                                    <p className="text-[10px] text-slate-300 leading-normal line-clamp-2">
+                                      {promoBodyHtml.replace(/<[^>]*>/g, " ") || "Body notification text..."}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </>
                 )}
