@@ -721,13 +721,22 @@ export default function Home() {
   const chainId = useChainId();
   const { createCampaign } = useEscrow();
 
-  // Screen state routing
-  // "splash" | "main" (with nested tabs) | "task-details" | "submit-proof" | "create-task" | "success-celebration"
-  const [screen, setScreen] = useState<"splash" | "main" | "task-details" | "submit-proof" | "create-task" | "success-celebration">("splash");
-  
-  // Bottom navigation tab state
-  // "home" | "earn" | "profile" | "about"
-  const [activeTab, setActiveTab] = useState<"home" | "earn" | "profile" | "about">("home");
+  // Screen state routing — skip splash and restore tab if reloading an existing session
+  const [screen, setScreen] = useState<"splash" | "main" | "task-details" | "submit-proof" | "create-task" | "success-celebration">(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("tezra_active_tab")) {
+      return "main";
+    }
+    return "splash";
+  });
+
+  // Bottom navigation tab state — restored from sessionStorage on reload
+  const [activeTab, setActiveTab] = useState<"home" | "earn" | "profile" | "about">(() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("tezra_active_tab") as "home" | "earn" | "profile" | "about" | null;
+      if (saved) return saved;
+    }
+    return "home";
+  });
 
   // Capture referral code from URL query parameters
   useEffect(() => {
@@ -749,6 +758,18 @@ export default function Home() {
   // Profile Sub-Screen for Creator Dashboard
   // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-withdrawals" | "admin-contest"
   const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest" | "admin-contract" | "admin-promotion" | "task-history" | "transaction-history">("profile-main");
+
+  // Persist active tab to sessionStorage so reload restores the same page
+  useEffect(() => {
+    if (typeof window !== "undefined" && screen === "main") {
+      sessionStorage.setItem("tezra_active_tab", activeTab);
+    }
+  }, [activeTab, screen]);
+
+  // Scroll to top whenever the user navigates to a new tab or screen
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [activeTab, screen]);
 
   // Selected task for Details and Submission
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
