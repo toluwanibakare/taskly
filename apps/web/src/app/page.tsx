@@ -1070,6 +1070,10 @@ export default function Home() {
   const [promoChannel, setPromoChannel] = useState<"both" | "email" | "push">("both");
   const [promoSending, setPromoSending] = useState(false);
 
+  // Pull to refresh states
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+
   // Register Service Worker on Load for PWA notifications
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
@@ -1171,7 +1175,7 @@ export default function Home() {
 
       if (saveRes.ok) {
         setNotificationsEnabled(true);
-        alert("Push notifications enabled successfully! 🚀");
+        alert("Push notifications enabled successfully!");
       } else {
         alert("Failed to save notification subscription to server.");
       }
@@ -1255,6 +1259,63 @@ export default function Home() {
       document.referrer.includes("android-app://")
     );
   }, []);
+
+  // PWA Standalone Pull-to-Refresh Drag Gesture side effect
+  useEffect(() => {
+    if (!isStandaloneMode || typeof window === "undefined") return;
+
+    let startY = 0;
+    let pulling = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (window.scrollY === 0) {
+        startY = e.touches[0].pageY;
+        pulling = true;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!pulling) return;
+      const currentY = e.touches[0].pageY;
+      const diff = currentY - startY;
+
+      if (diff > 0 && window.scrollY === 0) {
+        if (e.cancelable) e.preventDefault();
+        // apply smooth logarithmic pull friction
+        const dist = Math.min(80, diff * 0.45);
+        setPullDistance(dist);
+      } else {
+        pulling = false;
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!pulling) return;
+      pulling = false;
+      
+      setPullDistance((currentDist) => {
+        if (currentDist >= 55) {
+          setIsPullRefreshing(true);
+          // reload browser page
+          setTimeout(() => {
+            window.location.reload();
+          }, 600);
+          return 55;
+        }
+        return 0;
+      });
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [isStandaloneMode]);
 
   useEffect(() => {
     setVisitedLink(false);
@@ -4813,71 +4874,15 @@ try {
                                   <button
                                     type="button"
                                     onClick={() => setProfileSubScreen("admin-promotion")}
-                                    className="col-span-2 p-3.5 bg-white border border-slate-100 rounded-xl hover:border-emerald-200 hover:bg-emerald-50/50 transition-all flex flex-row items-center justify-center gap-3 active:scale-95"
+                                    className="col-span-2 p-3.5 bg-white border border-slate-100 rounded-xl hover:border-blue-200 hover:bg-blue-50/50 transition-all flex flex-row items-center justify-center gap-3 active:scale-95"
                                   >
-                                    <div className="p-2 bg-emerald-50 rounded-lg">
-                                      <Zap className="w-5 h-5 text-emerald-500" />
+                                    <div className="p-2 bg-blue-50 rounded-lg">
+                                      <Bell className="w-5 h-5 text-blue-500" />
                                     </div>
                                     <div className="text-left">
                                       <span className="text-xs font-bold text-slate-800 block">Broadcast Promotions</span>
                                       <span className="text-[9px] text-slate-400 font-medium">
                                         Send custom HTML email & push alerts to all users
-                                      </span>
-                                    </div>
-                                  </button>
-
-                                  {/* Contract */}
-                                  <button
-                                    type="button"
-                                    onClick={() => setProfileSubScreen("admin-contract")}
-                                    className="col-span-2 p-3.5 bg-white border border-slate-100 rounded-xl hover:border-purple-200 hover:bg-purple-50/50 transition-all flex flex-row items-center justify-center gap-3 active:scale-95"
-                                  >
-                                    <div className="p-2 bg-purple-50 rounded-lg">
-                                      <FileText className="w-5 h-5 text-purple-500" />
-                                    </div>
-                                    <div className="text-left">
-                                      <span className="text-xs font-bold text-slate-800 block">Contract Settings</span>
-                                      <span className="text-[9px] text-slate-400 font-medium">
-                                        {escrowContractAddress !== "0x0000000000000000000000000000000000000000" ? "Escrow deployed · Set owner to admin wallet" : "Not deployed on this network"}
-                                      </span>
-                                    </div>
-                                  </button>
-
-                                  {/* Broadcast Push Notification */}
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      if (confirm("Send 'Notifications are LIVE' PWA push alert to all registered users?")) {
-                                        try {
-                                          const res = await fetch("/api/admin/broadcast-push", {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({
-                                              title: "Notifications are LIVE",
-                                              body: "Tezra PWA alerts are officially active. Get notified instantly on task approvals, rejections, and new campaign streaks.",
-                                              secretKey: "tezra-admin"
-                                            })
-                                          });
-                                          const data = await res.json();
-                                          if (res.ok) {
-                                            alert(`Broadcast push sent successfully to ${data.sentCount} active PWA users!`);
-                                          } else {
-                                            alert("Failed to send broadcast push: " + (data.error || "Unknown error"));
-                                          }
-                                        } catch (err: any) {
-                                          alert("Failed to send broadcast push: " + err.message);
-                                        }
-                                      }
-                                    }}
-                                    className="col-span-2 p-3.5 bg-gradient-to-r from-blue-600/10 to-emerald-600/10 border border-blue-100 rounded-xl hover:from-blue-600/20 hover:to-emerald-600/20 transition-all flex flex-row items-center justify-center gap-3 active:scale-95"
-                                  >
-                                    <div className="p-2 bg-blue-500/15 rounded-lg">
-                                      <Bell className="w-5 h-5 text-blue-600" />
-                                    </div>
-                                    <div className="text-left">
-                                      <span className="text-xs font-black text-slate-900 block">Broadcast Launch Push</span>
-                                      <span className="text-[9px] text-slate-500 font-bold block mt-0.5">
-                                        Send live confirmation push alert to all PWA app users
                                       </span>
                                     </div>
                                   </button>
@@ -7362,6 +7367,29 @@ try {
             >
               Go to Tasks
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Standalone PWA Pull-to-Refresh Indicator */}
+      {isStandaloneMode && (pullDistance > 0 || isPullRefreshing) && (
+        <div
+          style={{
+            transform: `translateY(${pullDistance}px)`,
+            opacity: Math.min(1, pullDistance / 40),
+            transition: pullDistance === 0 || pullDistance === 55 ? "transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s" : "none"
+          }}
+          className="fixed top-2 left-0 right-0 z-50 flex justify-center pointer-events-none"
+        >
+          <div className="bg-white/95 backdrop-blur shadow-md border border-slate-100 rounded-full p-2 flex items-center justify-center">
+            <RotateCw
+              className={`w-5 h-5 text-blue-600 ${
+                isPullRefreshing ? "animate-spin" : ""
+              }`}
+              style={{
+                transform: isPullRefreshing ? "none" : `rotate(${pullDistance * 4}deg)`
+              }}
+            />
           </div>
         </div>
       )}
