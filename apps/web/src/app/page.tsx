@@ -781,6 +781,7 @@ export default function Home() {
   // Sorting popover state
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [sortBy, setSortBy] = useState<"payout-desc" | "payout-asc" | "recency-desc" | "recency-asc">("recency-desc");
+  const [showPwaModal, setShowPwaModal] = useState(false);
 
   // Available Tasks State
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -3875,32 +3876,7 @@ try {
             {activeTab === "home" && (
               <div className="space-y-6">
                 
-                {/* PWA Promotion / Installation Banner (Only show in web browser mode) */}
-                {!isStandaloneMode && (
-                  <div className="bg-gradient-to-r from-blue-600 to-emerald-500 rounded-3xl p-5 text-white shadow-lg space-y-4 animate-fade-in relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-4 translate-x-4"></div>
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 bg-white/15 rounded-2xl flex-shrink-0">
-                        <Zap className="w-6 h-6 text-yellow-300 fill-yellow-300 animate-pulse" />
-                      </div>
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-black tracking-tight">Install Tezra App</h3>
-                        <p className="text-[11px] text-slate-100 font-medium leading-relaxed">
-                          Add Tezra to your home screen for a full-screen standalone experience, faster loading, and instant push notifications for task approvals!
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-black/15 p-3 rounded-2xl border border-white/10 text-[10px] font-semibold text-slate-100/90 leading-normal space-y-1.5">
-                      <p className="font-extrabold text-white">How to Install:</p>
-                      <ol className="list-decimal pl-4 space-y-1">
-                        <li>Tap the browser's <strong>Share</strong> button (on iOS Safari) or the <strong>Menu</strong> icon (on Android Chrome).</li>
-                        <li>Select <strong>Add to Home Screen</strong> from the list.</li>
-                        <li>Launch the app from your home screen & enable push alerts!</li>
-                      </ol>
-                    </div>
-                  </div>
-                )}
+
                 
                 {/* Available Tasks Header with Sorting Toggle */}
                 <div className="flex items-center justify-between relative">
@@ -9246,6 +9222,76 @@ try {
         setActiveTab={setActiveTab}
         enabled={!showEmailModal && !showCertificate && !unlockedBadgeInfo && !pendingBadgeUnlock && !!dbUserProfile?.displayName}
       />
+
+      {/* ===== FLOATING PWA INSTALLATION TRIGGER (Web browser only) ===== */}
+      {!isStandaloneMode && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowPwaModal(true)}
+            className="fixed bottom-24 left-4 z-40 p-2.5 bg-slate-900 border border-slate-800 rounded-full shadow-lg active:scale-95 transition-all animate-bounce hover:bg-slate-800 flex items-center justify-center"
+            title="Install Tezra App"
+          >
+            <div className="relative">
+              <TezraLogo className="w-6 h-6 text-white animate-pulse" />
+              <span className="absolute -top-1.5 -right-1.5 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+              </span>
+            </div>
+          </button>
+
+          {/* ===== PWA INSTALLATION MODAL ===== */}
+          {showPwaModal && (
+            <div className="fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+              <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 flex flex-col space-y-4 animate-scale-up">
+                {/* Header */}
+                <div className="flex justify-between items-start pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-slate-100 rounded-2xl">
+                      <TezraLogo className="w-8 h-8 animate-pulse" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 tracking-tight">Install Tezra App</h3>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Add to Home Screen</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPwaModal(false)}
+                    className="text-xs font-bold text-slate-400 hover:text-slate-600 bg-slate-50 border border-slate-100 p-1.5 rounded-lg active:scale-95 transition-all"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Content */}
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  Add Tezra to your home screen for a full-screen standalone experience, faster loading times, and instant push notifications for task approvals!
+                </p>
+
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-[10px] font-semibold text-slate-600 leading-normal space-y-2">
+                  <p className="font-extrabold text-slate-800 uppercase tracking-wider text-[9px]">How to Install:</p>
+                  <ol className="list-decimal pl-4 space-y-1.5">
+                    <li>Tap the browser's <strong>Share</strong> button (on iOS Safari) or the <strong>Menu</strong> icon (on Android Chrome).</li>
+                    <li>Select <strong>Add to Home Screen</strong> from the list.</li>
+                    <li>Launch the app from your home screen and enable notifications!</li>
+                  </ol>
+                </div>
+
+                {/* Footer Action */}
+                <button
+                  type="button"
+                  onClick={() => setShowPwaModal(false)}
+                  className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+                >
+                  Got It
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
