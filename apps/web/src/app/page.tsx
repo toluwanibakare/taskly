@@ -65,7 +65,8 @@ import {
   Pencil,
   Bell,
   Users,
-  Lightbulb
+  Lightbulb,
+  Copy
 } from "lucide-react";
 import { EmailModal } from "../components/EmailModal";
 import { createNotification, getNotifIcon } from "../lib/notifications";
@@ -869,7 +870,7 @@ export default function Home() {
 
   // Profile Sub-Screen for Creator Dashboard
   // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-withdrawals" | "admin-contest"
-  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest" | "admin-contract" | "admin-promotion" | "admin-task-ideas" | "task-history" | "transaction-history">("profile-main");
+  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest" | "admin-contract" | "admin-promotion" | "admin-task-ideas" | "admin-users" | "task-history" | "transaction-history">("profile-main");
 
   // Persist active tab to sessionStorage so reload restores the same page
   useEffect(() => {
@@ -897,6 +898,7 @@ export default function Home() {
 
   // Available Tasks State
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
 
   // Submissions received by tasks created by the user (Firestore synced)
   const [creatorSubmissions, setCreatorSubmissions] = useState<CreatorSubmission[]>([]);
@@ -913,6 +915,8 @@ export default function Home() {
     lockedEscrow: 1.50,
   });
   const [totalUsersCount, setTotalUsersCount] = useState<number>(0);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
   const [onchainTxCount, setOnchainTxCount] = useState<number>(0);
   const [onchainUsersCount, setOnchainUsersCount] = useState<number>(0);
   const [onchainFeesCollected, setOnchainFeesCollected] = useState<number>(0);
@@ -1513,7 +1517,7 @@ export default function Home() {
 
   // Submit Task Idea queue state
   const [taskIdeas, setTaskIdeas] = useState<any[]>([]);
-  const [ideaForm, setIdeaForm] = useState({ title: "", description: "", category: "social", suggested_payout: "" });
+  const [ideaForm, setIdeaForm] = useState({ kind: "task" as "task" | "category", title: "", description: "", category: "social", example_tasks: "", suggested_payout: "" });
   const [isSubmittingIdea, setIsSubmittingIdea] = useState(false);
   const [ideaSubmitted, setIdeaSubmitted] = useState(false);
   const [launchingIdeaId, setLaunchingIdeaId] = useState<string | null>(null);
@@ -1778,6 +1782,10 @@ export default function Home() {
         });
       });
       setTasks(loadedTasks);
+      setIsLoadingTasks(false);
+    }, (err) => {
+      console.error("Error loading tasks:", err);
+      setIsLoadingTasks(false);
     });
 
     const unsubscribeSubs = onSnapshot(collection(db, "submissions"), (snapshot) => {
@@ -1814,6 +1822,18 @@ export default function Home() {
 
     const unsubscribeUsers = onSnapshot(collection(db, "users"), (snapshot) => {
       setTotalUsersCount(snapshot.size);
+      const list = snapshot.docs.map((d) => ({
+        id: d.id,
+        wallet: d.id,
+        displayName: d.data().displayName || "",
+        email: d.data().email || "",
+        joinedAt: d.data().created_at || d.data().updated_at || "",
+        balance: d.data().balance || 0,
+        tasksCompleted: d.data().tasks_completed || 0,
+        ...d.data()
+      }));
+      list.sort((a, b) => (new Date(b.joinedAt || 0).getTime() || 0) - (new Date(a.joinedAt || 0).getTime() || 0));
+      setAllUsers(list);
     });
 
     return () => {
@@ -2342,23 +2362,8 @@ export default function Home() {
     };
   }, [history, referredUsers, tasks]);
 
-  // Filter chips list: social platforms + v2.1 revamped category chips
-  const filterChips = ["All", "Instagram", "X", "YouTube", "TikTok", "Facebook", "LinkedIn", "GitHub", "Surveys & Quizzes", "Beta Lab", "Writing & Content", "Community & Groups"];
-
-  // Map a filter chip to the platform value it represents (null = category handled by categoryChipMatch)
-  const chipPlatformMap: Record<string, string | null> = {
-    "Instagram": "instagram",
-    "X": "x",
-    "YouTube": "youtube",
-    "TikTok": "tiktok",
-    "Facebook": "facebook",
-    "LinkedIn": "linkedin",
-    "GitHub": "github",
-    "Surveys & Quizzes": "survey",
-    "Beta Lab": "testing",
-    "Writing & Content": "content",
-    "Community & Groups": "community"
-  };
+  // Filter chips list — arranged by the v2.1 task categories
+  const filterChips = ["All", ...Object.values(TASK_CATEGORIES).map((c) => c.label)];
 
   // Filtered & Sorted tasks logic
   const filteredTasks = useMemo(() => {
@@ -2391,13 +2396,15 @@ export default function Home() {
       });
     }
     
-    // Filter
+    // Filter by category chip
     if (activeFilter !== "All") {
-      result = result.filter((t) => {
-        const platformKey = t.platform.toLowerCase();
-        const filterKey = activeFilter.toLowerCase();
-        return platformKey === chipPlatformMap[activeFilter];
-      });
+      const activeCategory = Object.values(TASK_CATEGORIES).find((c) => c.label === activeFilter);
+      if (activeCategory) {
+        const allowedPlatforms = activeCategory.platforms;
+        result = result.filter((t) => allowedPlatforms.includes(t.platform.toLowerCase() as Platform));
+      } else {
+        result = [];
+      }
     }
 
     // Sort
@@ -3022,17 +3029,24 @@ export default function Home() {
     setIsSubmittingIdea(true);
     try {
       const ideaId = doc(collection(db, "taskIdeas")).id;
-      await setDoc(doc(db, "taskIdeas", ideaId), {
+      const ideaData: any = {
+        kind: ideaForm.kind,
         title: ideaForm.title.trim(),
         description: ideaForm.description.trim(),
-        category: ideaForm.category,
         suggested_payout: ideaForm.suggested_payout ? parseFloat(ideaForm.suggested_payout) : null,
         wallet_address: activeAddress,
         status: "pending",
         created_at: new Date().toISOString()
-      });
+      };
+      if (ideaForm.kind === "task") {
+        ideaData.category = ideaForm.category;
+      } else {
+        ideaData.category = "category";
+        ideaData.example_tasks = ideaForm.example_tasks.trim();
+      }
+      await setDoc(doc(db, "taskIdeas", ideaId), ideaData);
       setIdeaSubmitted(true);
-      setIdeaForm({ title: "", description: "", category: "social", suggested_payout: "" });
+      setIdeaForm({ kind: "task", title: "", description: "", category: "social", example_tasks: "", suggested_payout: "" });
     } catch (err: any) {
       console.error("Failed to submit task idea:", err);
       alert("Failed to submit your idea: " + (err.message || err));
@@ -3064,6 +3078,27 @@ export default function Home() {
   const handleApproveIdea = async (idea: any) => {
     try {
       if (!idea) return;
+
+      setLaunchingIdeaId(idea.id);
+      await updateDoc(doc(db, "taskIdeas", idea.id), {
+        status: "approved",
+        reviewed_at: new Date().toISOString()
+      });
+
+      if (idea.kind === "category") {
+        // Category ideas are accepted onto the platform roadmap — no campaign launch
+        if (idea.wallet_address) {
+          createNotification(
+            idea.wallet_address,
+            "campaign_created",
+            "Your Category Idea Was Accepted!",
+            `Your suggested category "${idea.title}" has been accepted. Keep an eye out — new task types are on the way!`
+          ).catch(() => {});
+        }
+        setLaunchingIdeaId(null);
+        return;
+      }
+
       const platform = ideaLaunchForm.platform;
       const actions = ideaLaunchForm.actions.length > 0 ? ideaLaunchForm.actions : ["follow"];
       const base = getBasePrice(platform, actions);
@@ -3116,8 +3151,7 @@ export default function Home() {
           "campaign_created",
           "Your Task Idea Was Selected!",
           `Your idea "${idea.title}" is being launched. Watch the feed for it!`
-        ).catch(() => {});
-        fetch("/api/send-email", {
+        ).catch(() => {});        fetch("/api/send-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -4275,8 +4309,45 @@ try {
             {/* TAB: AVAILABLE TASKS (HOME) */}
             {activeTab === "home" && (
               <div className="space-y-6">
-                
-
+                {isLoadingTasks && tasks.length === 0 ? (
+                  /* TASKS LOADING ANIMATION — shown until the database sync finishes */
+                  <div className="flex flex-col items-center justify-center py-24 space-y-6 animate-fade-in">
+                    <div className="relative">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 animate-bounce-short">
+                        <FileText className="w-8 h-8 text-white" />
+                      </div>
+                      <div className="absolute inset-0 rounded-2xl border-2 border-indigo-400/40 animate-ping-slow pointer-events-none" />
+                    </div>
+                    <div className="text-center space-y-1.5">
+                      <p className="text-sm font-black text-slate-900">Loading tasks...</p>
+                      <p className="text-[10px] font-semibold text-slate-400">Connecting to the database</p>
+                    </div>
+                    {/* Skeleton cards */}
+                    <div className="w-full space-y-4 mt-4">
+                      {[0, 1, 2].map((i) => (
+                        <div key={i} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3 animate-pulse">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="w-10 h-10 bg-slate-100 rounded-xl" />
+                            <div className="flex-grow space-y-2">
+                              <div className="h-3 bg-slate-100 rounded-full w-1/3" />
+                              <div className="h-3 bg-slate-100 rounded-full w-3/4" />
+                              <div className="h-2.5 bg-slate-50 rounded-full w-1/2" />
+                            </div>
+                            <div className="space-y-2 flex-shrink-0">
+                              <div className="h-3 bg-emerald-100 rounded-full w-16" />
+                              <div className="h-2.5 bg-slate-50 rounded-full w-12 ml-auto" />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between border-t border-slate-50 pt-4">
+                            <div className="h-2.5 bg-slate-100 rounded-full w-20" />
+                            <div className="h-7 bg-slate-100 rounded-lg w-24" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <>
                 
                 {/* Available Tasks Header with Sorting Toggle */}
                 <div className="flex items-center justify-between relative">
@@ -4409,7 +4480,8 @@ try {
                 <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
                   {filterChips.map((chip) => {
                     const isActive = activeFilter === chip;
-                    const isNewChip = ["Surveys & Quizzes", "Beta Lab", "Writing & Content", "Community & Groups"].includes(chip) && new Date(NEW_FEATURE_UNTIL) > new Date();
+                    const chipCategory = Object.values(TASK_CATEGORIES).find((c) => c.label === chip);
+                    const isNewChip = !!chipCategory?.isNew && new Date(NEW_FEATURE_UNTIL) > new Date();
                     return (
                       <button
                         key={chip}
@@ -4597,6 +4669,8 @@ try {
                     </div>
                   )}
                 </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -4700,8 +4774,6 @@ try {
                 </div>
               </div>
             )}
-
-
 
             {/* TAB: PROFILE & CREATOR DASHBOARD NESTED ROUTER */}
             {activeTab === "profile" && (
@@ -5450,6 +5522,21 @@ try {
                                     <span className="text-xs font-bold text-slate-800">Task Ideas</span>
                                     <span className="text-[9px] text-slate-400 font-medium">
                                       {taskIdeas.filter((i) => i.status === "pending").length} pending
+                                    </span>
+                                  </button>
+
+                                  {/* Users */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setProfileSubScreen("admin-users")}
+                                    className="p-3.5 bg-white border border-slate-100 rounded-xl hover:border-slate-300 hover:bg-slate-50/50 transition-all flex flex-col items-center gap-2 active:scale-95"
+                                  >
+                                    <div className="p-2 bg-slate-100 rounded-lg">
+                                      <Users className="w-5 h-5 text-slate-600" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-800">Users</span>
+                                    <span className="text-[9px] text-slate-400 font-medium">
+                                      {totalUsersCount} total
                                     </span>
                                   </button>
 
@@ -6399,6 +6486,107 @@ try {
                               <p className="text-slate-400 text-xs font-semibold">No task ideas submitted yet</p>
                             </div>
                           )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PROFILE: USERS DIRECTORY FOR ADMINISTRATOR */}
+                    {profileSubScreen === "admin-users" && (
+                      <div className="space-y-6 animate-fade-in">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setProfileSubScreen("profile-main")}
+                            className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                          >
+                            <ArrowLeft className="w-5 h-5 text-slate-800" />
+                          </button>
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900 font-sans">
+                              Platform Users
+                            </h2>
+                            <span className="text-xs text-slate-400 font-semibold block">
+                              {totalUsersCount} users — tap a row to copy the wallet address
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Search */}
+                        <div className="relative">
+                          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            placeholder="Search by name, email or wallet address..."
+                            value={userSearchQuery}
+                            onChange={(e) => setUserSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-semibold focus:outline-none focus:border-slate-300 transition-colors placeholder:text-slate-400 shadow-sm"
+                          />
+                        </div>
+
+                        <div className="space-y-3">
+                          {(() => {
+                            const q = userSearchQuery.trim().toLowerCase();
+                            const filtered = q
+                              ? allUsers.filter((u) =>
+                                  (u.displayName || "").toLowerCase().includes(q) ||
+                                  (u.email || "").toLowerCase().includes(q) ||
+                                  (u.wallet || "").toLowerCase().includes(q)
+                                )
+                              : allUsers;
+                            if (filtered.length === 0) {
+                              return (
+                                <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
+                                  <p className="text-slate-400 text-xs font-semibold">No users found</p>
+                                </div>
+                              );
+                            }
+                            return filtered.map((u) => {
+                              const name = u.displayName || (u.wallet ? formatAddress(u.wallet) : "Unnamed User");
+                              return (
+                                <div key={u.id} className="bg-white p-4 border border-slate-100 shadow-sm rounded-2xl space-y-2.5 animate-fade-in">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-black flex-shrink-0">
+                                        {(name || "?").charAt(0).toUpperCase()}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-bold text-slate-900 truncate">{name}</p>
+                                        {u.email ? (
+                                          <p className="text-[10px] text-slate-400 font-semibold truncate">{u.email}</p>
+                                        ) : (
+                                          <p className="text-[10px] text-slate-300 font-semibold">No email registered</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                        {(u.balance || 0).toFixed(2)} USDm
+                                      </span>
+                                      <span className="text-[9px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full">
+                                        {(u.tasksCompleted || 0)} tasks
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">
+                                    <span className="text-[10px] font-mono text-slate-600 truncate flex-grow select-all">
+                                      {u.wallet}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(u.wallet);
+                                        alert(`Copied wallet address to clipboard!\n${u.wallet}`);
+                                      }}
+                                      className="px-2.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 rounded-lg text-[9px] font-bold text-slate-700 transition-all flex items-center gap-1 flex-shrink-0"
+                                    >
+                                      <Copy className="w-3 h-3" />
+                                      Copy
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
                         </div>
                       </div>
                     )}
@@ -8114,39 +8302,85 @@ try {
                     <Zap className="w-3.5 h-3.5 text-blue-600" /> Earn by suggesting
                   </p>
                   <p className="text-[10px] font-medium text-blue-700/80 leading-relaxed">
-                    Submit a task idea the Tezra community would love. If approved and launched,
-                    you get first access plus a shoutout when it goes live.
+                    Suggest a new task for an existing category, or propose a brand-new task
+                    category for the Tezra community. Approved ideas get launched as paid tasks.
                   </p>
+                </div>
+
+                {/* Kind Selector */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    What are you suggesting?
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100/50 border border-slate-100 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setIdeaForm({ ...ideaForm, kind: "task" })}
+                      className={`py-2.5 px-3 rounded-lg text-[11px] font-bold text-center transition-all ${
+                        ideaForm.kind === "task"
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-900"
+                      }`}
+                    >
+                      New Task
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIdeaForm({ ...ideaForm, kind: "category" })}
+                      className={`py-2.5 px-3 rounded-lg text-[11px] font-bold text-center transition-all ${
+                        ideaForm.kind === "category"
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-900"
+                      }`}
+                    >
+                      New Category
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Idea Title
+                    {ideaForm.kind === "task" ? "Idea Title" : "Category Name"}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Subscribe to a YouTube Channel"
+                    placeholder={ideaForm.kind === "task" ? "e.g. Subscribe to a YouTube Channel" : "e.g. Educational & Learning Tasks"}
                     value={ideaForm.title}
                     onChange={(e) => setIdeaForm({ ...ideaForm, title: e.target.value })}
                     className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Category
-                  </label>
-                  <select
-                    value={ideaForm.category}
-                    onChange={(e) => setIdeaForm({ ...ideaForm, category: e.target.value })}
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-slate-400 transition-colors uppercase tracking-wider"
-                  >
-                    {Object.entries(TASK_CATEGORIES).map(([catKey, cat]) => (
-                      <option key={catKey} value={catKey}>{cat.label}</option>
-                    ))}
-                  </select>
-                </div>
+                {ideaForm.kind === "task" ? (
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Category
+                    </label>
+                    <select
+                      value={ideaForm.category}
+                      onChange={(e) => setIdeaForm({ ...ideaForm, category: e.target.value })}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-slate-400 transition-colors uppercase tracking-wider"
+                    >
+                      {Object.entries(TASK_CATEGORIES).map(([catKey, cat]) => (
+                        <option key={catKey} value={catKey}>{cat.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Example Tasks
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="List 3–5 example tasks this category could contain. e.g. 'Take a coding quiz', 'Watch a lesson & summarize it'"
+                      value={ideaForm.example_tasks}
+                      onChange={(e) => setIdeaForm({ ...ideaForm, example_tasks: e.target.value })}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400 resize-none"
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -8155,7 +8389,9 @@ try {
                   <textarea
                     required
                     rows={4}
-                    placeholder="Describe what workers should do, what proof they would submit, and why it would help."
+                    placeholder={ideaForm.kind === "task"
+                      ? "Describe what workers should do, what proof they would submit, and why it would help."
+                      : "Describe the category: what kind of tasks it groups, who it serves, and why Tezra should add it."}
                     value={ideaForm.description}
                     onChange={(e) => setIdeaForm({ ...ideaForm, description: e.target.value })}
                     className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400 resize-none"
