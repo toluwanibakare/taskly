@@ -118,5 +118,10 @@ service cloud.firestore {
                     && request.resource.data.description != null;
       allow update: if true; // Allowed for admin moderation (approve/reject)
     }
+
+    // 10. Admin announcements templates collection
+    match /admin_announcements/{announcementId} {
+      allow read, write: if true;
+    }
   }
 }

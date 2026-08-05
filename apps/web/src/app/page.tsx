@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useAccount, useConnect, useWriteContract, useChainId, useDisconnect, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseEther, formatEther, keccak256, toBytes, stringToHex } from "viem";
@@ -66,7 +66,8 @@ import {
   Bell,
   Users,
   Lightbulb,
-  Copy
+  Copy,
+  Megaphone
 } from "lucide-react";
 import { EmailModal } from "../components/EmailModal";
 import { createNotification, getNotifIcon } from "../lib/notifications";
@@ -787,6 +788,88 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
   return data.secure_url;
 };
 
+// WAT = UTC+1
+const WAT_OFFSET_MS = 60 * 60 * 1000;
+const REFERRAL_CONTEST_START_MS = Date.UTC(2026, 7, 9, 0, 0, 0) - WAT_OFFSET_MS;
+const REFERRAL_CONTEST_END_MS = Date.UTC(2026, 7, 30, 23, 59, 59) - WAT_OFFSET_MS;
+const SOCIAL_QUEST_END_MS = Date.UTC(2026, 7, 9, 23, 59, 59) - WAT_OFFSET_MS;
+
+function CountdownTimer({
+  targetTime,
+  phaseTargets,
+  label,
+  tone = "dark",
+  showExpired = "Ended"
+}: {
+  targetTime: number;
+  phaseTargets?: { start: number; end: number };
+  label: string;
+  tone?: "dark" | "light";
+  showExpired?: string;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const isPhase = !!phaseTargets && now < phaseTargets.end;
+  const displayTarget = isPhase
+    ? now < phaseTargets!.start
+      ? phaseTargets!.start
+      : phaseTargets!.end
+    : targetTime;
+  const displayLabel = isPhase
+    ? now < phaseTargets!.start
+      ? "Contest starts in"
+      : "Contest ends in"
+    : label;
+
+  const diff = Math.max(0, displayTarget - now);
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+
+  const cellBase = tone === "dark"
+    ? "bg-slate-950/40 border-slate-700/60 text-white"
+    : "bg-slate-100 border-slate-200 text-slate-800";
+
+  if (diff <= 0) {
+    return (
+      <div className="text-center py-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-[11px] font-bold text-slate-500">
+        {showExpired}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+      <span className="block text-[9px] font-black uppercase tracking-wider text-slate-500 text-center mb-1.5">
+        {displayLabel}
+      </span>
+      <div className="flex items-center justify-center gap-1.5">
+        {[
+          { value: days, unit: "days" },
+          { value: hours, unit: "hrs" },
+          { value: mins, unit: "min" },
+          { value: secs, unit: "sec" }
+        ].map((cell) => (
+          <div key={cell.unit} className={`flex flex-col items-center px-2.5 py-1.5 rounded-lg border ${cellBase} min-w-[46px]`}>
+            <span className="text-base font-black tabular-nums leading-none">
+              {String(cell.value).padStart(2, "0")}
+            </span>
+            <span className="text-[7px] font-bold uppercase tracking-wider opacity-70 mt-0.5">
+              {cell.unit}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const { address: wagmiAddress, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
@@ -870,7 +953,7 @@ export default function Home() {
 
   // Profile Sub-Screen for Creator Dashboard
   // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-withdrawals" | "admin-contest"
-  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest" | "admin-contract" | "admin-promotion" | "admin-task-ideas" | "admin-users" | "task-history" | "transaction-history">("profile-main");
+  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest" | "admin-contract" | "admin-promotion" | "admin-task-ideas" | "admin-users" | "admin-announcements" | "task-history" | "transaction-history">("profile-main");
 
   // Persist active tab to sessionStorage so reload restores the same page
   useEffect(() => {
@@ -1199,6 +1282,13 @@ export default function Home() {
   const [appNotifications, setAppNotifications] = useState<any[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
+  // Announcement templates (admin)
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [announcementDrafts, setAnnouncementDrafts] = useState<Record<string, any>>({});
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+  const [savingAnnouncementId, setSavingAnnouncementId] = useState<string | null>(null);
+  const [sendingAnnouncementId, setSendingAnnouncementId] = useState<string | null>(null);
+
   // Promotion Broadcast builder states
   const [promoSubject, setPromoSubject] = useState("");
   const [promoTitle, setPromoTitle] = useState("");
@@ -1428,6 +1518,97 @@ export default function Home() {
       alert("Image upload failed: " + err.message);
     }
   };
+
+  const handleLoadAnnouncements = useCallback(async () => {
+    setAnnouncementsLoading(true);
+    try {
+      const res = await fetch("/api/admin/announcements");
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAnnouncements(data.announcements);
+        const drafts: Record<string, any> = {};
+        data.announcements.forEach((a: any) => {
+          drafts[a.id] = {
+            emailSubject: a.emailSubject || "",
+            emailBody: a.emailBody || "",
+            pushTitle: a.pushTitle || "",
+            pushBody: a.pushBody || ""
+          };
+        });
+        setAnnouncementDrafts(drafts);
+      } else {
+        alert("Failed to load announcements: " + (data.error || "Unknown error"));
+      }
+    } catch (err: any) {
+      console.error("Failed to load announcements:", err);
+      alert("Failed to load announcements: " + err.message);
+    } finally {
+      setAnnouncementsLoading(false);
+    }
+  }, []);
+
+  const handleSaveAnnouncement = async (id: string) => {
+    const draft = announcementDrafts[id];
+    if (!draft) return;
+    if (!draft.emailSubject.trim() || !draft.emailBody.trim() || !draft.pushTitle.trim() || !draft.pushBody.trim()) {
+      alert("Please fill in all fields (email subject, email body, push title and push body) before saving.");
+      return;
+    }
+    setSavingAnnouncementId(id);
+    try {
+      const res = await fetch("/api/admin/announcements", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, secretKey: "tezra-admin", ...draft })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("Template saved. You can edit it again any time before sending.");
+        await handleLoadAnnouncements();
+      } else {
+        alert("Failed to save template: " + (data.error || "Unknown error"));
+      }
+    } catch (err: any) {
+      alert("Failed to save template: " + err.message);
+    } finally {
+      setSavingAnnouncementId(null);
+    }
+  };
+
+  const handleSendAnnouncement = async (id: string) => {
+    const tpl = announcements.find((a) => a.id === id);
+    if (!tpl || tpl.sentAt) return;
+    if (!confirm(`Send "${tpl.name}" now? It will email all users, send push notifications and post in-app alerts. This can only be done once.`)) {
+      return;
+    }
+    setSendingAnnouncementId(id);
+    try {
+      const res = await fetch("/api/admin/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, secretKey: "tezra-admin" })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(
+          `Sent! Emails: ${data.emailSentCount}, Push notifications: ${data.pushSentCount}, In-app alerts: ${data.inAppSentCount}.`
+        );
+        await handleLoadAnnouncements();
+      } else {
+        alert("Failed to send announcement: " + (data.error || "Unknown error"));
+      }
+    } catch (err: any) {
+      alert("Failed to send announcement: " + err.message);
+    } finally {
+      setSendingAnnouncementId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (profileSubScreen === "admin-announcements") {
+      handleLoadAnnouncements();
+    }
+  }, [profileSubScreen, handleLoadAnnouncements]);
 
   const isStandaloneMode = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -4717,6 +4898,14 @@ try {
                     <p className="text-slate-300 text-xs mt-2 leading-relaxed font-medium">
                       Share your official <strong className="text-emerald-400">Tezra Member Certificate</strong> on X tagging <strong className="text-emerald-400">@earnwithtezra</strong> and <strong className="text-emerald-400">@0xTMB</strong>. The most engaged tweet wins a <strong className="text-amber-400">$10.00 USDm</strong> prize!
                     </p>
+                    <div className="mt-4">
+                      <CountdownTimer
+                        targetTime={SOCIAL_QUEST_END_MS}
+                        label="Social Quest ends in"
+                        tone="dark"
+                        showExpired="Social Quest has ended"
+                      />
+                    </div>
                     <div className="flex gap-2.5 mt-5">
                       <button
                         onClick={() => {
@@ -4750,6 +4939,18 @@ try {
                     <p className="text-slate-500 text-xs mt-2 leading-relaxed font-medium">
                       Invite your community to Tezra. Top 3 referrers with the highest active user submissions within the campaign window will share a reward pool of <strong className="text-blue-600">$20.00 USDm</strong>!
                     </p>
+                    <div className="flex items-center justify-center gap-1.5 mt-2 text-[9px] font-black uppercase tracking-wider text-slate-400">
+                      <Clock className="w-3 h-3" />
+                      Aug 9 – Aug 30, 2026 (WAT)
+                    </div>
+                    <div className="mt-3">
+                      <CountdownTimer
+                        targetTime={REFERRAL_CONTEST_END_MS}
+                        phaseTargets={{ start: REFERRAL_CONTEST_START_MS, end: REFERRAL_CONTEST_END_MS }}
+                        label="Contest starts in"
+                        showExpired="Referral Contest has ended"
+                      />
+                    </div>
                     {dbUserProfile?.contestRegistered ? (
                       <div className="w-full py-2.5 px-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-extrabold rounded-xl mt-5 flex items-center justify-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
@@ -5551,6 +5752,34 @@ try {
                                     <span className="text-xs font-bold text-slate-800">Users</span>
                                     <span className="text-[9px] text-slate-400 font-medium">
                                       {totalUsersCount} total
+                                    </span>
+                                  </button>
+
+                                  {/* Announcements */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setProfileSubScreen("admin-announcements")}
+                                    className="p-3.5 bg-white border border-slate-100 rounded-xl hover:border-amber-200 hover:bg-amber-50/50 transition-all flex flex-col items-center gap-2 active:scale-95 relative group"
+                                  >
+                                    <div className="relative p-2 bg-amber-50 rounded-lg">
+                                      <Megaphone className="w-5 h-5 text-amber-500" />
+                                      {(() => {
+                                        const unsent = announcements.filter((a) => !a.sentAt).length;
+                                        if (unsent > 0) {
+                                          return (
+                                            <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-amber-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white ring-2 ring-white">
+                                              {unsent}
+                                            </span>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-800">Announcements</span>
+                                    <span className="text-[9px] text-slate-400 font-medium">
+                                      {announcements.filter((a) => !a.sentAt).length > 0
+                                        ? `${announcements.filter((a) => !a.sentAt).length} unsent`
+                                        : "All sent"}
                                     </span>
                                   </button>
 
@@ -6821,6 +7050,155 @@ try {
                         onConnect={openConnectModal}
                         onBack={() => setProfileSubScreen("profile-main")}
                       />
+                    )}
+
+                    {/* PROFILE: ANNOUNCEMENT TEMPLATES */}
+                    {profileSubScreen === "admin-announcements" && (
+                      <div className="space-y-6 animate-fade-in pb-12">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setProfileSubScreen("profile-main")}
+                            className="p-1.5 hover:bg-slate-100 active:scale-95 rounded-xl border border-slate-100 transition-all bg-white"
+                          >
+                            <ArrowLeft className="w-4 h-4 text-slate-700" />
+                          </button>
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Announcements</h2>
+                            <p className="text-slate-500 text-xs mt-0.5 font-medium">
+                              Edit templates, then send each one once. Sent announcements cannot be re-sent.
+                            </p>
+                          </div>
+                        </div>
+
+                        {announcementsLoading ? (
+                          <div className="text-center py-12">
+                            <Loader2 className="w-6 h-6 text-blue-500 animate-spin mx-auto" />
+                            <p className="text-xs text-slate-400 font-semibold mt-2">Loading templates...</p>
+                          </div>
+                        ) : announcements.length === 0 ? (
+                          <div className="text-center py-12 text-xs text-slate-400 font-semibold bg-slate-50 rounded-2xl border border-slate-100">
+                            No announcement templates found.
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {announcements.map((tpl) => {
+                              const draft = announcementDrafts[tpl.id] || {
+                                emailSubject: "",
+                                emailBody: "",
+                                pushTitle: "",
+                                pushBody: ""
+                              };
+                              const sentAt = tpl.sentAt
+                                ? tpl.sentAt.seconds
+                                  ? new Date(tpl.sentAt.seconds * 1000).toLocaleString()
+                                  : new Date(tpl.sentAt).toLocaleString()
+                                : null;
+                              return (
+                                <div key={tpl.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                                  <div className="p-4 border-b border-slate-50 flex items-start justify-between gap-3">
+                                    <div>
+                                      <h3 className="text-sm font-bold text-slate-900">{tpl.name}</h3>
+                                      <p className="text-[11px] text-slate-400 font-medium mt-0.5">{tpl.description}</p>
+                                    </div>
+                                    {sentAt ? (
+                                      <span className="shrink-0 px-2.5 py-1 bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                                        Sent {sentAt}
+                                      </span>
+                                    ) : (
+                                      <span className="shrink-0 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                                        Not sent yet
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="p-4 space-y-3">
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] font-black uppercase text-slate-700 block">Email Subject</label>
+                                      <input
+                                        type="text"
+                                        value={draft.emailSubject}
+                                        onChange={(e) =>
+                                          setAnnouncementDrafts((prev) => ({
+                                            ...prev,
+                                            [tpl.id]: { ...prev[tpl.id], emailSubject: e.target.value }
+                                          }))
+                                        }
+                                        className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] font-black uppercase text-slate-700 block">Email Body (plain text, blank line between paragraphs)</label>
+                                      <textarea
+                                        rows={8}
+                                        value={draft.emailBody}
+                                        onChange={(e) =>
+                                          setAnnouncementDrafts((prev) => ({
+                                            ...prev,
+                                            [tpl.id]: { ...prev[tpl.id], emailBody: e.target.value }
+                                          }))
+                                        }
+                                        className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                      />
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-3">
+                                      <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase text-slate-700 block">Push & In-App Title</label>
+                                        <input
+                                          type="text"
+                                          value={draft.pushTitle}
+                                          onChange={(e) =>
+                                            setAnnouncementDrafts((prev) => ({
+                                              ...prev,
+                                              [tpl.id]: { ...prev[tpl.id], pushTitle: e.target.value }
+                                            }))
+                                          }
+                                          className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase text-slate-700 block">Push & In-App Body</label>
+                                        <textarea
+                                          rows={3}
+                                          value={draft.pushBody}
+                                          onChange={(e) =>
+                                            setAnnouncementDrafts((prev) => ({
+                                              ...prev,
+                                              [tpl.id]: { ...prev[tpl.id], pushBody: e.target.value }
+                                            }))
+                                          }
+                                          className="w-full px-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-slate-400 focus:bg-white transition-all text-slate-800"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 pt-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSaveAnnouncement(tpl.id)}
+                                        disabled={savingAnnouncementId === tpl.id}
+                                        className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white rounded-xl text-[11px] font-bold active:scale-95 transition-all"
+                                      >
+                                        {savingAnnouncementId === tpl.id ? "Saving..." : "Save Changes"}
+                                      </button>
+                                      {!tpl.sentAt && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSendAnnouncement(tpl.id)}
+                                          disabled={sendingAnnouncementId !== null}
+                                          className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:from-slate-300 disabled:to-slate-300 text-white rounded-xl text-[11px] font-black active:scale-95 transition-all"
+                                        >
+                                          {sendingAnnouncementId === tpl.id ? "Sending..." : "Send Now"}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     {/* PROFILE: PROMOTIONS & BROADCAST BUILDER */}
