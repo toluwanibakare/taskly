@@ -2200,7 +2200,7 @@ export default function Home() {
           startTime: null,
           endTime: null,
           prizePool: 20,
-          winnersCount: 4,
+          winnersCount: 3,
           durationDays: 7
         });
       }
@@ -3283,12 +3283,38 @@ export default function Home() {
       if (idea.kind === "category") {
         // Category ideas are accepted onto the platform roadmap — no campaign launch
         if (idea.wallet_address) {
+          const userRef = doc(db, "users", idea.wallet_address.toLowerCase());
+          const userSnap = await getDoc(userRef);
+          let userEmail = "";
+          if (userSnap.exists()) {
+            const uData = userSnap.data();
+            userEmail = uData.email || "";
+            const currentCredit = uData.taskCredit || 0;
+            await updateDoc(userRef, {
+              taskCredit: parseFloat((currentCredit + 0.50).toFixed(2))
+            });
+          }
+
           createNotification(
             idea.wallet_address,
             "campaign_created",
             "Your Category Idea Was Accepted!",
-            `Your suggested category "${idea.title}" has been accepted. Keep an eye out — new task types are on the way!`
+            `Your suggested category "${idea.title}" has been accepted. You received a 0.50 USDm credit!`
           ).catch(() => {});
+
+          fetch("/api/send-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "task_idea_approved",
+              payload: {
+                toEmail: userEmail,
+                ideaTitle: idea.title,
+                kind: "category",
+                recipientWallet: idea.wallet_address
+              }
+            })
+          }).catch((e) => console.error("Error sending category idea approved email:", e));
         }
         setLaunchingIdeaId(null);
         return;
@@ -3341,23 +3367,38 @@ export default function Home() {
         reviewed_at: new Date().toISOString()
       });
       if (idea.wallet_address) {
+        const userRef = doc(db, "users", idea.wallet_address.toLowerCase());
+        const userSnap = await getDoc(userRef);
+        let userEmail = "";
+        if (userSnap.exists()) {
+          const uData = userSnap.data();
+          userEmail = uData.email || "";
+          const currentCredit = uData.taskCredit || 0;
+          await updateDoc(userRef, {
+            taskCredit: parseFloat((currentCredit + 0.50).toFixed(2))
+          });
+        }
+
         createNotification(
           idea.wallet_address,
           "campaign_created",
           "Your Task Idea Was Selected!",
-          `Your idea "${idea.title}" is being launched. Watch the feed for it!`
-        ).catch(() => {});        fetch("/api/send-email", {
+          `Your idea "${idea.title}" is being launched. You received a 0.50 USDm credit!`
+        ).catch(() => {});
+
+        fetch("/api/send-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: "task_live",
+            action: "task_idea_approved",
             payload: {
-              creatorWallet: idea.wallet_address,
-              taskTitle: title,
-              taskId,
+              toEmail: userEmail,
+              ideaTitle: idea.title,
+              kind: "task",
+              recipientWallet: idea.wallet_address
             }
           })
-        }).catch((e) => console.error("Error notifying idea proposer:", e));
+        }).catch((e) => console.error("Error sending task idea approved email:", e));
       }
       setLaunchingIdeaId(null);
 
@@ -4103,7 +4144,7 @@ try {
         startTime,
         endTime,
         prizePool: adminContestPrize,
-        winnersCount: 4,
+        winnersCount: 3,
         durationDays: adminContestDuration
       }, { merge: true });
 
@@ -4469,7 +4510,7 @@ try {
               Built by TMB
             </a>
             <span className="text-xs text-slate-300 block mt-1 font-medium">
-              Version 2.0.1
+              Version 2.1.1
             </span>
           </div>
         </div>
@@ -5388,7 +5429,8 @@ try {
                                 <div className="border-t border-slate-200/60 pt-2.5 space-y-1.5">
                                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-wide block">Contest Rules:</span>
                                   <ul className="text-[8.5px] text-slate-500 font-semibold list-disc list-inside space-y-1 leading-normal">
-                                    <li>Top 4 referrers split the {contestConfig.prizePool} USDm bounty pool equally (${(contestConfig.prizePool / 4).toFixed(2)} USDm each).</li>
+                                    <li>Top 3 referrers split the {contestConfig.prizePool} USDm bounty pool: 1st place wins 10 USDm, 2nd & 3rd place win 5 USDm each.</li>
+                                    <li>Additional benefits include public recognition and free task creation credits.</li>
                                     <li>Only referrals completed after the contest starts count toward your score.</li>
                                     <li>Earn +0.02 USDm for task completions, and +0.10 USDm for campaign creations by invitees.</li>
                                   </ul>
@@ -6994,42 +7036,50 @@ try {
                           </div>
                         </div>
 
-                        {/* Top 4 Winners Distribution Box */}
+                        {/* Top 3 Winners Distribution Box */}
                         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
                           <div className="flex justify-between items-center pb-2 border-b border-slate-50">
-                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">Top 4 Winners (Unmasked)</h3>
+                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">Top 3 Winners (Unmasked)</h3>
                             <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg">
-                              Prizes: 4 x ${(adminContestPrize / 4).toFixed(2)} USDm
+                              Prizes: 1st: 10 USDm | 2nd & 3rd: 5 USDm
                             </span>
                           </div>
 
                           <div className="space-y-3">
                             {contestLeaderboard.length > 0 ? (
-                              contestLeaderboard.slice(0, 4).map((winner, index) => (
-                                <div key={winner.wallet_address || index} className="bg-slate-50 border border-slate-100 p-3 rounded-2xl flex items-center justify-between gap-3">
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800">
-                                      <span className="text-blue-500 font-mono">#{index + 1}</span>
-                                      <span className="font-mono select-all truncate text-[11px]">
-                                        {winner.wallet_address}
-                                      </span>
+                              contestLeaderboard.slice(0, 3).map((winner, index) => {
+                                const prizeValue = index === 0 ? 10 : 5;
+                                return (
+                                  <div key={winner.wallet_address || index} className="bg-slate-50 border border-slate-100 p-3 rounded-2xl flex items-center justify-between gap-3">
+                                    <div className="min-w-0 flex-grow">
+                                      <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800">
+                                        <span className="text-blue-500 font-mono">#{index + 1}</span>
+                                        <span className="font-mono select-all truncate text-[11px]">
+                                          {winner.wallet_address}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[9px] text-slate-400 font-semibold">
+                                          Earned: {formatCurrencyVal(winner.contestReferralEarnings || 0)}
+                                        </span>
+                                        <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-100/30 px-1.5 py-0.5 rounded">
+                                          Prize: {prizeValue.toFixed(2)} USDm
+                                        </span>
+                                      </div>
                                     </div>
-                                    <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">
-                                      Earned: {formatCurrencyVal(winner.contestReferralEarnings || 0)}
-                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(winner.wallet_address);
+                                        alert("Copied wallet address to clipboard!");
+                                      }}
+                                      className="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-blue-200 text-slate-600 hover:text-blue-600 rounded-lg text-[9px] font-bold transition-all"
+                                    >
+                                      Copy
+                                    </button>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(winner.wallet_address);
-                                      alert("Copied wallet address to clipboard!");
-                                    }}
-                                    className="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-blue-200 text-slate-600 hover:text-blue-600 rounded-lg text-[9px] font-bold transition-all"
-                                  >
-                                    Copy
-                                  </button>
-                                </div>
-                              ))
+                                );
+                              })
                             ) : (
                               <div className="text-center py-6 text-xs text-slate-400 font-semibold bg-slate-50 rounded-xl border border-slate-100">
                                 No participants in the contest yet.
@@ -7831,7 +7881,7 @@ try {
                     Built by TMB
                   </a>
                   <span className="text-[10px] text-slate-300 block mt-0.5 font-semibold">
-                    Version 2.0.1
+                    Version 2.1.1
                   </span>
                 </div>
               </div>
@@ -9902,7 +9952,7 @@ try {
                 {contestConfig.status === "coming_soon" ? "Referral Contest Coming Soon!" : "Referral Contest Is Active!"}
               </h3>
               <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-                Secure your slot today! Stand a chance to earn from the <strong className="text-emerald-600">{contestConfig.prizePool} USDm</strong> bounty pool. Top {contestConfig.winnersCount} referrers get credited at the end!
+                Secure your slot today! Stand a chance to earn from the <strong className="text-emerald-600">{contestConfig.prizePool} USDm</strong> bounty pool (1st gets 10 USDm, 2nd & 3rd get 5 USDm). Top referrers also get public recognition and task creation credits!
               </p>
             </div>
 

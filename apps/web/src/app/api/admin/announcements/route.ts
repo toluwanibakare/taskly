@@ -41,14 +41,15 @@ Here is how it works:
 - Invite people to Tezra with your personal referral link.
 - Earn 0.02 USDm for every task your invitee completes.
 - Earn 0.10 USDm for every campaign your invitee creates.
-- The top 3 referrers at the end of the window split a 20.00 USDm reward pool.
+- The top 3 referrers at the end of the window split a 20.00 USDm reward pool: 1st place wins 10.00 USDm, 2nd & 3rd place win 5.00 USDm each.
+- Plus other amazing benefits including public recognition and free task creation credits!
 
 One more thing: the Social Quest ends on August 9 at midnight WAT. If you still want to share your member certificate for a shot at the 10.00 USDm prize, do it before then.
 
 Register for the contest from the Earn tab, copy your referral link from your Profile page, and start inviting.`,
     pushTitle: "Referral Contest Starts Aug 9",
     pushBody:
-      "The Referral Champion Contest runs Aug 9-30 with a 20 USDm pool for the top 3 referrers. Social Quest ends Aug 9 at midnight WAT. Open Tezra to register.",
+      "The Referral Champion Contest runs Aug 9-30. Top 3 split 20 USDm (1st: 10 USDm, 2nd/3rd: 5 USDm) + win task creation credits! Open Tezra to register.",
     ctaText: "Open Tezra"
   },
   {

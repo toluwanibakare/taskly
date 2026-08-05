@@ -682,3 +682,35 @@ export async function sendBroadcastPromoEmail(
   });
 }
 
+export async function sendTaskIdeaApprovedEmail(
+  toEmail: string,
+  ideaTitle: string,
+  kind: "task" | "category"
+): Promise<boolean> {
+  const kindLabel = kind === "category" ? "Category suggestion" : "Task Idea";
+  const html = generateTezraEmailHtml({
+    title: "🎉 Your Idea Has Been Approved!",
+    preheader: `Your ${kindLabel} has been approved on Tezra`,
+    badgeText: "Idea Approved",
+    bodyHtml: `
+      <p>Hello,</p>
+      <p>We are excited to let you know that your submitted ${kindLabel} <strong>"${ideaTitle}"</strong> has been approved by the Tezra admin team!</p>
+      <div class="highlight-box">
+        <p style="margin:0;color:#f8fafc;text-align:center;">
+          🎁 <strong>0.50 USDm Credit Added!</strong><br/>
+          You have been rewarded a <strong>0.50 USDm Task Creation Credit</strong> to launch your own campaigns.
+        </p>
+      </div>
+      <p>Your credit has been applied directly to your account. Log in and launch a campaign from your creator dashboard to use it!</p>
+    `,
+    ctaText: "Launch a Campaign 🚀",
+    ctaUrl: APP_URL,
+  });
+
+  return sendEmail({
+    to: toEmail,
+    subject: `🎉 Your Tezra ${kindLabel} has been approved!`,
+    html,
+  });
+}
+

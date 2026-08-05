@@ -13,6 +13,7 @@ import {
   sendBadgeUnlockEmail,
   sendNewTaskBroadcastEmail,
   sendEmail,
+  sendTaskIdeaApprovedEmail,
 } from "@/lib/email";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -173,6 +174,22 @@ export async function POST(req: Request) {
         }
         if (recipientWallet && badgeName) {
           await sendPushNotification(recipientWallet, `Badge Unlocked: ${badgeName}! 🏆`, `Congratulations! You unlocked the ${badgeEmoji || "✨"} badge and earned +${xpReward || 0} XP.`);
+        }
+        return NextResponse.json({ success: true });
+      }
+
+      case "task_idea_approved": {
+        const { toEmail, ideaTitle, kind, recipientWallet } = payload || {};
+        if (toEmail && ideaTitle && kind) {
+          await sendTaskIdeaApprovedEmail(toEmail, ideaTitle, kind);
+        }
+        if (recipientWallet && ideaTitle) {
+          const kindLabel = kind === "category" ? "Category suggestion" : "Task Idea";
+          await sendPushNotification(
+            recipientWallet,
+            "Idea Approved! 🎉",
+            `Your ${kindLabel} "${ideaTitle}" has been approved! You received a 0.50 USDm credit.`
+          );
         }
         return NextResponse.json({ success: true });
       }
