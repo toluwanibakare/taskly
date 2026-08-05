@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useAccount, useConnect, useWriteContract, useChainId, useDisconnect, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { parseEther, formatEther } from "viem";
+import { parseEther, formatEther, keccak256, toBytes, stringToHex } from "viem";
 
 import { getEscrowAddress, formatTaskIdToBytes32, useEscrow } from "../hooks/useEscrow";
 import { ESCROW_ABI } from "../lib/escrowAbi";
@@ -66,6 +66,7 @@ import {
   Bell
 } from "lucide-react";
 import { EmailModal } from "../components/EmailModal";
+import { createNotification, getNotifIcon } from "../lib/notifications";
 import { BadgeUnlockModal, BadgeUnlockInfo } from "../components/BadgeUnlockModal";
 import { CertificateModal } from "../components/CertificateModal";
 import { OnboardingTour } from "../components/OnboardingTour";
@@ -92,6 +93,7 @@ interface Task {
   createdByWallet?: string;
   status?: string;
   expiresAt?: string;
+  createdAt?: string;
   updatedAt?: string;
 }
 
@@ -1080,6 +1082,8 @@ export default function Home() {
   const [profileEditAvatarPreview, setProfileEditAvatarPreview] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [appNotifications, setAppNotifications] = useState<any[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   // Promotion Broadcast builder states
   const [promoSubject, setPromoSubject] = useState("");
@@ -1098,6 +1102,26 @@ export default function Home() {
   // Pull to refresh states
   const [pullDistance, setPullDistance] = useState(0);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+
+  // Live in-app notifications subscription for the signed-in wallet
+  useEffect(() => {
+    if (!wagmiAddress) {
+      setAppNotifications([]);
+      return;
+    }
+    const unsub = onSnapshot(
+      collection(db, "users", wagmiAddress.toLowerCase(), "notifications"),
+      (snap) => {
+        const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        items.sort((a: any, b: any) =>
+          ((b as any).createdAt?.toMillis?.() || 0) - ((a as any).createdAt?.toMillis?.() || 0)
+        );
+        setAppNotifications(items);
+      },
+      (err) => console.error("Failed to load notifications:", err)
+    );
+    return unsub;
+  }, [wagmiAddress]);
 
   // Register Service Worker on Load for PWA notifications
   useEffect(() => {
@@ -1625,6 +1649,7 @@ export default function Home() {
           createdByWallet: data.created_by_wallet,
           status: data.status || "active",
           expiresAt: data.expires_at || null,
+          createdAt: data.created_at || null,
           updatedAt: data.updated_at || null,
         });
       });
@@ -2243,6 +2268,8 @@ export default function Home() {
     return [...result].sort((a, b) => {
       const valA = parseFloat(a.amount.split(" ")[0]);
       const valB = parseFloat(b.amount.split(" ")[0]);
+      const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime() || 0;
+      const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime() || 0;
       
       switch (sortBy) {
         case "payout-desc":
@@ -2250,9 +2277,9 @@ export default function Home() {
         case "payout-asc":
           return valA - valB;
         case "recency-desc":
-          return parseInt(b.id) - parseInt(a.id);
+          return timeB - timeA;
         case "recency-asc":
-          return parseInt(a.id) - parseInt(b.id);
+          return timeA - timeB;
         default:
           return 0;
       }
@@ -2548,8 +2575,9 @@ export default function Home() {
         const leftoverSlots = orig.slotsRemaining || 0;
         const rewardAmt = parseFloat(orig.amount.replace(/[^\d.]/g, "")) || 0.05;
         const leftoverEscrow = leftoverSlots * rewardAmt;
-        const feeToDeduct = leftoverEscrow * (PLATFORM_FEE_PERCENTAGE / 100);
-        const usableEscrow = parseFloat((leftoverEscrow - feeToDeduct).toFixed(2));
+        // Reopening does not re-collect the platform fee — the fee was already charged
+        // at the original deposit, so the full leftover escrow is usable.
+        const usableEscrow = parseFloat(leftoverEscrow.toFixed(2));
         
         const newBudget = parseFloat((payoutValue * slotsValue).toFixed(2));
         if (newBudget > usableEscrow) {
@@ -3037,23 +3065,28 @@ try {
           });
           await updateWorkerGamification(workerWallet, true, subDocSnap.data().date);
 
-          // Send approval email to worker
-          if (workerEmail) {
-            fetch("/api/send-email", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                action: "task_approval",
-                payload: {
-                  workerEmail: workerEmail,
-                  workerWallet: workerWallet,
-                  taskTitle: tk?.title || "Tezra Task",
-                  reward: `${payoutVal.toFixed(2)} USDm`,
-                  approved: true
-                }
-              })
-            }).catch(e => console.error("Error sending approval email to worker:", e));
-          }
+          // Send approval email (if email available) AND web push + in-app notification
+          // to the worker — push must go out even when the worker has no email.
+          fetch("/api/send-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "task_approval",
+              payload: {
+                workerEmail: workerEmail,
+                workerWallet: workerWallet,
+                taskTitle: tk?.title || "Tezra Task",
+                reward: `${payoutVal.toFixed(2)} USDm`,
+                approved: true
+              }
+            })
+          }).catch(e => console.error("Error sending approval email to worker:", e));
+          createNotification(
+            workerWallet,
+            "submission_approved",
+            "Submission Approved!",
+            `Your submission for "${tk?.title || "Tezra Task"}" was approved. You earned ${payoutVal.toFixed(2)} USDm!`
+          ).catch((e) => console.error("Error creating approval notification:", e));
         }
       }
 
@@ -3097,31 +3130,35 @@ try {
       if (workerWallet) {
         await updateWorkerGamification(workerWallet, false, subDocSnap.data().date);
 
-        // Send rejection email to worker
+        // Send rejection notification: email when available, web push + in-app always
         try {
           const workerUserRef = doc(db, "users", workerWallet.toLowerCase());
-          getDoc(workerUserRef).then((workerSnap) => {
-            if (workerSnap.exists()) {
-              const workerEmail = workerSnap.data().email;
-              if (workerEmail) {
-                const tk = tasks.find((t) => t.id === subDocSnap.data().task_id);
-                fetch("/api/send-email", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    action: "task_approval",
-                    payload: {
-                      workerEmail: workerEmail,
-                      workerWallet: workerWallet,
-                      taskTitle: tk?.title || "Tezra Task",
-                      reward: tk ? tk.amount : "Reward",
-                      approved: false
-                    }
-                  })
-                }).catch(e => console.error("Error sending rejection email to worker:", e));
+          const workerSnap = await getDoc(workerUserRef);
+          let workerEmail = "";
+          if (workerSnap.exists()) {
+            workerEmail = workerSnap.data().email || "";
+          }
+          const tk = tasks.find((t) => t.id === subDocSnap.data().task_id);
+          fetch("/api/send-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "task_approval",
+              payload: {
+                workerEmail: workerEmail,
+                workerWallet: workerWallet,
+                taskTitle: tk?.title || "Tezra Task",
+                reward: tk ? tk.amount : "Reward",
+                approved: false
               }
-            }
-          }).catch(e => console.error("Error fetching worker profile for rejection email:", e));
+            })
+          }).catch(e => console.error("Error sending rejection email to worker:", e));
+          createNotification(
+            workerWallet,
+            "submission_rejected",
+            "Submission Rejected",
+            `Your submission for "${tk?.title || "Tezra Task"}" was rejected. Tap to view details.`
+          ).catch((e) => console.error("Error creating rejection notification:", e));
         } catch (emailErr) {
           console.error("Error sending rejection email notification:", emailErr);
         }
@@ -3610,22 +3647,67 @@ try {
       setActiveTransaction((prev) => prev ? { ...prev, status: "refunding-escrow" } : null);
 
       const escrowContractAddress = getEscrowAddress(chainId);
-      const bytes32TaskId = formatTaskIdToBytes32(taskId);
 
       let txHash: `0x${string}` | undefined;
 
       // Execute on-chain smart contract refund
       if (escrowContractAddress && escrowContractAddress !== "0x0000000000000000000000000000000000000000") {
         const usdmAddr = getUsdmAddress(chainId);
-        const refundParams = {
-          address: escrowContractAddress,
-          abi: ESCROW_ABI,
-          functionName: "refundCampaign" as const,
-          args: [bytes32TaskId] as const,
-          type: "legacy" as const,
-          feeCurrency: usdmAddr,
-        } as any;
-        txHash = await (writeContractAsync as any)(refundParams);
+        // Try every bytes32 encoding the platform has ever used to create on-chain campaigns
+        const taskIdCandidates = [
+          keccak256(toBytes(taskId)),
+          stringToHex(taskId.slice(0, 31).padEnd(32, "\0")),
+        ] as `0x${string}`[];
+
+        let lastError: any = null;
+        let refundedOnChain = false;
+
+        for (const bytes32TaskId of taskIdCandidates) {
+          try {
+            const refundParams = {
+              address: escrowContractAddress,
+              abi: ESCROW_ABI,
+              functionName: "refundCampaign" as const,
+              args: [bytes32TaskId] as const,
+              type: "legacy" as const,
+              feeCurrency: usdmAddr,
+            } as any;
+            txHash = await (writeContractAsync as any)(refundParams);
+            refundedOnChain = true;
+            break;
+          } catch (err: any) {
+            lastError = err;
+            // User rejection should not trigger the admin fallback
+            if (String(err?.message || "").toLowerCase().includes("rejected")) {
+              throw err;
+            }
+          }
+        }
+
+        // Fallback: Naira-funded campaigns have the admin as the on-chain advertiser,
+        // so refund via the admin wallet server-side.
+        if (!refundedOnChain) {
+          try {
+            const res = await fetch("/api/refund-task", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ taskId }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              txHash = data.txHash;
+              refundedOnChain = true;
+            } else {
+              throw new Error(data.error || "Refund failed via admin wallet");
+            }
+          } catch (apiErr: any) {
+            throw new Error(
+              lastError
+                ? `${String(lastError.message || lastError).slice(0, 200)} — admin fallback also failed: ${apiErr.message}`
+                : apiErr.message
+            );
+          }
+        }
       } else {
         // Fallback for mock environment
         await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -3684,8 +3766,10 @@ try {
     
     setPayoutValue(rewardNum);
     setPayoutInput(rewardNum.toFixed(2));
-    setSlotsValue(tk.slotsTotal || 50);
-    setSlotsInput(String(tk.slotsTotal || 50));
+    // Default the form to the remaining (unclaimed) slots so reopening works without
+    // manual recalculation. The budget check will still guard against increases.
+    setSlotsValue(tk.slotsRemaining || 5);
+    setSlotsInput(String(tk.slotsRemaining || 5));
     setExpiryHours(tk.expiryHours || 24);
     setIsReopening(true);
     setReopeningTaskId(taskId);
@@ -3699,10 +3783,11 @@ try {
       else actions.push("follow");
     }
     if (titleLower.includes("like")) actions.push("like");
-    if (titleLower.includes("retweet") || titleLower.includes("repost")) actions.push("retweet");
+    if (titleLower.includes("retweet") || titleLower.includes("repost")) actions.push("repost");
     if (titleLower.includes("comment")) actions.push("comment");
-    if (titleLower.includes("star")) actions.push("star");
-    if (titleLower.includes("fork")) actions.push("fork");
+    if (titleLower.includes("star")) actions.push("github_star");
+    if (titleLower.includes("fork")) actions.push("github_fork");
+    if (titleLower.includes("watch")) actions.push("watch");
     
     if (actions.length === 0) {
       actions.push("follow");
@@ -3908,14 +3993,87 @@ try {
                   </div>
                   
                   {/* Sorting Filter Trigger Button */}
-                  <button
-                    onClick={() => setShowSortMenu(!showSortMenu)}
-                    className={`p-2.5 bg-white border border-slate-200/80 rounded-xl hover:bg-slate-50 active:scale-95 transition-all shadow-sm ${
-                      showSortMenu ? "ring-2 ring-blue-500/20 border-blue-200 bg-blue-50/10" : ""
-                    }`}
-                  >
-                    <SlidersHorizontal className="w-4 h-4 text-slate-700" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* In-App Notification Bell */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setNotificationsOpen(!notificationsOpen)}
+                        className={`p-2.5 bg-white border border-slate-200/80 rounded-xl hover:bg-slate-50 active:scale-95 transition-all shadow-sm ${
+                          notificationsOpen ? "ring-2 ring-blue-500/20 border-blue-200 bg-blue-50/10" : ""
+                        }`}
+                      >
+                        <Bell className="w-4 h-4 text-slate-700" />
+                        {appNotifications.filter((n) => !n.read).length > 0 && (
+                          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">
+                            {appNotifications.filter((n) => !n.read).length}
+                          </span>
+                        )}
+                      </button>
+
+                      {notificationsOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)} />
+                          <div className="absolute right-0 top-12 w-[320px] max-h-[420px] overflow-y-auto bg-white rounded-2xl border border-slate-100 shadow-xl z-50 p-2.5 animate-fade-in space-y-1.5">
+                            <div className="flex items-center justify-between px-2.5 py-1.5">
+                              <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+                                Notifications
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  appNotifications.forEach((n) => {
+                                    if (!n.read) {
+                                      updateDoc(doc(db, "users", wagmiAddress!.toLowerCase(), "notifications", n.id), { read: true }).catch(() => {});
+                                    }
+                                  });
+                                }}
+                                className="text-[10px] font-bold text-blue-600 hover:text-blue-800"
+                              >
+                                Mark all read
+                              </button>
+                            </div>
+                            {appNotifications.length === 0 ? (
+                              <p className="text-xs text-slate-400 text-center py-8 px-4">
+                                No notifications yet. Approvals, rejections and rewards will show up here.
+                              </p>
+                            ) : (
+                              appNotifications.map((n) => (
+                                <button
+                                  key={n.id}
+                                  type="button"
+                                  onClick={() => updateDoc(doc(db, "users", wagmiAddress!.toLowerCase(), "notifications", n.id), { read: true }).catch(() => {})}
+                                  className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-3 transition-colors ${
+                                    n.read ? "bg-transparent" : "bg-blue-50/60"
+                                  } hover:bg-slate-50`}
+                                >
+                                  <span className="text-base leading-none mt-0.5">
+                                    {getNotifIcon(n.type)}
+                                  </span>
+                                  <span className="flex-1 min-w-0">
+                                    <span className="block text-[11px] font-bold text-slate-900">{n.title}</span>
+                                    <span className="block text-[10px] text-slate-500 mt-0.5 leading-snug">{n.message}</span>
+                                    <span className="block text-[9px] text-slate-400 mt-1 font-medium">
+                                      {n.createdAt?.toDate ? new Date(n.createdAt.toDate()).toLocaleString() : ""}
+                                    </span>
+                                  </span>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Sorting Filter Trigger Button */}
+                    <button
+                      onClick={() => setShowSortMenu(!showSortMenu)}
+                      className={`p-2.5 bg-white border border-slate-200/80 rounded-xl hover:bg-slate-50 active:scale-95 transition-all shadow-sm ${
+                        showSortMenu ? "ring-2 ring-blue-500/20 border-blue-200 bg-blue-50/10" : ""
+                      }`}
+                    >
+                      <SlidersHorizontal className="w-4 h-4 text-slate-700" />
+                    </button>
+                  </div>
 
                   {/* Sorting Dropdown Menu */}
                   {showSortMenu && (
@@ -5163,8 +5321,11 @@ try {
                         </div>
 
                         <div className="space-y-4">
-                          {/* User-created tasks */}
-                          {tasks.filter(t => t.createdByWallet?.toLowerCase() === wagmiAddress?.toLowerCase()).map((t) => {
+                          {/* User-created tasks — newest first */}
+                          {tasks
+                            .filter(t => t.createdByWallet?.toLowerCase() === wagmiAddress?.toLowerCase())
+                            .sort((a, b) => (new Date(b.createdAt || b.updatedAt || 0).getTime()) - (new Date(a.createdAt || a.updatedAt || 0).getTime()))
+                            .map((t) => {
                             const pendingSubmissions = getPendingCount(t.id);
                             
                             // Determine status dynamically

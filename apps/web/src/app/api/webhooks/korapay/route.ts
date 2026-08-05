@@ -7,7 +7,8 @@ import {
   http, 
   publicActions, 
   parseEther, 
-  stringToHex 
+  keccak256,
+  toBytes
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { celo } from "viem/chains";
@@ -120,7 +121,8 @@ export async function POST(req: Request) {
     const payoutValue = parseFloat(taskData.amount.replace(/[^\d.]/g, "")) / taskData.slotsTotal;
     const amountWei = parseEther(parseFloat(taskData.amount.replace(/[^\d.]/g, "")).toFixed(18));
     const rewardWei = parseEther(payoutValue.toFixed(18));
-    const bytes32TaskId = stringToHex(taskId.slice(0, 31).padEnd(32, "\0")) as `0x${string}`;
+    // Use keccak256 hash of the taskId so on-chain campaign IDs match the client-side encoding
+    const bytes32TaskId = keccak256(toBytes(taskId)) as `0x${string}`;
     const durationSeconds = BigInt((taskData.expiryHours || 24) * 3600);
 
     // Step 1: Approve Escrow Contract to spend USDm
