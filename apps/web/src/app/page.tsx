@@ -1443,55 +1443,69 @@ export default function Home() {
     if (!isStandaloneMode || typeof window === "undefined") return;
 
     let startY = 0;
-    let pulling = false;
+    let activePull = false;
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (window.scrollY === 0) {
-        startY = e.touches[0].pageY;
-        pulling = true;
-      }
+      if (activePull || window.scrollY > 0) return;
+      startY = e.touches[0]?.pageY ?? 0;
+      activePull = true;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!pulling) return;
-      const currentY = e.touches[0].pageY;
+      if (!activePull) return;
+      const currentY = e.touches[0]?.pageY ?? startY;
       const diff = currentY - startY;
 
-      if (diff > 0 && window.scrollY === 0) {
-        if (e.cancelable) e.preventDefault();
-        // apply smooth logarithmic pull friction
-        const dist = Math.min(80, diff * 0.45);
-        setPullDistance(dist);
-      } else {
-        pulling = false;
+      // user scrolled during the gesture (or was mid-scroll) - bail out cleanly
+      if (window.scrollY > 0) {
+        activePull = false;
+        setPullDistance(0);
+        return;
       }
+
+      // finger moved back up: relax the indicator but keep the gesture alive
+      if (diff <= 0) {
+        setPullDistance(0);
+        return;
+      }
+
+      if (e.cancelable) e.preventDefault();
+      // apply smooth pull friction
+      const dist = Math.min(80, diff * 0.4);
+      setPullDistance(dist);
     };
 
     const handleTouchEnd = () => {
-      if (!pulling) return;
-      pulling = false;
-      
+      if (!activePull) return;
+      activePull = false;
       setPullDistance((currentDist) => {
-        if (currentDist >= 55) {
+        if (currentDist >= 45) {
           setIsPullRefreshing(true);
           // reload browser page
           setTimeout(() => {
             window.location.reload();
-          }, 600);
-          return 55;
+          }, 500);
+          return 45;
         }
         return 0;
       });
     };
 
+    const handleTouchCancel = () => {
+      activePull = false;
+      setPullDistance(0);
+    };
+
     window.addEventListener("touchstart", handleTouchStart, { passive: true });
     window.addEventListener("touchmove", handleTouchMove, { passive: false });
     window.addEventListener("touchend", handleTouchEnd);
+    window.addEventListener("touchcancel", handleTouchCancel);
 
     return () => {
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("touchcancel", handleTouchCancel);
     };
   }, [isStandaloneMode]);
 
@@ -8526,7 +8540,7 @@ try {
           style={{
             transform: `translateY(${pullDistance}px)`,
             opacity: Math.min(1, pullDistance / 40),
-            transition: pullDistance === 0 || pullDistance === 55 ? "transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s" : "none"
+            transition: pullDistance === 0 || pullDistance === 45 ? "transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s" : "none"
           }}
           className="fixed top-2 left-0 right-0 z-50 flex justify-center pointer-events-none"
         >
