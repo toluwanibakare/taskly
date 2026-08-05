@@ -63,7 +63,9 @@ import {
   ChevronLeft,
   Share2,
   Pencil,
-  Bell
+  Bell,
+  Users,
+  Lightbulb
 } from "lucide-react";
 import { EmailModal } from "../components/EmailModal";
 import { createNotification, getNotifIcon } from "../lib/notifications";
@@ -72,7 +74,19 @@ import { CertificateModal } from "../components/CertificateModal";
 import { OnboardingTour } from "../components/OnboardingTour";
 
 // Platform Type definition
-type Platform = "instagram" | "x" | "youtube" | "tiktok" | "survey" | "testing" | "facebook" | "linkedin" | "github";
+type Platform = "instagram" | "x" | "youtube" | "tiktok" | "survey" | "testing" | "facebook" | "linkedin" | "github" | "content" | "community";
+
+// v2.1.0 feature flags
+const NEW_FEATURE_UNTIL = "2026-08-12";
+const HIGH_PAYOUT_THRESHOLD = 0.25;
+
+const TASK_CATEGORIES: Record<string, { label: string; platforms: Platform[]; isNew: boolean }> = {
+  social: { label: "Social Media", platforms: ["instagram", "x", "youtube", "tiktok", "facebook", "linkedin", "github"], isNew: false },
+  survey: { label: "Surveys & Quizzes", platforms: ["survey"], isNew: true },
+  beta: { label: "Beta Lab", platforms: ["testing"], isNew: true },
+  content: { label: "Writing & Content", platforms: ["content"], isNew: true },
+  community: { label: "Community & Groups", platforms: ["community"], isNew: true },
+};
 
 // Task structure definition
 interface Task {
@@ -358,6 +372,7 @@ interface PlatformAction {
   value: string;
   label: string;
   basePrice: number;
+  isNew?: boolean;
 }
 
 const FALLBACK_USDM_TO_NGN_RATE = 1403;
@@ -368,50 +383,85 @@ const PLATFORM_ACTIONS: Record<Platform, PlatformAction[]> = {
     { value: "like", label: "Like Post", basePrice: 0.01 },
     { value: "repost", label: "Repost (Retweet)", basePrice: 0.01 },
     { value: "comment", label: "Reply / Comment", basePrice: 0.02 },
-    { value: "tweet", label: "Write Custom Tweet", basePrice: 0.10 }
+    { value: "tweet", label: "Write Custom Tweet", basePrice: 0.10 },
+    { value: "quote", label: "Quote Tweet with Comment", basePrice: 0.03, isNew: true },
+    { value: "bookmark", label: "Bookmark Post", basePrice: 0.02, isNew: true }
   ],
   instagram: [
     { value: "follow", label: "Follow Profile", basePrice: 0.02 },
     { value: "like", label: "Like Post", basePrice: 0.01 },
     { value: "comment", label: "Comment on Post", basePrice: 0.02 },
-    { value: "story", label: "Share Post to Story", basePrice: 0.05 }
+    { value: "story", label: "Share Post to Story", basePrice: 0.05 },
+    { value: "save_collection", label: "Save to Collection", basePrice: 0.02, isNew: true },
+    { value: "dm", label: "Send a DM", basePrice: 0.04, isNew: true }
   ],
   youtube: [
     { value: "subscribe", label: "Subscribe to Channel", basePrice: 0.03 },
     { value: "like", label: "Like Video", basePrice: 0.01 },
     { value: "comment", label: "Comment on Video", basePrice: 0.02 },
-    { value: "watch", label: "Watch Video (2 min+)", basePrice: 0.03 }
+    { value: "watch", label: "Watch Video (2 min+)", basePrice: 0.03 },
+    { value: "playlist", label: "Add Video to Playlist", basePrice: 0.02, isNew: true },
+    { value: "shorts_subscribe", label: "Subscribe via Shorts", basePrice: 0.03, isNew: true }
   ],
   tiktok: [
     { value: "follow", label: "Follow Profile", basePrice: 0.02 },
     { value: "like", label: "Like Video", basePrice: 0.01 },
-    { value: "favorite", label: "Save to Favorites", basePrice: 0.02 }
+    { value: "favorite", label: "Save to Favorites", basePrice: 0.02 },
+    { value: "comment", label: "Comment on Video", basePrice: 0.02, isNew: true },
+    { value: "stitch", label: "Stitch the Video", basePrice: 0.05, isNew: true },
+    { value: "duet", label: "Duet the Video", basePrice: 0.05, isNew: true }
   ],
   facebook: [
     { value: "follow_page", label: "Like & Follow Page", basePrice: 0.02 },
     { value: "like_post", label: "Like Post", basePrice: 0.01 },
-    { value: "share_post", label: "Share Post", basePrice: 0.03 }
+    { value: "share_post", label: "Share Post", basePrice: 0.03 },
+    { value: "join_group", label: "Join Facebook Group", basePrice: 0.02, isNew: true },
+    { value: "share_to_group", label: "Share Post to Group", basePrice: 0.03, isNew: true }
   ],
   linkedin: [
     { value: "follow_company", label: "Follow Company Page", basePrice: 0.03 },
     { value: "like_post", label: "Like Post", basePrice: 0.01 },
-    { value: "comment", label: "Comment on Post", basePrice: 0.03 }
+    { value: "comment", label: "Comment on Post", basePrice: 0.03 },
+    { value: "connect", label: "Connect with Profile", basePrice: 0.03, isNew: true },
+    { value: "endorse", label: "Endorse a Skill", basePrice: 0.02, isNew: true }
   ],
   survey: [
     { value: "google_form", label: "Google Form UX Survey", basePrice: 0.15 },
-    { value: "product_market", label: "Product Market Survey", basePrice: 0.20 }
+    { value: "product_market", label: "Product Market Survey", basePrice: 0.20 },
+    { value: "quiz_70", label: "Take Quiz (Score 70%+)", basePrice: 0.30, isNew: true },
+    { value: "read_5q", label: "Read Article & 5 Questions", basePrice: 0.35, isNew: true },
+    { value: "watch_3q", label: "Watch Video & 3 Questions", basePrice: 0.30, isNew: true },
+    { value: "daily_poll", label: "Daily Poll Vote", basePrice: 0.10, isNew: true },
+    { value: "video_feedback", label: "Video Feedback Recording", basePrice: 0.35, isNew: true }
   ],
   testing: [
     { value: "website_signup", label: "Website Sign-up & Verification", basePrice: 0.07 },
     { value: "app_download", label: "App Download & Registration", basePrice: 0.25 },
     { value: "ux_feedback", label: "UX & Usability Feedback Audit", basePrice: 0.35 },
     { value: "newsletter_sub", label: "Newsletter Email Subscription", basePrice: 0.05 },
-    { value: "interact_features", label: "Walkthrough App/Web Features", basePrice: 0.12 }
+    { value: "interact_features", label: "Walkthrough App/Web Features", basePrice: 0.12 },
+    { value: "screen_recording", label: "Screen-Recording Walkthrough", basePrice: 0.35, isNew: true }
   ],
   github: [
     { value: "github_star", label: "Star Repository", basePrice: 0.03 },
     { value: "github_fork", label: "Fork Repository", basePrice: 0.04 },
-    { value: "github_follow", label: "Follow Profile", basePrice: 0.02 }
+    { value: "github_follow", label: "Follow Profile", basePrice: 0.02 },
+    { value: "github_watch", label: "Watch Repository", basePrice: 0.02, isNew: true }
+  ],
+  content: [
+    { value: "blog_post", label: "Write Blog Post", basePrice: 1.00, isNew: true },
+    { value: "x_thread", label: "Write X Thread", basePrice: 0.75, isNew: true },
+    { value: "product_review", label: "Product Review", basePrice: 0.60, isNew: true },
+    { value: "testimonial", label: "Write Testimonial", basePrice: 0.60, isNew: true },
+    { value: "google_maps_review", label: "Google Maps Review", basePrice: 0.50, isNew: true },
+    { value: "article_rewrite", label: "Rewrite Article", basePrice: 0.40, isNew: true }
+  ],
+  community: [
+    { value: "telegram_join", label: "Join Telegram Group", basePrice: 0.15, isNew: true },
+    { value: "whatsapp_join", label: "Join WhatsApp Community", basePrice: 0.15, isNew: true },
+    { value: "discord_join", label: "Join Discord Server", basePrice: 0.20, isNew: true },
+    { value: "join_intro", label: "Join Group & Introduce Yourself", basePrice: 0.25, isNew: true },
+    { value: "whatsapp_share_3", label: "Share to 3 WhatsApp Groups", basePrice: 0.30, isNew: true }
   ]
 };
 
@@ -438,7 +488,37 @@ const ACTION_INSTRUCTIONS: Record<string, string[]> = {
   interact_features: ["Open the app or website.", "Click through at least 3 major sections or tabs.", "Interact with a key feature (e.g. adding an item, running a search, editing a page)."],
   github_star: ["Open the repository link.", "Click the Star button at the top right."],
   github_fork: ["Open the repository link.", "Click the Fork button at the top right.", "Create the fork under your account."],
-  github_follow: ["Open the GitHub profile link.", "Click the Follow button under the user avatar."]
+  github_follow: ["Open the GitHub profile link.", "Click the Follow button under the user avatar."],
+  quote: ["Open the post link.", "Click the Repost icon and select 'Quote'.", "Add your own supporting comment and publish."],
+  bookmark: ["Open the post link.", "Click the Bookmark icon to save the post."],
+  save_collection: ["Open the Instagram post/reel.", "Tap the bookmark icon below the post.", "Save it to a collection (new or existing)."],
+  dm: ["Open the Instagram profile link.", "Tap the DM/Message button.", "Send the provided message template."],
+  playlist: ["Open the YouTube video link.", "Click Save under the video.", "Add the video to a playlist."],
+  shorts_subscribe: ["Open the YouTube Shorts link.", "Watch the short and tap Subscribe on the channel."],
+  stitch: ["Open the TikTok video.", "Tap Stitch, choose the section, and record your reply.", "Publish the stitched video."],
+  duet: ["Open the TikTok video.", "Tap Duet and record your side-by-side video.", "Publish the duet."],
+  join_group: ["Open the Facebook group link.", "Click 'Join Group' and answer any entry questions."],
+  share_to_group: ["Open the post link.", "Click Share and select a Facebook group.", "Post the share to the group."],
+  connect: ["Open the LinkedIn profile link.", "Click 'Connect' and add a personalized note."],
+  endorse: ["Open the LinkedIn profile link.", "Click 'More' then 'Endorse skill'.", "Select a skill and endorse it."],
+  quiz_70: ["Open the quiz link.", "Complete all questions.", "Score 70% or higher (screenshot your score)."],
+  read_5q: ["Open the article link.", "Read the article fully.", "Answer the 5 questions about the content."],
+  watch_3q: ["Open the video link.", "Watch the full video.", "Answer the 3 questions about the content."],
+  daily_poll: ["Open the poll link.", "Cast your vote for today's poll."],
+  video_feedback: ["Open the feedback link.", "Record a short video (30–60s) with your feedback.", "Upload or submit the recording link."],
+  screen_recording: ["Open the app or website.", "Start a screen recording on your device.", "Walk through at least 3 major features slowly.", "Stop and upload the screen recording as proof."],
+  github_watch: ["Open the GitHub repository link.", "Click the Watch button and choose your notification level."],
+  blog_post: ["Write an original blog post (500+ words) on the given topic.", "Publish it on your own blog or a public platform.", "Provide the published URL."],
+  x_thread: ["Write an original X thread (5+ posts) on the given topic.", "Publish it from your profile.", "Provide the link to the first tweet."],
+  product_review: ["Use or explore the product.", "Write a genuine, structured review (200+ words).", "Publish it on your profile or a review platform.", "Provide the published link."],
+  testimonial: ["Write a short positive testimonial (50+ words) about the product.", "Include your name and role.", "Provide the published or submitted link/text."],
+  google_maps_review: ["Open the Google Maps listing link.", "Rate the business with 5 stars.", "Write a short honest review and submit.", "Screenshot the published review."],
+  article_rewrite: ["Open the source article link.", "Rewrite the article in your own words (400+ words).", "Publish it and provide the link."],
+  telegram_join: ["Open the Telegram group invite link.", "Tap 'Join Group'.", "Screenshot showing you as a member."],
+  whatsapp_join: ["Open the WhatsApp community invite link.", "Tap 'Join Community' and enter if prompted.", "Screenshot showing you joined."],
+  discord_join: ["Open the Discord server invite link.", "Accept the invite and complete any verification.", "Screenshot showing your membership."],
+  join_intro: ["Open the group invite link and join.", "Post a short introduction message about yourself.", "Screenshot of your introduction message in the group."],
+  whatsapp_share_3: ["Open the shareable content link.", "Forward the link to 3 different WhatsApp groups.", "Screenshot all 3 shared messages."]
 };
 
 const ACTION_PROOF_PRESETS: Record<string, string[]> = {
@@ -464,7 +544,37 @@ const ACTION_PROOF_PRESETS: Record<string, string[]> = {
   interact_features: ["Screenshot showing your interaction history or completed task action", "Short description of your walkthrough experience"],
   github_star: ["Screenshot showing the repository as Starred", "Your GitHub username"],
   github_fork: ["Screenshot of the forked repository in your profile", "Link to your forked repository", "Your GitHub username"],
-  github_follow: ["Screenshot showing the 'Unfollow' button on the profile", "Your GitHub username"]
+  github_follow: ["Screenshot showing the 'Unfollow' button on the profile", "Your GitHub username"],
+  quote: ["Screenshot of your quote tweet", "Link to your quote tweet"],
+  bookmark: ["Screenshot showing the post as Bookmarked"],
+  save_collection: ["Screenshot of the post saved in the collection", "Your Instagram handle"],
+  dm: ["Screenshot of your sent DM", "Your Instagram handle"],
+  playlist: ["Screenshot of the video added to the playlist", "Playlist name"],
+  shorts_subscribe: ["Screenshot showing channel as Subscribed from Shorts", "YouTube username"],
+  stitch: ["Link to your published stitch video", "Screenshot of your stitch"],
+  duet: ["Link to your published duet video", "Screenshot of your duet"],
+  join_group: ["Screenshot showing you as a group member"],
+  share_to_group: ["Screenshot of the post shared into the group", "Group name"],
+  connect: ["Screenshot of the pending/sent connection request"],
+  endorse: ["Screenshot showing the endorsed skill", "LinkedIn profile link"],
+  quiz_70: ["Screenshot of your quiz score (70%+)", "Your name/email used"],
+  read_5q: ["Screenshot of your completed answers", "Your name/email used"],
+  watch_3q: ["Screenshot of your completed answers", "Your name/email used"],
+  daily_poll: ["Screenshot of your cast vote", "Your poll response"],
+  video_feedback: ["Link to your uploaded feedback recording"],
+  screen_recording: ["Upload the screen recording file", "Short summary of what you tested"],
+  github_watch: ["Screenshot showing the repository as Watched", "Your GitHub username"],
+  blog_post: ["Link to your published blog post", "Word count"],
+  x_thread: ["Link to the first tweet of your thread"],
+  product_review: ["Link to your published review", "Screenshot of the review"],
+  testimonial: ["Link or text of your testimonial"],
+  google_maps_review: ["Screenshot of your published Google Maps review", "Business name"],
+  article_rewrite: ["Link to your rewritten article", "Screenshot of the published page"],
+  telegram_join: ["Screenshot showing you as a member of the Telegram group", "Your Telegram username"],
+  whatsapp_join: ["Screenshot showing you joined the WhatsApp community", "Your phone number (last 4 digits)"],
+  discord_join: ["Screenshot showing your Discord membership", "Your Discord username"],
+  join_intro: ["Screenshot of your introduction message in the group", "Your name"],
+  whatsapp_share_3: ["Screenshots of all 3 WhatsApp groups where you shared", "Group names"]
 };
 
 const BADGES_METADATA: Record<string, { name: string; description: string; emoji: string; xp: number; icon: (color: string) => React.ReactNode }> = {
@@ -724,7 +834,7 @@ export default function Home() {
   const { createCampaign } = useEscrow();
 
   // Screen state routing — skip splash and restore tab if reloading an existing session
-  const [screen, setScreen] = useState<"splash" | "main" | "task-details" | "submit-proof" | "create-task" | "success-celebration">(() => {
+  const [screen, setScreen] = useState<"splash" | "main" | "task-details" | "submit-proof" | "create-task" | "success-celebration" | "submit-idea">(() => {
     if (typeof window !== "undefined" && sessionStorage.getItem("tezra_active_tab")) {
       return "main";
     }
@@ -759,7 +869,7 @@ export default function Home() {
 
   // Profile Sub-Screen for Creator Dashboard
   // "profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-withdrawals" | "admin-contest"
-  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest" | "admin-contract" | "admin-promotion" | "task-history" | "transaction-history">("profile-main");
+  const [profileSubScreen, setProfileSubScreen] = useState<"profile-main" | "created-tasks" | "manage-submissions" | "admin-disputes" | "admin-campaigns" | "admin-withdrawals" | "admin-contest" | "admin-contract" | "admin-promotion" | "admin-task-ideas" | "task-history" | "transaction-history">("profile-main");
 
   // Persist active tab to sessionStorage so reload restores the same page
   useEffect(() => {
@@ -782,7 +892,7 @@ export default function Home() {
 
   // Sorting popover state
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [sortBy, setSortBy] = useState<"payout-desc" | "payout-asc" | "recency-desc" | "recency-asc">("recency-desc");
+  const [sortBy, setSortBy] = useState<"payout-desc" | "payout-asc" | "recency-desc" | "recency-asc">("payout-desc");
   const [showPwaModal, setShowPwaModal] = useState(false);
 
   // Available Tasks State
@@ -1401,6 +1511,14 @@ export default function Home() {
   const [isReopening, setIsReopening] = useState<boolean>(false);
   const [reopeningTaskId, setReopeningTaskId] = useState<string | null>(null);
 
+  // Submit Task Idea queue state
+  const [taskIdeas, setTaskIdeas] = useState<any[]>([]);
+  const [ideaForm, setIdeaForm] = useState({ title: "", description: "", category: "social", suggested_payout: "" });
+  const [isSubmittingIdea, setIsSubmittingIdea] = useState(false);
+  const [ideaSubmitted, setIdeaSubmitted] = useState(false);
+  const [launchingIdeaId, setLaunchingIdeaId] = useState<string | null>(null);
+  const [ideaLaunchForm, setIdeaLaunchForm] = useState<{ platform: Platform; actions: string[]; slots: number }>({ platform: "x", actions: ["follow"], slots: 50 });
+
   // Auto-update payout when selected actions change
   useEffect(() => {
     const base = getBasePrice(createTaskForm.platform, checkedActions);
@@ -1420,7 +1538,9 @@ export default function Home() {
 
     let generatedTitle = "";
     const platformLabel = createTaskForm.platform === "x" ? "X" : 
-                         createTaskForm.platform === "testing" ? "Web & App Tasks" :
+                         createTaskForm.platform === "testing" ? "Beta Lab" :
+                         createTaskForm.platform === "content" ? "Writing & Content" :
+                         createTaskForm.platform === "community" ? "Community & Groups" :
                          createTaskForm.platform.charAt(0).toUpperCase() + createTaskForm.platform.slice(1);
     
     if (actionLabels.length === 1) {
@@ -1464,9 +1584,13 @@ export default function Home() {
       instructionsText: generatedInstructionsText,
       proofRequirements: generatedProofRequirements,
       type: createTaskForm.platform === "testing" 
-        ? "Web & App Tasks" 
+        ? "Beta Lab" 
         : createTaskForm.platform === "survey"
-        ? "Survey & Feedback"
+        ? "Surveys & Quizzes"
+        : createTaskForm.platform === "content"
+        ? "Writing & Content"
+        : createTaskForm.platform === "community"
+        ? "Community & Groups"
         : checkedActions.includes("follow") || checkedActions.includes("subscribe") || checkedActions.includes("follow_page") || checkedActions.includes("follow_company") ? "Social Follow" : "Social Engagement"
     }));
   }, [checkedActions, createTaskForm.platform]);
@@ -2218,8 +2342,23 @@ export default function Home() {
     };
   }, [history, referredUsers, tasks]);
 
-  // Filter chips list (includes new Facebook & LinkedIn platforms)
-  const filterChips = ["All", "Instagram", "X", "YouTube", "TikTok", "Facebook", "LinkedIn", "GitHub", "Survey", "Web & App Tasks"];
+  // Filter chips list: social platforms + v2.1 revamped category chips
+  const filterChips = ["All", "Instagram", "X", "YouTube", "TikTok", "Facebook", "LinkedIn", "GitHub", "Surveys & Quizzes", "Beta Lab", "Writing & Content", "Community & Groups"];
+
+  // Map a filter chip to the platform value it represents (null = category handled by categoryChipMatch)
+  const chipPlatformMap: Record<string, string | null> = {
+    "Instagram": "instagram",
+    "X": "x",
+    "YouTube": "youtube",
+    "TikTok": "tiktok",
+    "Facebook": "facebook",
+    "LinkedIn": "linkedin",
+    "GitHub": "github",
+    "Surveys & Quizzes": "survey",
+    "Beta Lab": "testing",
+    "Writing & Content": "content",
+    "Community & Groups": "community"
+  };
 
   // Filtered & Sorted tasks logic
   const filteredTasks = useMemo(() => {
@@ -2257,10 +2396,7 @@ export default function Home() {
       result = result.filter((t) => {
         const platformKey = t.platform.toLowerCase();
         const filterKey = activeFilter.toLowerCase();
-        if (filterKey === "web & app tasks") {
-          return platformKey === "testing";
-        }
-        return platformKey === filterKey;
+        return platformKey === chipPlatformMap[activeFilter];
       });
     }
 
@@ -2308,6 +2444,10 @@ export default function Home() {
         return <Linkedin className={`${className} text-[#0a66c2]`} />;
       case "github":
         return <Github className={`${className} text-slate-900`} />;
+      case "content":
+        return <FileText className={`${className} text-violet-600`} />;
+      case "community":
+        return <Users className={`${className} text-teal-600`} />;
       default:
         return <FileText className={`${className} text-slate-500`} />;
     }
@@ -2850,6 +2990,163 @@ export default function Home() {
     setScreen("main");
     setActiveTab("home");
     setIsReopening(false);
+  };
+
+  // Load task ideas for admin review
+  useEffect(() => {
+    const isAdmin = wagmiAddress?.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase();
+    if (!isAdmin) {
+      setTaskIdeas([]);
+      return;
+    }
+    const unsub = onSnapshot(
+      collection(db, "taskIdeas"),
+      (snap) => {
+        const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        items.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        setTaskIdeas(items);
+      },
+      (err) => console.error("Failed to load task ideas:", err)
+    );
+    return unsub;
+  }, [wagmiAddress]);
+
+  // Worker: submit a task idea
+  const handleSubmitTaskIdea = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ideaForm.title.trim() || !ideaForm.description.trim()) return;
+    if (!activeAddress) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+    setIsSubmittingIdea(true);
+    try {
+      const ideaId = doc(collection(db, "taskIdeas")).id;
+      await setDoc(doc(db, "taskIdeas", ideaId), {
+        title: ideaForm.title.trim(),
+        description: ideaForm.description.trim(),
+        category: ideaForm.category,
+        suggested_payout: ideaForm.suggested_payout ? parseFloat(ideaForm.suggested_payout) : null,
+        wallet_address: activeAddress,
+        status: "pending",
+        created_at: new Date().toISOString()
+      });
+      setIdeaSubmitted(true);
+      setIdeaForm({ title: "", description: "", category: "social", suggested_payout: "" });
+    } catch (err: any) {
+      console.error("Failed to submit task idea:", err);
+      alert("Failed to submit your idea: " + (err.message || err));
+    }
+    setIsSubmittingIdea(false);
+  };
+
+  // Admin: reject a task idea
+  const handleRejectIdea = async (idea: any) => {
+    try {
+      await updateDoc(doc(db, "taskIdeas", idea.id), {
+        status: "rejected",
+        reviewed_at: new Date().toISOString()
+      });
+      if (idea.wallet_address) {
+        createNotification(
+          idea.wallet_address,
+          "system",
+          "Task Idea Not Selected",
+          `We reviewed your idea "${idea.title}" but it won't be launched right now. Keep them coming!`
+        ).catch(() => {});
+      }
+    } catch (err) {
+      console.error("Failed to reject task idea:", err);
+    }
+  };
+
+  // Admin: approve & launch a task idea — opens the confirm-deposit modal for funding
+  const handleApproveIdea = async (idea: any) => {
+    try {
+      if (!idea) return;
+      const platform = ideaLaunchForm.platform;
+      const actions = ideaLaunchForm.actions.length > 0 ? ideaLaunchForm.actions : ["follow"];
+      const base = getBasePrice(platform, actions);
+      const slots = ideaLaunchForm.slots || 50;
+      const taskId = doc(collection(db, "tasks")).id;
+
+      const instList: string[] = ["Open the target link."];
+      actions.forEach((actVal) => {
+        const steps = ACTION_INSTRUCTIONS[actVal] || [];
+        instList.push(...steps);
+      });
+      instList.push("Provide the required completion proof.");
+      const proofList: string[] = [];
+      actions.forEach((actVal) => {
+        const proofs = ACTION_PROOF_PRESETS[actVal] || [];
+        proofs.forEach((p) => { if (!proofList.includes(p)) proofList.push(p); });
+      });
+
+      const platformLabel = platform === "x" ? "X" : platform === "testing" ? "Beta Lab" : platform.charAt(0).toUpperCase() + platform.slice(1);
+      const actionLabels = actions.map((a) => PLATFORM_ACTIONS[platform]?.find((x) => x.value === a)?.label || "").filter(Boolean);
+      const title = actionLabels.length > 0
+        ? (actionLabels.length === 1 ? `${actionLabels[0]} on ${platformLabel}` : `${actionLabels.slice(0, -1).join(", ")} & ${actionLabels[actionLabels.length - 1]} on ${platformLabel}`)
+        : idea.title;
+
+      const newTask: Task = {
+        id: taskId,
+        platform,
+        title,
+        amount: `${base.toFixed(2)} USDm`,
+        description: idea.description || `Community idea: ${idea.title}`,
+        type: platform === "testing" ? "Beta Lab" : platform === "survey" ? "Surveys & Quizzes" : platform === "content" ? "Writing & Content" : platform === "community" ? "Community & Groups" : "Social Engagement",
+        slotsRemaining: slots,
+        slotsTotal: slots,
+        instructions: instList,
+        proofRequirements: proofList.length > 0 ? proofList.join(" & ") : "Submit screenshot showing completion.",
+        link: "https://celo.org",
+        expiryHours: 24,
+        isUserCreated: true,
+        proofType: proofList.some((p) => p.toLowerCase().includes("recording")) ? "screen-recording" : "both"
+      };
+
+      setLaunchingIdeaId(idea.id);
+      await updateDoc(doc(db, "taskIdeas", idea.id), {
+        status: "approved",
+        reviewed_at: new Date().toISOString()
+      });
+      if (idea.wallet_address) {
+        createNotification(
+          idea.wallet_address,
+          "campaign_created",
+          "Your Task Idea Was Selected!",
+          `Your idea "${idea.title}" is being launched. Watch the feed for it!`
+        ).catch(() => {});
+        fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "task_live",
+            payload: {
+              creatorWallet: idea.wallet_address,
+              taskTitle: title,
+              taskId,
+            }
+          })
+        }).catch((e) => console.error("Error notifying idea proposer:", e));
+      }
+      setLaunchingIdeaId(null);
+
+      setPendingTxData({ newTask });
+      setActiveTransaction({
+        status: "confirm-deposit",
+        title: newTask.title,
+        amount: `${(base * slots).toFixed(2)} USDm`,
+        onClose: () => {
+          setActiveTransaction(null);
+          setPendingTxData(null);
+        }
+      });
+    } catch (err: any) {
+      console.error("Failed to approve task idea:", err);
+      alert("Failed to approve idea: " + (err.message || err));
+      setLaunchingIdeaId(null);
+    }
   };
 
   // Submit Proof Action (with Firebase Storage upload)
@@ -4112,21 +4409,81 @@ try {
                 <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
                   {filterChips.map((chip) => {
                     const isActive = activeFilter === chip;
+                    const isNewChip = ["Surveys & Quizzes", "Beta Lab", "Writing & Content", "Community & Groups"].includes(chip) && new Date(NEW_FEATURE_UNTIL) > new Date();
                     return (
                       <button
                         key={chip}
                         onClick={() => setActiveFilter(chip)}
-                        className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-300 whitespace-nowrap ${
+                        className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-300 whitespace-nowrap flex items-center gap-1.5 ${
                           isActive
                             ? "bg-slate-950 text-white shadow-sm"
                             : "bg-white text-slate-600 border border-slate-100 hover:bg-slate-50"
                         }`}
                       >
                         {chip}
+                        {isNewChip && (
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase ${isActive ? "bg-emerald-400 text-emerald-950" : "bg-emerald-100 text-emerald-600"}`}>
+                            New
+                          </span>
+                        )}
                       </button>
                     );
                   })}
                 </div>
+
+                {/* EARN STRIP */}
+                {filteredTasks.length > 0 && (() => {
+                  const maxPayout = Math.max(...filteredTasks.map((t) => parseFloat(t.amount.replace(/[^\d.]/g, "")) || 0));
+                  if (!isFinite(maxPayout) || maxPayout <= 0) return null;
+                  return (
+                    <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 rounded-2xl p-4 flex items-center justify-between shadow-lg shadow-indigo-500/10">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-200">Earn up to</p>
+                        <p className="text-xl font-black text-white leading-tight mt-0.5">
+                          ${maxPayout.toFixed(2)} USDm <span className="text-[10px] font-bold text-blue-200">per task</span>
+                        </p>
+                      </div>
+                      <div className="bg-white/15 rounded-xl p-2.5">
+                        <TrendingUp className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* TASK OF THE DAY */}
+                {filteredTasks.length > 0 && (() => {
+                  const todTask = [...filteredTasks].sort((a, b) =>
+                    (parseFloat(b.amount.replace(/[^\d.]/g, "")) || 0) - (parseFloat(a.amount.replace(/[^\d.]/g, "")) || 0)
+                  )[0];
+                  return (
+                    <div className="bg-slate-950 rounded-2xl p-4 relative overflow-hidden cursor-pointer active:scale-[0.99] transition-all"
+                      onClick={() => handleAuthAction(() => handleSelectTask(todTask))}
+                    >
+                      <div className="absolute -right-8 -top-8 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl" />
+                      <div className="flex items-center gap-2 mb-2.5">
+                        <span className="px-2 py-0.5 bg-amber-400 text-amber-950 text-[9px] font-black uppercase rounded-full tracking-wider flex items-center gap-1">
+                          <Zap className="w-3 h-3" /> Task of the Day
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                          {new Date().toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-white/10 rounded-xl flex-shrink-0">
+                          {getPlatformIcon(todTask.platform, "w-5 h-5")}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-bold text-white truncate">{todTask.title}</h3>
+                          <p className="text-[10px] text-slate-400 font-medium mt-0.5 line-clamp-1">{todTask.description}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className="text-base font-black text-emerald-400 block">{formatCurrency(todTask.amount)}</span>
+                          <span className="text-[9px] text-slate-400 font-semibold">{todTask.slotsRemaining} slots</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* TASK LIST */}
                 <div className="space-y-4">
@@ -4152,6 +4509,14 @@ try {
                             My Task
                           </span>
                         )}
+                        {(() => {
+                          const payoutNum = parseFloat(task.amount.replace(/[^\d.]/g, ""));
+                          return !isNaN(payoutNum) && payoutNum >= HIGH_PAYOUT_THRESHOLD ? (
+                            <span className="absolute top-0 right-0 px-2 py-0.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[8px] font-black uppercase rounded-bl-lg tracking-wider flex items-center gap-0.5">
+                              <Zap className="w-2.5 h-2.5" /> High Payout
+                            </span>
+                          ) : null;
+                        })()}
                         <div className="flex items-start justify-between gap-3">
                           <div className="p-2 bg-slate-50 rounded-xl group-hover:bg-slate-100 transition-colors">
                             {getPlatformIcon(task.platform)}
@@ -4807,6 +5172,31 @@ try {
                             <ChevronRight className="w-5 h-5 text-slate-400" />
                           </div>
                         </button>
+                        {/* Submit Task Idea Entry */}
+                        <button
+                          onClick={() => handleAuthAction(() => setScreen("submit-idea"))}
+                          className="w-full py-4 px-5 bg-white border border-slate-100 rounded-2xl flex items-center justify-between shadow-sm hover:shadow-md hover:border-slate-200 transition-all text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-violet-50 rounded-xl">
+                              <Lightbulb className="w-5 h-5 text-violet-600" />
+                            </div>
+                            <div>
+                              <span className="text-sm font-bold text-slate-900 block flex items-center gap-2">
+                                Submit Task Idea
+                                {new Date(NEW_FEATURE_UNTIL) > new Date() && (
+                                  <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase bg-emerald-100 text-emerald-600">
+                                    New
+                                  </span>
+                                )}
+                              </span>
+                              <span className="text-xs text-slate-400 block mt-0.5">
+                                Suggest a task and earn when it goes live
+                              </span>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-slate-400" />
+                        </button>
                         {/* Platform Developer Admin Panel Settings Card - Admin Only */}
                         {wagmiAddress?.toLowerCase() === PLATFORM_ESCROW_WALLET.toLowerCase() && (
                           <div className="mt-4 animate-fade-in space-y-4">
@@ -5040,6 +5430,26 @@ try {
                                     <span className="text-xs font-bold text-slate-800">Contest</span>
                                     <span className="text-[9px] text-slate-400 font-medium">
                                       {contestConfig ? contestConfig.status.toUpperCase() : "IDLE"}
+                                    </span>
+                                  </button>
+
+                                  {/* Task Ideas Queue */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setProfileSubScreen("admin-task-ideas")}
+                                    className="p-3.5 bg-white border border-slate-100 rounded-xl hover:border-violet-200 hover:bg-violet-50/50 transition-all flex flex-col items-center gap-2 active:scale-95 relative group"
+                                  >
+                                    <div className="relative p-2 bg-violet-50 rounded-lg">
+                                      <Lightbulb className="w-5 h-5 text-violet-500" />
+                                      {taskIdeas.filter((i) => i.status === "pending").length > 0 && (
+                                        <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-violet-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white ring-2 ring-white">
+                                          {taskIdeas.filter((i) => i.status === "pending").length}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-800">Task Ideas</span>
+                                    <span className="text-[9px] text-slate-400 font-medium">
+                                      {taskIdeas.filter((i) => i.status === "pending").length} pending
                                     </span>
                                   </button>
 
@@ -5798,6 +6208,195 @@ try {
                           ) : (
                             <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
                               <p className="text-slate-400 text-xs font-semibold">No campaigns active on the platform</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PROFILE: TASK IDEAS QUEUE FOR ADMINISTRATOR */}
+                    {profileSubScreen === "admin-task-ideas" && (
+                      <div className="space-y-6 animate-fade-in">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setProfileSubScreen("profile-main")}
+                            className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                          >
+                            <ArrowLeft className="w-5 h-5 text-slate-800" />
+                          </button>
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900 font-sans">
+                              Task Idea Queue
+                            </h2>
+                            <span className="text-xs text-slate-400 font-semibold block">
+                              Review community ideas and launch the best ones as paid tasks
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {taskIdeas.length > 0 ? (
+                            taskIdeas.map((idea) => {
+                              const catInfo = TASK_CATEGORIES[idea.category] || { label: idea.category || "General", platforms: [] };
+                              const isPending = idea.status === "pending";
+                              const isApproving = launchingIdeaId === idea.id;
+                              return (
+                                <div key={idea.id} className="bg-white p-4 border border-slate-100 shadow-sm rounded-2xl space-y-3 animate-fade-in">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-grow min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="px-2 py-0.5 bg-violet-50 text-violet-700 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                          {catInfo.label}
+                                        </span>
+                                        <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider ${
+                                          idea.status === "pending"
+                                            ? "bg-amber-50 text-amber-700"
+                                            : idea.status === "approved"
+                                            ? "bg-emerald-50 text-emerald-700"
+                                            : "bg-slate-100 text-slate-500"
+                                        }`}>
+                                          {idea.status}
+                                        </span>
+                                      </div>
+                                      <h3 className="text-sm font-bold text-slate-900 mt-2">{idea.title}</h3>
+                                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">{idea.description}</p>
+                                      <div className="flex items-center gap-3 mt-2.5 text-[10px] text-slate-400 font-semibold">
+                                        <span className="flex items-center gap-1">
+                                          <User className="w-3 h-3" />
+                                          {idea.wallet_address ? formatAddress(idea.wallet_address) : "unknown"}
+                                        </span>
+                                        {idea.suggested_payout && (
+                                          <span className="flex items-center gap-1 text-emerald-600 font-bold">
+                                            ~{Number(idea.suggested_payout).toFixed(2)} USDm suggested
+                                          </span>
+                                        )}
+                                        <span>
+                                          {idea.created_at ? new Date(idea.created_at).toLocaleDateString() : ""}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {isPending && (
+                                    <div className="space-y-3 border-t border-slate-100 pt-3">
+                                      <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                                            Platform
+                                          </label>
+                                          <select
+                                            value={ideaLaunchForm.platform}
+                                            disabled={isApproving}
+                                            onChange={(e) => {
+                                              const nextPlatform = e.target.value as Platform;
+                                              const actions = PLATFORM_ACTIONS[nextPlatform] || [];
+                                              const defaultAction = actions[0]?.value || "";
+                                              setIdeaLaunchForm({
+                                                platform: nextPlatform,
+                                                actions: defaultAction ? [defaultAction] : [],
+                                                slots: ideaLaunchForm.slots
+                                              });
+                                            }}
+                                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-bold focus:outline-none focus:border-slate-400 uppercase tracking-wider"
+                                          >
+                                            {Object.entries(TASK_CATEGORIES).map(([catKey, cat]) => (
+                                              <optgroup key={catKey} label={cat.label}>
+                                                {cat.platforms.map((p) => (
+                                                  <option key={p} value={p}>
+                                                    {p === "x" ? "X (Twitter)" : p === "testing" ? "Beta Lab" : p.charAt(0).toUpperCase() + p.slice(1)}
+                                                  </option>
+                                                ))}
+                                              </optgroup>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                                            Slots
+                                          </label>
+                                          <input
+                                            type="number"
+                                            min={5}
+                                            value={ideaLaunchForm.slots}
+                                            disabled={isApproving}
+                                            onChange={(e) => setIdeaLaunchForm({ ...ideaLaunchForm, slots: parseInt(e.target.value) || 5 })}
+                                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-bold focus:outline-none focus:border-slate-400"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-1.5">
+                                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                                          Actions
+                                        </label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {(PLATFORM_ACTIONS[ideaLaunchForm.platform] || []).map((action) => {
+                                            const isChecked = ideaLaunchForm.actions.includes(action.value);
+                                            return (
+                                              <button
+                                                key={action.value}
+                                                type="button"
+                                                disabled={isApproving}
+                                                onClick={() => {
+                                                  setIdeaLaunchForm((prev) => {
+                                                    const has = prev.actions.includes(action.value);
+                                                    if (has && prev.actions.length === 1) return prev;
+                                                    return {
+                                                      ...prev,
+                                                      actions: has ? prev.actions.filter((v) => v !== action.value) : [...prev.actions, action.value]
+                                                    };
+                                                  });
+                                                }}
+                                                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                                  isChecked
+                                                    ? "bg-blue-600 border-blue-600 text-white"
+                                                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                                                }`}
+                                              >
+                                                {action.label}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+
+                                      <div className="flex gap-2">
+                                        <button
+                                          type="button"
+                                          disabled={isApproving}
+                                          onClick={() => handleApproveIdea(idea)}
+                                          className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-[11px] font-bold active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5"
+                                        >
+                                          {isApproving ? (
+                                            <>
+                                              <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                                              Launching...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Check className="w-3.5 h-3.5" />
+                                              Approve & Launch
+                                            </>
+                                          )}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={isApproving}
+                                          onClick={() => handleRejectIdea(idea)}
+                                          className="flex-1 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50 text-slate-600 rounded-xl text-[11px] font-bold active:scale-95 transition-all"
+                                        >
+                                          Reject
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
+                              <p className="text-slate-400 text-xs font-semibold">No task ideas submitted yet</p>
                             </div>
                           )}
                         </div>
@@ -7062,15 +7661,15 @@ try {
                   }}
                   className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-slate-400 transition-colors uppercase tracking-wider disabled:opacity-60"
                 >
-                  <option value="x">X (Twitter)</option>
-                  <option value="instagram">Instagram</option>
-                  <option value="youtube">YouTube</option>
-                  <option value="tiktok">TikTok</option>
-                  <option value="facebook">Facebook</option>
-                  <option value="linkedin">LinkedIn</option>
-                  <option value="github">GitHub</option>
-                  <option value="survey">Survey</option>
-                  <option value="testing">Web & App Tasks</option>
+                  {Object.entries(TASK_CATEGORIES).map(([catKey, cat]) => (
+                    <optgroup key={catKey} label={cat.label}>
+                      {cat.platforms.map((p) => (
+                        <option key={p} value={p}>
+                          {p === "x" ? "X (Twitter)" : p === "testing" ? "Beta Lab" : p.charAt(0).toUpperCase() + p.slice(1)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
 
@@ -7109,7 +7708,14 @@ try {
                           className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 disabled:opacity-50"
                         />
                         <div className="flex-1 flex justify-between items-center text-xs">
-                          <span className="font-bold">{action.label}</span>
+                          <span className="font-bold flex items-center gap-1.5">
+                            {action.label}
+                            {action.isNew && new Date(NEW_FEATURE_UNTIL) > new Date() && (
+                              <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase bg-emerald-100 text-emerald-600">
+                                New
+                              </span>
+                            )}
+                          </span>
                           <span className="font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
                             +{action.basePrice.toFixed(2)} USDm (~₦{nairaPrice})
                           </span>
@@ -7459,6 +8065,137 @@ try {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* 4b. SUBMIT TASK IDEA SCREEN */}
+      {screen === "submit-idea" && (
+        <div className="flex-1 flex flex-col bg-[#FAFAFC]">
+          <header className="h-14 bg-white border-b border-slate-100 sticky top-0 z-45 px-4 flex items-center justify-between">
+            <button
+              onClick={() => {
+                setScreen("main");
+                setIdeaSubmitted(false);
+              }}
+              className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-slate-800" />
+            </button>
+            <span className="text-sm font-bold text-slate-900">Submit Task Idea</span>
+            <div className="w-7 h-7" />
+          </header>
+
+          {ideaSubmitted ? (
+            <main className="p-6 flex-grow flex flex-col items-center justify-center text-center space-y-5 max-w-sm mx-auto animate-fade-in">
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
+                <Check className="w-8 h-8 text-emerald-600" />
+              </div>
+              <h2 className="text-lg font-black text-slate-900">Idea Received!</h2>
+              <p className="text-xs font-semibold text-slate-500 leading-relaxed">
+                Thanks for your suggestion. The Tezra team reviews every idea — if it is approved,
+                it will be launched as a paid task and you will be notified.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setScreen("main");
+                  setIdeaSubmitted(false);
+                }}
+                className="w-full py-3.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-sm"
+              >
+                Back to Home
+              </button>
+            </main>
+          ) : (
+            <form onSubmit={handleSubmitTaskIdea} className="flex-grow flex flex-col justify-between">
+              <main className="p-4 space-y-5 overflow-y-auto max-h-[78vh] scrollbar-none">
+                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-1.5">
+                  <p className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-blue-600" /> Earn by suggesting
+                  </p>
+                  <p className="text-[10px] font-medium text-blue-700/80 leading-relaxed">
+                    Submit a task idea the Tezra community would love. If approved and launched,
+                    you get first access plus a shoutout when it goes live.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Idea Title
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Subscribe to a YouTube Channel"
+                    value={ideaForm.title}
+                    onChange={(e) => setIdeaForm({ ...ideaForm, title: e.target.value })}
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Category
+                  </label>
+                  <select
+                    value={ideaForm.category}
+                    onChange={(e) => setIdeaForm({ ...ideaForm, category: e.target.value })}
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-slate-400 transition-colors uppercase tracking-wider"
+                  >
+                    {Object.entries(TASK_CATEGORIES).map(([catKey, cat]) => (
+                      <option key={catKey} value={catKey}>{cat.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Description
+                  </label>
+                  <textarea
+                    required
+                    rows={4}
+                    placeholder="Describe what workers should do, what proof they would submit, and why it would help."
+                    value={ideaForm.description}
+                    onChange={(e) => setIdeaForm({ ...ideaForm, description: e.target.value })}
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400 resize-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Suggested Payout (USDm) <span className="normal-case font-semibold text-slate-300">— optional</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="e.g. 0.25"
+                    value={ideaForm.suggested_payout}
+                    onChange={(e) => setIdeaForm({ ...ideaForm, suggested_payout: e.target.value })}
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-400 transition-colors placeholder:text-slate-400"
+                  />
+                </div>
+              </main>
+
+              <div className="p-4 bg-white border-t border-slate-100">
+                <button
+                  type="submit"
+                  disabled={isSubmittingIdea || !ideaForm.title.trim() || !ideaForm.description.trim()}
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-emerald-500 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-xs font-bold hover:from-blue-700 hover:to-emerald-600 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
+                >
+                  {isSubmittingIdea ? (
+                    <>
+                      <RotateCw className="w-4 h-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Idea"
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
 

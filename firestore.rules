@@ -109,5 +109,14 @@ service cloud.firestore {
       allow update: if request.resource.data.read == true;
       allow delete: if false;
     }
+
+    // 9. Task Ideas collection rules
+    match /taskIdeas/{ideaId} {
+      allow read, delete: if true;
+      allow create: if request.resource.data.wallet_address != null
+                    && request.resource.data.title != null
+                    && request.resource.data.description != null;
+      allow update: if true; // Allowed for admin moderation (approve/reject)
+    }
   }
 }
