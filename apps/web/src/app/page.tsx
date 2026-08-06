@@ -230,7 +230,7 @@ const TEMPLATE_PRESETS: Record<string, TaskTemplate> = {
     platform: "tiktok",
     type: "Social Follow",
     payout: 0.02,
-    description: "Join our TikTok community to catch short, educational videos about crypto and tech.",
+    description: "Join our TikTok community to catch short, educational videos about stablecoins and tech.",
     instructions: "Open the TikTok profile link.\nClick the 'Follow' button.\nTake a screenshot showing you are following.",
     proofRequirements: "Screenshot showing the TikTok profile with the 'Following' status.",
     proofType: "screenshot",
@@ -3163,7 +3163,7 @@ export default function Home() {
               taskId: newTask.id,
               reward: newTask.amount,
               status: taskData.status,
-              paymentMethod: (newTask as any).transactionHash === "welcome-credit" ? "Welcome Credit 🎁" : activeTransaction?.status || "crypto"
+              paymentMethod: (newTask as any).transactionHash === "welcome-credit" ? "Welcome Credit 🎁" : activeTransaction?.status || "wallet"
             }
           })
         }).catch((e) => console.error("Error sending task created email:", e));
@@ -4398,6 +4398,14 @@ try {
     return activeAddress || "0x8F5c42E9D479E3129031023a1a9eCe9FbcE0E912";
   }, [activeAddress]);
 
+  const displayHandle = useMemo(() => {
+    if (dbUserProfile?.displayName) {
+      return dbUserProfile.displayName.startsWith("@") ? dbUserProfile.displayName : `@${dbUserProfile.displayName}`;
+    }
+    if (isMiniPayApp) return "Tezra Member";
+    return `@${formatAddress(displayAddress)}`;
+  }, [dbUserProfile?.displayName, isMiniPayApp, displayAddress]);
+
   const renderConnectPrompt = (title: string, subtitle: string) => {
     const win = typeof window !== "undefined" ? (window as any) : null;
     const isMinipay = !!(win && win.ethereum && win.ethereum.isMiniPay);
@@ -5091,7 +5099,7 @@ try {
                             <div>
                               <span className="text-[11px] text-slate-500 font-medium block">Username</span>
                               <span className="text-sm font-bold block mt-0.5 select-all">
-                                {dbUserProfile?.displayName ? (dbUserProfile.displayName.startsWith("@") ? dbUserProfile.displayName : `@${dbUserProfile.displayName}`) : `@${formatAddress(displayAddress)}`}
+                                {displayHandle}
                               </span>
                             </div>
                             {!isMiniPayApp && (
@@ -7587,7 +7595,7 @@ try {
                     <div className="space-y-2 pt-2 border-t border-slate-50">
                       <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">💳 Off-Chain Balance System</h3>
                       <p>
-                        To save earners from paying blockchain gas fees on every single submission, Tezra accumulates your earnings securely off-chain in a general treasury wallet. Once your balance reaches the minimum threshold of <span className="font-extrabold text-emerald-600">1.00 USDm</span>, you can submit a withdrawal request. Payouts are aggregated and batch-sent on-chain, keeping transaction fees at zero for earners!
+                        To save earners from paying network fees on every single submission, Tezra accumulates your earnings securely off-chain in a general treasury wallet. Once your balance reaches the minimum threshold of <span className="font-extrabold text-emerald-600">1.00 USDm</span>, you can submit a withdrawal request. Payouts are aggregated and batch-sent on-chain, keeping transaction fees at zero for earners!
                       </p>
                     </div>
 
@@ -9548,7 +9556,7 @@ try {
                     </span>
                   </div>
                   <div className="flex justify-between items-center pt-1">
-                    <span className="text-slate-400">Network Gas Fee Cover:</span>
+                    <span className="text-slate-400">Network Fee Cover:</span>
                     <span className="text-slate-800">₦150</span>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-800/10 pt-2.5 text-slate-950 font-black text-xs">
@@ -10188,7 +10196,7 @@ try {
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-900 tracking-tight">Withdraw Earnings</h3>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Connected: {formatAddress(wagmiAddress || "")}</span>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Connected: {isMiniPayApp ? "via MiniPay" : formatAddress(wagmiAddress || "")}</span>
                 </div>
               </div>
               <button

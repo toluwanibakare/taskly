@@ -47,7 +47,7 @@ export async function POST(req: Request) {
           await sendTaskCreatedEmail(creatorEmail, taskTitle, taskId);
         }
         if (creatorWallet && taskTitle && taskId) {
-          await sendAdminTaskSubmittedEmail(creatorWallet, taskTitle, taskId, paymentMethod || "crypto");
+          await sendAdminTaskSubmittedEmail(creatorWallet, taskTitle, taskId, paymentMethod || "wallet");
           // Send push to admin/creator
           await sendPushNotification(creatorWallet, "Campaign Submitted", `Your campaign "${taskTitle}" is submitted and pending launch.`);
         }

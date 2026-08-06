@@ -342,7 +342,7 @@ export async function sendWelcomeGiftEmail(toEmail: string, isFirst10: boolean, 
     badgeText: "Welcome Gift",
     bodyHtml: `
       <p>Hey ${userGreeting},</p>
-      <p>Thank you for joining <strong>Tezra</strong> — the premier micro-tasking platform for web3 & crypto rewards!</p>
+      <p>Thank you for joining <strong>Tezra</strong> — the premier micro-tasking platform for stablecoin rewards!</p>
       <div class="highlight-box">
         <p style="margin:0;color:#f8fafc;">${giftDetails}</p>
       </div>
