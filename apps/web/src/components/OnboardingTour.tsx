@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { ArrowRight, Trophy, User } from "lucide-react";
 
 interface OnboardingTourProps {
@@ -53,7 +53,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
   }, [enabled]);
 
   // Update target bounding box coordinates dynamically
-  const updateHighlight = () => {
+  const updateHighlight = useCallback(() => {
     const targetId =
       step === 1 ? "nav-tab-earn" : step === 2 ? "nav-tab-profile" : null;
     if (!targetId) {
@@ -70,7 +70,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
         height: rect.height,
       });
     }
-  };
+  }, [step]);
 
   useEffect(() => {
     updateHighlight();
@@ -83,7 +83,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [step, activeTab]);
+  }, [step, activeTab, updateHighlight]);
 
   if (step === 0 || step === 3) return null;
 

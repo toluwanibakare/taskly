@@ -276,11 +276,13 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
             Pioneer
           </div>
           <div className="w-8 h-8 mx-auto mb-2 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={logoImg.src} alt="Tezra Logo" className="w-6 h-6 object-contain" />
           </div>
           <span className="text-[9px] font-bold text-slate-400 block tracking-widest uppercase">Tezra Member Certificate</span>
           <div className="flex items-center justify-center gap-2 mt-2.5 mb-1">
             {avatarUrl ? (
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={avatarUrl} alt="Avatar" className="w-9 h-9 rounded-full object-cover flex-shrink-0 border-2 border-slate-100 shadow-sm" />
             ) : (
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0 shadow-sm"
