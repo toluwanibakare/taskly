@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React from "react";
@@ -235,7 +236,7 @@ export default function LandingPage() {
             </div>
 
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 font-mono text-[10px] text-slate-500 space-y-2">
-              <p className="text-emerald-600">// Release bounty reward to worker</p>
+              <p className="text-emerald-600">{"// Release bounty reward to worker"}</p>
               <p>function releaseBounty(bytes32 taskId, address worker) external &#123;</p>
               <p className="pl-4 text-blue-600">require(msg.sender == campaigns[taskId].creator);</p>
               <p className="pl-4">uint256 reward = campaigns[taskId].rewardVal;</p>
