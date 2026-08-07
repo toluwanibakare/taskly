@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -356,7 +357,6 @@ export const BadgeUnlockModal: React.FC<BadgeUnlockModalProps> = ({
           {/* Centered User Info Bar */}
           <div className="flex items-center gap-2 mt-1.5 bg-slate-800/40 px-3 py-1.5 rounded-full border border-slate-700/30">
             {avatarUrl ? (
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={avatarUrl} alt="Avatar" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
             ) : (
               <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
