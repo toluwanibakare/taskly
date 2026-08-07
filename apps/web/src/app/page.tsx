@@ -12,126 +12,124 @@ import {
   Users, 
   CheckCircle2, 
   Layers, 
-  MousePointerClick, 
+  ExternalLink,
+  MessageSquare,
   Sparkles,
-  ExternalLink
+  Award
 } from "lucide-react";
-
-// Tezra Logo Component matching the app theme
-const TezraLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="tezraGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#2563EB" />
-        <stop offset="50%" stopColor="#10B981" />
-        <stop offset="100%" stopColor="#0284C7" />
-      </linearGradient>
-    </defs>
-    <rect x="15" y="15" width="70" height="70" rx="22" fill="url(#tezraGrad)" />
-    <path d="M40 30L65 42L40 54V30Z" fill="white" />
-    <path d="M60 70L35 58L60 46V70Z" fill="white" opacity="0.85" />
-    <circle cx="50" cy="50" r="6" fill="#FBBF24" />
-  </svg>
-);
+import logoImg from "../../assets/logo.png";
 
 export default function LandingPage() {
-  const { isConnected, address } = useAccount();
+  const { isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-slate-950 font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#FAFAFC] text-slate-800 font-sans selection:bg-blue-600 selection:text-white relative overflow-x-hidden flex flex-col">
       
-      {/* Dynamic Background Glow Elements */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] -z-10 pointer-events-none" />
-      <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-[140px] -z-10 pointer-events-none" />
-      <div className="absolute bottom-10 left-10 w-[400px] h-[400px] bg-sky-600/10 rounded-full blur-[100px] -z-10 pointer-events-none" />
+      {/* Decorative Brand Color Blobs */}
+      <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-gradient-to-br from-blue-400/10 to-indigo-500/10 rounded-full blur-[100px] pointer-events-none -z-10" />
+      <div className="absolute top-[40%] -left-20 w-[400px] h-[400px] bg-gradient-to-tr from-emerald-400/10 to-teal-500/10 rounded-full blur-[100px] pointer-events-none -z-10" />
 
-      {/* HEADER NAVBAR */}
-      <header className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-900 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <TezraLogo className="w-9 h-9 transition-transform group-hover:rotate-12 duration-300" />
-            <span className="text-xl font-black bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent tracking-tight">
+      {/* HEADER / NAVIGATION */}
+      <header className="sticky top-0 z-50 bg-[#FAFAFC]/80 backdrop-blur-md border-b border-slate-100/80 px-6 py-3.5">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 group active:scale-95 transition-all">
+            <div className="w-9 h-9 relative flex items-center justify-center bg-white rounded-xl shadow-sm border border-slate-100 p-1">
+              <img src={logoImg.src} alt="Tezra Logo" className="object-contain w-full h-full" />
+            </div>
+            <span className="text-lg font-black text-slate-900 tracking-tight">
               Tezra
             </span>
           </Link>
 
-          {/* Nav Links */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-400">
-            <a href="#features" className="hover:text-white transition-colors">Features</a>
-            <a href="#how-it-works" className="hover:text-white transition-colors">How It Works</a>
-            <a href="#categories" className="hover:text-white transition-colors">Categories</a>
+          {/* Center Navigation */}
+          <nav className="hidden md:flex items-center gap-7 text-xs font-bold text-slate-500">
+            <a href="#features" className="hover:text-slate-950 transition-colors">Features</a>
+            <a href="#how-it-works" className="hover:text-slate-950 transition-colors">How It Works</a>
+            <a href="#categories" className="hover:text-slate-950 transition-colors">Task Categories</a>
           </nav>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-4">
+          {/* Wallet Connection / App CTAs */}
+          <div className="flex items-center gap-3">
             {isConnected ? (
               <Link 
                 href="/app" 
-                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-lg active:scale-95 uppercase tracking-wider"
+                className="px-4.5 py-2 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/10 hover:opacity-95 active:scale-95 transition-all flex items-center gap-1.5 uppercase tracking-wide"
               >
                 Enter App
                 <Zap className="w-3.5 h-3.5 fill-current" />
               </Link>
             ) : (
-              <button
-                onClick={openConnectModal}
-                className="px-4.5 py-2 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all"
-              >
-                Connect Wallet
-              </button>
+              <>
+                <button
+                  onClick={openConnectModal}
+                  className="hidden sm:block px-4 py-2 text-slate-600 hover:text-slate-950 text-xs font-bold transition-all"
+                >
+                  Connect Wallet
+                </button>
+                <Link
+                  href="/app"
+                  className="px-4.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-1.5 uppercase tracking-wide"
+                >
+                  Launch App
+                </Link>
+              </>
             )}
           </div>
         </div>
       </header>
 
       {/* HERO SECTION */}
-      <section className="relative pt-20 pb-16 px-6 text-center">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-blue-500/10 to-emerald-500/10 border border-blue-500/20 rounded-full text-blue-400 text-[10px] font-black uppercase tracking-wider animate-pulse">
-            <Sparkles className="w-3 h-3 text-emerald-400" />
-            Microwork marketplace for Celo & MiniPay
+      <section className="relative pt-16 pb-20 px-6 text-center max-w-5xl mx-auto flex-grow flex flex-col justify-center">
+        <div className="space-y-6 max-w-3xl mx-auto">
+          {/* Tagline Badge */}
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-white border border-slate-100 rounded-full text-blue-600 text-[10px] font-black uppercase tracking-wider shadow-sm">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+            Minipay-Powered Microwork Marketplace
           </div>
 
-          <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-tight text-white max-w-3xl mx-auto">
+          {/* Main Title */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.1] text-slate-900">
             Earn Stablecoins Instantly for{" "}
-            <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-emerald-400 bg-clip-text text-transparent">
-              Simple Tasks
+            <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 bg-clip-text text-transparent">
+              Completing Microtasks
             </span>
           </h1>
 
-          <p className="text-slate-400 text-base sm:text-lg max-w-xl mx-auto font-medium leading-relaxed font-sans">
-            Tezra connects creators and workers globally. Solve microtasks, test software, or complete social campaigns to get paid instantly in stablecoins directly to your MiniPay wallet.
+          {/* Description */}
+          <p className="text-slate-500 text-base sm:text-lg max-w-xl mx-auto font-medium leading-relaxed font-sans">
+            Tezra connects web3 projects and community contributors. Complete microtasks, test software, or interact with social campaigns to get paid instantly in stablecoins.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+          {/* Call to Actions */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-5">
             <Link 
               href="/app"
-              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white rounded-2xl text-sm font-black transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 uppercase tracking-widest"
+              className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-blue-600 to-emerald-500 hover:opacity-95 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-blue-500/10 active:scale-95 flex items-center justify-center gap-1.5 uppercase tracking-wider"
             >
-              Start Earning Now
+              Start Earning Stablecoins
               <ArrowRight className="w-4 h-4" />
             </Link>
             <a 
               href="#how-it-works"
-              className="w-full sm:w-auto px-8 py-4 bg-slate-900/60 border border-slate-800 hover:border-slate-700 hover:bg-slate-900 text-slate-300 hover:text-white rounded-2xl text-sm font-semibold transition-all flex items-center justify-center gap-1"
+              className="w-full sm:w-auto px-7 py-3.5 bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-sm"
             >
-              Learn More
+              How it works
             </a>
           </div>
         </div>
       </section>
 
       {/* STATS SECTION */}
-      <section className="py-12 px-6 border-y border-slate-900 bg-slate-950/40 relative">
-        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+      <section className="py-10 px-6 border-y border-slate-100 bg-white/60 relative">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           {[
-            { value: "25,000+", label: "Tasks Completed", color: "text-blue-400" },
-            { value: "$75,000+", label: "USDm Distributed", color: "text-emerald-400" },
-            { value: "4,200+", label: "Active Workers", color: "text-sky-400" },
-            { value: "100%", label: "Instant Escrow Settlement", color: "text-amber-400" }
+            { value: "25,000+", label: "Tasks Completed", color: "text-blue-600" },
+            { value: "$75,000+", label: "USDm Distributed", color: "text-emerald-600" },
+            { value: "4,200+", label: "Active Workers", color: "text-indigo-600" },
+            { value: "100%", label: "Escrow Settlement", color: "text-amber-500" }
           ].map((stat, idx) => (
-            <div key={idx} className="bg-slate-900/40 border border-slate-900 p-5 rounded-2xl backdrop-blur-sm space-y-1">
+            <div key={idx} className="space-y-1">
               <span className={`text-2xl sm:text-3xl font-black ${stat.color} block tracking-tight`}>
                 {stat.value}
               </span>
@@ -143,170 +141,176 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FEATURES SECTION */}
-      <section id="features" className="py-24 px-6 max-w-6xl mx-auto space-y-16">
-        <div className="text-center space-y-3">
-          <span className="text-xs font-black uppercase text-emerald-400 tracking-widest block">Why Choose Tezra</span>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-white">Smarter Microwork Platform</h2>
-          <p className="text-slate-400 text-sm max-w-md mx-auto leading-relaxed">
-            Engineered for high performance, mobile responsiveness, and trustless decentralized settlement.
+      {/* CORE FEATURES */}
+      <section id="features" className="py-20 px-6 max-w-5xl mx-auto space-y-12">
+        <div className="text-center space-y-2">
+          <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest block">Core Infrastructure</span>
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Trustless Escrow Settlement</h2>
+          <p className="text-slate-500 text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
+            Tezra ensures prompt compensation and quality output using automated, audited smart contracts.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-6">
           {[
             {
-              icon: <Coins className="w-6 h-6 text-emerald-400" />,
-              title: "Stablecoin Payouts",
-              desc: "Say goodbye to token volatility. All tasks pay out in USDm (Celo-backed stablecoin) preserving your value."
+              icon: <Coins className="w-5 h-5 text-emerald-600" />,
+              title: "Stablecoin Settled",
+              desc: "Payments are paid exclusively in Celo-backed USDm stablecoins, protecting your earnings from token volatility."
             },
             {
-              icon: <Shield className="w-6 h-6 text-blue-400" />,
-              title: "Trustless Smart Escrow",
-              desc: "Payments are held securely in escrow contracts and released instantly when proofs are verified by the creator."
+              icon: <Shield className="w-5 h-5 text-blue-600" />,
+              title: "On-Chain Escrow Protection",
+              desc: "Creators fund smart contracts prior to launch. Rewards are locked and released instantly when proofs are validated."
             },
             {
-              icon: <Zap className="w-6 h-6 text-amber-400" />,
-              title: "MiniPay Integration",
-              desc: "Optimized specifically for mobile browsers and MiniPay, enabling gasless, ultra-fast transaction flows."
+              icon: <Zap className="w-5 h-5 text-amber-500" />,
+              title: "MiniPay Seamless Fit",
+              desc: "Tailored to load dynamically inside the Opera MiniPay browser with optimized, gasless signature actions."
             }
           ].map((feat, idx) => (
-            <div key={idx} className="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4 hover:border-slate-800 transition-colors">
-              <div className="w-12 h-12 rounded-xl bg-slate-950 flex items-center justify-center border border-slate-800 shadow-md">
+            <div key={idx} className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm space-y-3.5 hover:border-slate-200 transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shadow-inner">
                 {feat.icon}
               </div>
-              <h3 className="text-lg font-bold text-white">{feat.title}</h3>
-              <p className="text-slate-400 text-xs leading-relaxed font-sans">{feat.desc}</p>
+              <h3 className="text-sm font-extrabold text-slate-900">{feat.title}</h3>
+              <p className="text-slate-500 text-xs leading-relaxed font-sans font-medium">{feat.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* HOW IT WORKS */}
-      <section id="how-it-works" className="py-24 px-6 border-y border-slate-900 bg-slate-950/20">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+      <section id="how-it-works" className="py-20 px-6 border-y border-slate-100 bg-white/40">
+        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
-            <span className="text-xs font-black uppercase text-blue-400 tracking-widest block">Workflow System</span>
-            <h2 className="text-3xl font-extrabold text-white leading-tight">
-              Designed for both Workers and Campaign Creators
+            <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest block">System Flow</span>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 leading-snug">
+              Microtasks Made Simple & Verified
             </h2>
-            <p className="text-slate-400 text-sm leading-relaxed font-sans">
-              Tezra provides a trustless marketplace. Complete tasks as a worker to earn instant micro-payouts, or launch your own campaigns as a creator to boost your project's metrics.
+            <p className="text-slate-500 text-xs sm:text-sm leading-relaxed font-sans font-medium">
+              We connect task creators directly with execution workers. Funds remain held securely on-chain until verification is cleared.
             </p>
 
-            <div className="space-y-4 pt-4">
+            <div className="space-y-4 pt-2">
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs flex-shrink-0">
                   1
                 </div>
                 <div>
-                  <h4 className="text-sm font-extrabold text-white">Select and Start a Campaign</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed font-sans">Browse active campaigns matching your preferences and join instantly.</p>
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wide">Pick a Task Campaign</h4>
+                  <p className="text-[11px] text-slate-500 leading-normal font-sans font-medium">Find tasks that fit your preference: writing reviews, testing apps, or social actions.</p>
                 </div>
               </div>
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs flex-shrink-0">
                   2
                 </div>
                 <div>
-                  <h4 className="text-sm font-extrabold text-white">Upload Completion Proof</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed font-sans">Take screenshots or records verifying task execution and submit safely.</p>
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wide">Submit Execution Proof</h4>
+                  <p className="text-[11px] text-slate-500 leading-normal font-sans font-medium">Follow instructions, capture completion proof, and upload your submission.</p>
                 </div>
               </div>
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs flex-shrink-0">
                   3
                 </div>
                 <div>
-                  <h4 className="text-sm font-extrabold text-white">Get Paid Directly</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed font-sans">Upon creator approval, stablecoin funds unlock from escrow to your wallet.</p>
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wide">Collect Your Rewards</h4>
+                  <p className="text-[11px] text-slate-500 leading-normal font-sans font-medium">Once approved, rewards are disbursed instantly from the smart contract escrow to your wallet.</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Floating graphic */}
-          <div className="relative bg-gradient-to-br from-blue-900/10 to-emerald-900/10 border border-slate-900 rounded-3xl p-6 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-900 pb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full" />
-                <div className="w-3 h-3 bg-yellow-500 rounded-full" />
-                <div className="w-3 h-3 bg-green-500 rounded-full" />
+          {/* Interactive UI Mockup Card */}
+          <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-md space-y-4 font-sans text-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 bg-red-400 rounded-full" />
+                <div className="w-2.5 h-2.5 bg-amber-400 rounded-full" />
+                <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full" />
               </div>
-              <span className="text-[10px] text-slate-500 font-mono">escrow_controller.sol</span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Campaign Escrow Info</span>
             </div>
 
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-900/80 font-mono text-[10px] text-slate-400 space-y-2">
-              <p className="text-emerald-400">{"// Release bounty reward to worker"}</p>
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 font-mono text-[10px] text-slate-500 space-y-2">
+              <p className="text-emerald-600">// Release bounty reward to worker</p>
               <p>function releaseBounty(bytes32 taskId, address worker) external &#123;</p>
-              <p className="pl-4 text-blue-400">require(msg.sender == campaigns[taskId].creator);</p>
+              <p className="pl-4 text-blue-600">require(msg.sender == campaigns[taskId].creator);</p>
               <p className="pl-4">uint256 reward = campaigns[taskId].rewardVal;</p>
-              <p className="pl-4 text-emerald-400">stablecoin.transfer(worker, reward);</p>
-              <p className="pl-4 text-yellow-400">emit BountyReleased(taskId, worker, reward);</p>
+              <p className="pl-4 text-emerald-600">stablecoin.transfer(worker, reward);</p>
+              <p className="pl-4 text-amber-500">emit BountyReleased(taskId, worker, reward);</p>
               <p>&#125;</p>
             </div>
-            
-            <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-900 flex justify-between items-center">
+
+            <div className="flex justify-between items-center bg-slate-50/50 p-3.5 rounded-xl border border-slate-100">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-bold text-white">Smart Contract Verified</span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span className="text-[11px] font-black text-slate-700">Audit Status Verified</span>
               </div>
-              <span className="text-[10px] text-slate-500 underline font-semibold flex items-center gap-0.5 cursor-pointer">
-                View Contract <ExternalLink className="w-2.5 h-2.5" />
+              <span className="text-[10px] font-extrabold text-blue-600 hover:text-blue-800 cursor-pointer flex items-center gap-0.5">
+                View Contract <ExternalLink className="w-3 h-3" />
               </span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CATEGORIES SECTION */}
-      <section id="categories" className="py-24 px-6 max-w-6xl mx-auto space-y-16">
-        <div className="text-center space-y-3">
-          <span className="text-xs font-black uppercase text-emerald-400 tracking-widest block">Available Roles</span>
-          <h2 className="text-3xl font-extrabold text-white">Task Campaign Categories</h2>
-          <p className="text-slate-400 text-sm max-w-md mx-auto leading-relaxed">
-            Tezra hosts a variety of microtasks matching your skills. Connect to start complete campaigns instantly.
+      {/* TASK CATEGORIES PREVIEW */}
+      <section id="categories" className="py-20 px-6 max-w-5xl mx-auto space-y-12">
+        <div className="text-center space-y-2">
+          <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest block">Diverse Opportunities</span>
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Browse Task Categories</h2>
+          <p className="text-slate-500 text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
+            Tezra hosts a variety of microtasks to match your interests. Connect to start earning instantly.
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[
             {
-              title: "Social Engagement",
+              title: "Social Quests",
               payout: "0.05 - 0.20 USDm",
-              features: ["Follow, Retweet, Like on X", "LinkedIn connection boost", "YouTube video reviews"],
-              icon: "📣"
+              features: ["Follow or retweet on X", "LinkedIn profile boost", "YouTube video reviews"],
+              icon: "📣",
+              color: "bg-blue-50 border-blue-100/50 text-blue-700"
             },
             {
               title: "Writing & Content",
               payout: "0.50 - 1.50 USDm",
-              features: ["Write blog review posts", "Draft X educational threads", "Product feedback writeups"],
-              icon: "✍️"
+              features: ["Draft review articles", "Write educational threads", "Product feedback writeups"],
+              icon: "✍️",
+              color: "bg-emerald-50 border-emerald-100/50 text-emerald-700"
             },
             {
-              title: "Beta Testing & Lab",
+              title: "Beta Software Testing",
               payout: "0.75 - 2.50 USDm",
-              features: ["Explore newly launched PWAs", "Report user experience bugs", "Provide screen recordings"],
-              icon: "🧪"
+              features: ["Explore newly launched webapps", "Identify layout issues", "Provide video records"],
+              icon: "🧪",
+              color: "bg-indigo-50 border-indigo-100/50 text-indigo-700"
             },
             {
               title: "Community & Groups",
               payout: "0.10 - 0.40 USDm",
-              features: ["Join community Telegrams", "Enter discord networks", "Actively discuss stablecoins"],
-              icon: "👥"
+              features: ["Join community Telegrams", "Enter discord networks", "Actively discuss projects"],
+              icon: "👥",
+              color: "bg-amber-50 border-amber-100/50 text-amber-800"
             }
           ].map((cat, idx) => (
-            <div key={idx} className="bg-slate-900/40 border border-slate-900 p-5 rounded-3xl space-y-5 flex flex-col justify-between hover:border-slate-800 transition-colors">
+            <div key={idx} className="bg-white border border-slate-100 p-5 rounded-2xl space-y-4 flex flex-col justify-between hover:border-slate-200 transition-colors shadow-sm">
               <div className="space-y-3">
-                <span className="text-3xl block">{cat.icon}</span>
-                <h3 className="text-base font-extrabold text-white">{cat.title}</h3>
-                <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full inline-block">
+                <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-lg ${cat.color} border shadow-inner`}>
+                  {cat.icon}
+                </span>
+                <h3 className="text-sm font-black text-slate-900 tracking-tight">{cat.title}</h3>
+                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100/50 px-2 py-0.5 rounded-full inline-block">
                   Earn {cat.payout}
                 </span>
                 <ul className="space-y-1.5 pt-2">
                   {cat.features.map((feat, fidx) => (
-                    <li key={fidx} className="text-[10px] text-slate-400 flex items-center gap-1.5 font-medium leading-normal font-sans">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    <li key={fidx} className="text-[10px] text-slate-500 flex items-center gap-1.5 font-medium leading-normal font-sans">
+                      <span className="w-1 h-1 rounded-full bg-slate-400" />
                       {feat}
                     </li>
                   ))}
@@ -314,7 +318,7 @@ export default function LandingPage() {
               </div>
               <Link 
                 href="/app" 
-                className="w-full py-2 bg-slate-950 border border-slate-800 hover:border-slate-700 text-white rounded-xl text-[10px] font-extrabold text-center block transition-all active:scale-[0.98]"
+                className="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/60 text-slate-700 hover:text-slate-950 rounded-xl text-[10px] font-extrabold text-center block transition-all active:scale-[0.98] uppercase tracking-wider"
               >
                 Browse Tasks
               </Link>
@@ -323,24 +327,23 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA BOTTOM CARD */}
-      <section className="py-16 px-6 max-w-5xl mx-auto">
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden shadow-2xl">
-          <div className="absolute top-0 left-0 w-full h-full bg-slate-950/20 backdrop-blur-[1px]" />
-          <div className="relative space-y-6 max-w-2xl mx-auto">
-            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight uppercase">
+      {/* CALL TO ACTION BOTTOM CARD */}
+      <section className="py-10 px-6 max-w-5xl mx-auto w-full">
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden shadow-xl shadow-blue-500/10">
+          <div className="relative space-y-5 max-w-xl mx-auto z-10 text-white">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight uppercase">
               Ready to start earning stablecoins?
             </h2>
-            <p className="text-blue-100 text-sm max-w-md mx-auto font-medium leading-relaxed font-sans">
-              Connect your web3 wallet in seconds via MiniPay or Valora and unlock your first rewards on Celo instantly.
+            <p className="text-blue-50 text-xs sm:text-sm font-medium leading-relaxed font-sans max-w-md mx-auto">
+              Connect your web3 wallet in seconds and claim stablecoin bounties instantly on Celo.
             </p>
             <div className="pt-2">
               <Link 
                 href="/app"
-                className="inline-flex items-center gap-2.5 px-8 py-4 bg-white hover:bg-slate-50 text-slate-950 rounded-2xl text-sm font-black transition-all shadow-xl active:scale-95 uppercase tracking-widest"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-white hover:bg-slate-50 text-slate-950 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 uppercase tracking-widest"
               >
                 Enter Tezra App
-                <Zap className="w-4 h-4 text-emerald-600 fill-emerald-600" />
+                <Zap className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500" />
               </Link>
             </div>
           </div>
@@ -348,11 +351,13 @@ export default function LandingPage() {
       </section>
 
       {/* FOOTER */}
-      <footer className="py-12 border-t border-slate-900 bg-slate-950 px-6 text-center text-xs text-slate-500 font-semibold space-y-4">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      <footer className="py-12 border-t border-slate-100 bg-white px-6 text-center text-xs text-slate-400 font-bold mt-auto">
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <TezraLogo className="w-6 h-6 grayscale opacity-60" />
-            <span className="text-slate-400 font-bold">Tezra © 2026</span>
+            <div className="w-6 h-6 p-0.5 border border-slate-100 rounded bg-white shadow-sm flex items-center justify-center">
+              <img src={logoImg.src} alt="Tezra Logo" className="object-contain w-full h-full grayscale opacity-60" />
+            </div>
+            <span className="text-slate-500 font-black">Tezra © 2026</span>
           </div>
 
           <div>
@@ -360,15 +365,15 @@ export default function LandingPage() {
               href="https://www.tmb.it.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-slate-400 hover:text-white transition-colors"
+              className="text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest text-[9px]"
             >
               Built by TMB
             </a>
           </div>
 
-          <div className="flex gap-6 font-sans">
-            <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+          <div className="flex gap-5 font-sans font-medium text-slate-400">
+            <a href="#" className="hover:text-slate-600 transition-colors">Privacy</a>
+            <a href="#" className="hover:text-slate-600 transition-colors">Terms</a>
           </div>
         </div>
       </footer>
