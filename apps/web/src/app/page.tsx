@@ -237,7 +237,7 @@ export default function LandingPage() {
             </div>
 
             <div className="bg-slate-950 p-4 rounded-xl border border-slate-900/80 font-mono text-[10px] text-slate-400 space-y-2">
-              <p className="text-emerald-400">// Release bounty reward to worker</p>
+              <p className="text-emerald-400">{"// Release bounty reward to worker"}</p>
               <p>function releaseBounty(bytes32 taskId, address worker) external &#123;</p>
               <p className="pl-4 text-blue-400">require(msg.sender == campaigns[taskId].creator);</p>
               <p className="pl-4">uint256 reward = campaigns[taskId].rewardVal;</p>
