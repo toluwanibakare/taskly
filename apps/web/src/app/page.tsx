@@ -915,7 +915,7 @@ export default function Home() {
   const openConnectModal = connectModal ? connectModal.openConnectModal : undefined;
   const { writeContractAsync } = useWriteContract();
   const chainId = useChainId();
-  const { createCampaign } = useEscrow();
+  const { createCampaign, payoutWorker } = useEscrow();
 
   // Screen state routing — skip splash and restore tab if reloading an existing session
   const [screen, setScreen] = useState<"splash" | "main" | "task-details" | "submit-proof" | "create-task" | "success-celebration" | "submit-idea">(() => {
@@ -7318,19 +7318,41 @@ try {
                               try {
                                 setQuestPayoutProcessing(true);
                                 const tokenAddress = getUsdmAddress(chainId);
-                                if (!tokenAddress) throw new Error("Stable token address not configured");
+                                const escrowAddress = getEscrowAddress(chainId);
+                                if (!tokenAddress || !escrowAddress || escrowAddress === "0x0000000000000000000000000000000000000000") {
+                                  throw new Error("Smart contracts not configured on this network");
+                                }
                                 
-                                const amountWei = parseEther(parseFloat(questPayoutAmount).toFixed(18));
-                                const tx = await writeContractAsync({
+                                const amountNum = parseFloat(questPayoutAmount);
+                                if (isNaN(amountNum) || amountNum <= 0) {
+                                  throw new Error("Please enter a valid payout amount");
+                                }
+
+                                // 2% platform fee calculation
+                                const fee = amountNum * (PLATFORM_FEE_PERCENTAGE / 100);
+                                const totalNeeded = amountNum + fee;
+                                const totalNeededWei = parseEther(totalNeeded.toFixed(18));
+
+                                // Step 1: Approve USDm spending for escrow contract
+                                const approveTx = await writeContractAsync({
                                   address: tokenAddress,
                                   abi: ERC20_ABI,
-                                  functionName: "transfer",
-                                  args: [questPayoutWinner as `0x${string}`, amountWei],
+                                  functionName: "approve",
+                                  args: [escrowAddress, totalNeededWei],
                                 });
+                                console.log("USDm approved:", approveTx);
+
+                                // Step 2: Create a dummy campaign on-chain to log volume & platform fees
+                                const newTaskId = "quest_payout_" + Date.now();
+                                const campaignTx = await createCampaign(newTaskId, amountNum, 1, 30 * 24 * 3600);
+                                console.log("Quest campaign created:", campaignTx);
+
+                                // Step 3: Trigger on-chain payout to the winner address from the campaign escrow
+                                const payTx = await payoutWorker(newTaskId, questPayoutWinner);
                                 
-                                setQuestPayoutTxHash(tx);
+                                setQuestPayoutTxHash(payTx);
                                 setShowPaymentCertificate(true);
-                                alert("🎉 Payout executed successfully!");
+                                alert("🎉 On-chain Quest Payout completed successfully via Escrow!");
                               } catch (err: any) {
                                 console.error(err);
                                 alert(`Payout failed: ${err.message || err}`);
@@ -7343,7 +7365,7 @@ try {
                             {questPayoutProcessing ? (
                               <>
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                Processing Payout...
+                                Processing Contract Payout...
                               </>
                             ) : (
                               <>
