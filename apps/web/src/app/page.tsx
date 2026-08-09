@@ -2218,7 +2218,10 @@ export default function Home() {
     const unsubscribeLeaderboard = onSnapshot(q, (snapshot) => {
       const participants: any[] = [];
       snapshot.forEach((docSnap) => {
-        participants.push(docSnap.data());
+        const uData = docSnap.data();
+        if (uData.wallet_address?.toLowerCase() !== PLATFORM_ESCROW_WALLET.toLowerCase()) {
+          participants.push(uData);
+        }
       });
       if (contestConfig.status === "coming_soon") {
         participants.sort((a, b) => {
