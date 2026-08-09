@@ -1260,7 +1260,8 @@ export default function Home() {
   const [referredUsers, setReferredUsers] = useState<any[]>([]);
   const [showReferralsModal, setShowReferralsModal] = useState(false);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
-  const [showReferralContestDetails, setShowReferralContestDetails] = useState(false);
+  const [showContestDetailsScreen, setShowContestDetailsScreen] = useState(false);
+  const [contestDetailsTab, setContestDetailsTab] = useState<"rules" | "leaderboard">("rules");
   const [historySubScreen, setHistorySubScreen] = useState<"tasks" | "ledger">("tasks");
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmountInput, setWithdrawAmountInput] = useState<number>(1.00);
@@ -4924,184 +4925,283 @@ try {
 
             {/* TAB: EARN */}
             {activeTab === "earn" && (
-              <div className="space-y-6 animate-fade-in">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                    Earn Rewards
-                  </h2>
-                  <p className="text-slate-500 text-xs font-semibold mt-0.5">
-                    Participate in promotional campaigns and contests
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Campaign 1: Sign-up Reward & Certificate Share */}
-                  <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-900 border border-slate-800 rounded-3xl p-5 text-white shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 flex items-center gap-1.5 bg-red-500/10 text-red-400 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-red-500/30">
-                      Ended
-                    </div>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-red-500/15 border border-red-500/30 rounded-full text-red-400 text-[9px] font-black uppercase tracking-wider mb-3">
-                      <span>Social Quest</span>
-                    </div>
-                    <h3 className="text-lg font-black tracking-tight text-white">Membership Certificate Share</h3>
-                    <p className="text-slate-300 text-xs mt-2 leading-relaxed font-medium">
-                      Share your official <strong className="text-emerald-400">Tezra Member Certificate</strong> on X tagging <strong className="text-emerald-400">@earnwithtezra</strong> and <strong className="text-emerald-400">@0xTMB</strong>. This campaign has ended and winners will be announced soon!
-                    </p>
-                    <div className="mt-4">
-                      <div className="text-[10px] text-red-400 font-extrabold uppercase tracking-wider bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 text-center">
-                        Campaign Closed
-                      </div>
-                    </div>
-                    <div className="flex gap-2.5 mt-5">
-                      <button
-                        onClick={() => {
-                          if (!dbUserProfile?.displayName) {
-                            setShowEmailModal(true);
-                          } else {
-                            setShowCertificate(true);
-                          }
-                        }}
-                        className="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-white text-xs font-extrabold rounded-xl active:scale-95 transition-all text-center border border-slate-700/50"
-                      >
-                        View Certificate
-                      </button>
+              showContestDetailsScreen ? (
+                <div className="space-y-5 animate-fade-in flex flex-col min-h-[70vh] pb-6">
+                  {/* Back Header */}
+                  <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setShowContestDetailsScreen(false)}
+                      className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl active:scale-95 transition-all"
+                    >
+                      <ArrowLeft className="w-4 h-4 text-slate-700" />
+                    </button>
+                    <div>
+                      <h2 className="text-base font-extrabold text-slate-900 tracking-tight">Referral Champion Contest</h2>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mt-0.5">Rules & Leaderboard</span>
                     </div>
                   </div>
 
-                  {/* Campaign 2: Referral Contest */}
-                  <div 
-                    onClick={() => setShowReferralContestDetails(!showReferralContestDetails)}
-                    className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden cursor-pointer hover:border-slate-200 transition-all"
-                  >
-                    <div className="absolute top-0 right-0 px-2.5 py-1.5 bg-emerald-50 text-emerald-600 text-[8px] font-extrabold uppercase tracking-wider rounded-bl-xl border-l border-b border-emerald-100 flex items-center gap-1">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                      </span>
-                      Active
-                    </div>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-[9px] font-black uppercase tracking-wider mb-3">
-                      <span>Leaderboard Campaign</span>
-                    </div>
-                    <h3 className="text-lg font-black tracking-tight text-slate-900">Referral Champion Contest</h3>
-                    
-                    <p className="text-slate-500 text-xs mt-2 leading-relaxed font-medium">
-                      Invite your community to Tezra. Tap this card to view rules, details, and see how the rewards are split!
-                    </p>
+                  {/* Countdown Timer Block */}
+                  <div className="bg-slate-950 border border-slate-900 p-4 rounded-2xl shadow-sm text-white">
+                    <CountdownTimer
+                      targetTime={REFERRAL_CONTEST_END_MS}
+                      phaseTargets={{ start: REFERRAL_CONTEST_START_MS, end: REFERRAL_CONTEST_END_MS }}
+                      label="Contest ends in"
+                      tone="dark"
+                      showExpired="Referral Contest has ended"
+                    />
+                  </div>
 
-                    <div className="mt-3.5 flex items-center justify-between text-[10px] text-slate-400 font-bold">
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>Aug 9 – Aug 30, 2026 (WAT)</span>
+                  {/* Two Tabs Selector */}
+                  <div className="flex bg-white p-1 rounded-2xl border border-slate-100 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setContestDetailsTab("rules")}
+                      className={`flex-1 py-3 text-center text-xs font-black rounded-xl transition-all ${
+                        contestDetailsTab === "rules"
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-500 hover:text-slate-900"
+                      }`}
+                    >
+                      🏆 Contest Rules
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setContestDetailsTab("leaderboard")}
+                      className={`flex-1 py-3 text-center text-xs font-black rounded-xl transition-all ${
+                        contestDetailsTab === "leaderboard"
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-500 hover:text-slate-900"
+                      }`}
+                    >
+                      📊 Leaderboard ({contestLeaderboard.length})
+                    </button>
+                  </div>
+
+                  {/* Tab Contents */}
+                  {contestDetailsTab === "rules" ? (
+                    <div className="space-y-4 animate-fade-in">
+                      
+                      {/* Prizes & Benefits Card */}
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3.5">
+                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-wide block">🏆 Rewards Pool:</span>
+                        <ul className="text-slate-500 text-xs font-semibold list-disc list-inside space-y-1.5 leading-relaxed pl-1">
+                          <li>1st Place: <strong className="text-slate-900">10.00 USDm</strong> on-chain.</li>
+                          <li>2nd & 3rd Place: <strong className="text-slate-900">5.00 USDm</strong> each on-chain.</li>
+                          <li>Plus free task creation credits, welcome bonuses, and public recognition!</li>
+                        </ul>
                       </div>
-                      <span className="text-blue-600 font-black flex items-center gap-1">
-                        {showReferralContestDetails ? "Hide Rules" : "Tap for Rules & Leaderboard"}
-                        <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-300 ${showReferralContestDetails ? "rotate-90" : ""}`} />
-                      </span>
+
+                      {/* Rules Details */}
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3.5">
+                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-wide block">📋 Participation Rules:</span>
+                        <ul className="text-slate-500 text-xs font-semibold list-disc list-inside space-y-1.5 leading-relaxed pl-1">
+                          <li>Only referrals completed after the contest starts count toward your score.</li>
+                          <li>Earn +0.02 USDm for task completions, and +0.10 USDm for campaign launches by your invitees.</li>
+                          <li><strong className="text-red-500">Requirements:</strong> You must have inputted your <span className="font-extrabold text-slate-800">Email</span> and <span className="font-extrabold text-slate-800">Username</span> in your Profile tab to qualify for rewards!</li>
+                        </ul>
+                      </div>
+
+                      {/* Leaderboard Warning Alert */}
+                      <div className="bg-amber-50/70 border border-amber-200/50 p-4 rounded-2xl text-[10px] text-amber-700 font-semibold leading-relaxed flex gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <span>
+                          <strong>Leaderboard Notice:</strong> The leaderboard updates consistently and periodically to reflect on-chain verification and prevent sybil entries.
+                        </span>
+                      </div>
+
+                      {/* Registration Action */}
+                      <div className="pt-2">
+                        {dbUserProfile?.contestRegistered ? (
+                          <div className="w-full py-3.5 px-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-extrabold rounded-xl flex items-center justify-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                            You are successfully registered for the contest!
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleRegisterForContest}
+                            disabled={!isUserConnected}
+                            className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-slate-300 disabled:to-slate-300 disabled:cursor-not-allowed text-white disabled:text-slate-400 text-xs font-extrabold rounded-xl shadow-lg shadow-blue-500/10 active:scale-95 transition-all text-center"
+                          >
+                            {isUserConnected ? "Register for Contest" : "Connect Wallet to Register"}
+                          </button>
+                        )}
+                      </div>
+
                     </div>
+                  ) : (
+                    // Leaderboard Tab Content
+                    <div className="space-y-4 animate-fade-in">
+                      
+                      {/* Warning on Leaderboard */}
+                      <div className="bg-amber-50/70 border border-amber-200/50 p-3.5 rounded-2xl text-[10px] text-amber-700 font-semibold leading-relaxed flex gap-2 shadow-sm">
+                        <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <span>
+                          The leaderboard updates consistently and periodically to verify referral activity.
+                        </span>
+                      </div>
 
-                    {showReferralContestDetails && (
-                      <div className="mt-5 pt-4 border-t border-slate-100 space-y-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-                        
-                        <div className="space-y-2">
-                          <span className="text-[10px] font-black text-slate-800 uppercase tracking-wide block">🏆 Prizes & Benefits:</span>
-                          <ul className="text-slate-500 text-xs font-semibold list-disc list-inside space-y-1.5 leading-relaxed pl-1">
-                            <li>1st Place: <strong className="text-slate-900">10.00 USDm</strong> on-chain.</li>
-                            <li>2nd & 3rd Place: <strong className="text-slate-900">5.00 USDm</strong> each on-chain.</li>
-                            <li>Plus free task creation credits, welcome bonuses, and public recognition!</li>
-                          </ul>
+                      {/* Leaderboard Table / List */}
+                      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                        <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Rank & Wallet</span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Earnings</span>
                         </div>
 
-                        <div className="space-y-2">
-                          <span className="text-[10px] font-black text-slate-800 uppercase tracking-wide block">📋 Participation Rules:</span>
-                          <ul className="text-slate-500 text-xs font-semibold list-disc list-inside space-y-1.5 leading-relaxed pl-1">
-                            <li>Only referrals completed after the contest starts count toward your score.</li>
-                            <li>Earn +0.02 USDm for task completions, and +0.10 USDm for campaign launches by your invitees.</li>
-                            <li><strong className="text-red-500">Requirements:</strong> You must have inputted your <span className="font-extrabold text-slate-800">Email</span> and <span className="font-extrabold text-slate-800">Username</span> in your Profile tab to qualify for rewards!</li>
-                          </ul>
-                        </div>
-
-                        <div className="bg-amber-50/70 border border-amber-200/50 p-3 rounded-2xl text-[10px] text-amber-700 font-semibold leading-relaxed flex gap-2">
-                          <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                          <span>
-                            <strong>Notice:</strong> The leaderboard updates consistently and periodically to reflect on-chain verification and prevent sybil entries.
-                          </span>
-                        </div>
-
-                        <div className="mt-3">
-                          <CountdownTimer
-                            targetTime={REFERRAL_CONTEST_END_MS}
-                            phaseTargets={{ start: REFERRAL_CONTEST_START_MS, end: REFERRAL_CONTEST_END_MS }}
-                            label="Contest ends in"
-                            showExpired="Referral Contest has ended"
-                          />
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
-                          {dbUserProfile?.contestRegistered ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowLeaderboardModal(true);
-                              }}
-                              className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-extrabold rounded-xl shadow-lg shadow-blue-500/10 active:scale-95 transition-all text-center flex items-center justify-center gap-2"
-                            >
-                              <Trophy className="w-4 h-4" />
-                              View Leaderboard
-                            </button>
+                        <div className="divide-y divide-slate-50 max-h-[380px] overflow-y-auto">
+                          {contestLeaderboard.length > 0 ? (
+                            contestLeaderboard.map((user, idx) => {
+                              const isMe = user.wallet_address?.toLowerCase() === activeAddress?.toLowerCase();
+                              return (
+                                <div key={idx} className={`px-4 py-3.5 flex items-center justify-between gap-3 text-xs ${isMe ? "bg-blue-50/20" : ""}`}>
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                                      idx === 0 ? "bg-amber-100 text-amber-800" :
+                                      idx === 1 ? "bg-slate-100 text-slate-700" :
+                                      idx === 2 ? "bg-orange-100 text-orange-800" :
+                                      "bg-slate-50 text-slate-400"
+                                    }`}>
+                                      {idx + 1}
+                                    </span>
+                                    <div className="min-w-0">
+                                      <span className="font-mono font-extrabold text-slate-800 block truncate text-[11px]">
+                                        {user.username || user.displayName || `${user.wallet_address?.substring(0,6)}...${user.wallet_address?.substring(user.wallet_address.length - 4)}`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <span className="font-extrabold text-slate-900 text-right">
+                                    {formatCurrencyVal(user.contestReferralEarnings || 0)}
+                                  </span>
+                                </div>
+                              );
+                            })
                           ) : (
-                            <>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRegisterForContest();
-                                }}
-                                disabled={!isUserConnected}
-                                className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-slate-300 disabled:to-slate-300 disabled:cursor-not-allowed text-white disabled:text-slate-400 text-xs font-extrabold rounded-xl shadow-lg shadow-blue-500/10 active:scale-95 transition-all text-center"
-                              >
-                                {isUserConnected ? "Register for Contest" : "Connect Wallet to Register"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowLeaderboardModal(true);
-                                }}
-                                className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-extrabold rounded-xl active:scale-95 transition-all text-center flex items-center justify-center gap-2"
-                              >
-                                <Trophy className="w-4 h-4 text-slate-500" />
-                                View Leaderboard
-                              </button>
-                            </>
+                            <div className="text-center py-8 text-xs text-slate-400 font-semibold">
+                              No participants registered yet.
+                            </div>
                           )}
                         </div>
                       </div>
-                    )}
+
+                    </div>
+                  )}
+
+                </div>
+              ) : (
+                <div className="space-y-6 animate-fade-in">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                      Earn Rewards
+                    </h2>
+                    <p className="text-slate-500 text-xs font-semibold mt-0.5">
+                      Participate in promotional campaigns and contests
+                    </p>
                   </div>
 
-                  {/* Campaign 3: Badge Contest */}
-                  <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 bg-purple-50 text-purple-600 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-purple-100">
-                      ⏳ Coming Soon
+                  <div className="space-y-4">
+                    {/* Campaign 1: Sign-up Reward & Certificate Share */}
+                    <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-900 border border-slate-800 rounded-3xl p-5 text-white shadow-xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-4 flex items-center gap-1.5 bg-red-500/10 text-red-400 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-red-500/30">
+                        Ended
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-red-500/15 border border-red-500/30 rounded-full text-red-400 text-[9px] font-black uppercase tracking-wider mb-3">
+                        <span>Social Quest</span>
+                      </div>
+                      <h3 className="text-lg font-black tracking-tight text-white">Membership Certificate Share</h3>
+                      <p className="text-slate-300 text-xs mt-2 leading-relaxed font-medium">
+                        Share your official <strong className="text-emerald-400">Tezra Member Certificate</strong> on X tagging <strong className="text-emerald-400">@earnwithtezra</strong> and <strong className="text-emerald-400">@0xTMB</strong>. This campaign has ended and winners will be announced soon!
+                      </p>
+                      <div className="mt-4">
+                        <div className="text-[10px] text-red-400 font-extrabold uppercase tracking-wider bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 text-center">
+                          Campaign Closed
+                        </div>
+                      </div>
+                      <div className="flex gap-2.5 mt-5">
+                        <button
+                          onClick={() => {
+                            if (!dbUserProfile?.displayName) {
+                              setShowEmailModal(true);
+                            } else {
+                              setShowCertificate(true);
+                            }
+                          }}
+                          className="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-white text-xs font-extrabold rounded-xl active:scale-95 transition-all text-center border border-slate-700/50"
+                        >
+                          View Certificate
+                        </button>
+                      </div>
                     </div>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-purple-50 border border-purple-100 rounded-full text-purple-600 text-[9px] font-black uppercase tracking-wider mb-3">
-                      <span>Collector Contest</span>
-                    </div>
-                    <h3 className="text-lg font-black tracking-tight text-slate-900">Badge Collector Sprint</h3>
-                    <p className="text-slate-500 text-xs mt-2 leading-relaxed font-medium">
-                      Earn achievements, download your badge cards, and post them to X. The collector who gathers and shares the most achievements with proper tagging wins <strong className="text-purple-600">$15.00 USDm</strong>.
-                    </p>
-                    <button
-                      disabled
-                      className="w-full py-2.5 px-4 bg-slate-100 text-slate-400 text-xs font-extrabold rounded-xl mt-5 cursor-not-allowed text-center"
+
+                    {/* Campaign 2: Referral Contest */}
+                    <div 
+                      onClick={() => {
+                        setContestDetailsTab("rules");
+                        setShowContestDetailsScreen(true);
+                      }}
+                      className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden cursor-pointer hover:border-slate-200 transition-all"
                     >
-                      Contest Locked
-                    </button>
+                      <div className="absolute top-0 right-0 px-2.5 py-1.5 bg-emerald-50 text-emerald-600 text-[8px] font-extrabold uppercase tracking-wider rounded-bl-xl border-l border-b border-emerald-100 flex items-center gap-1">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                        </span>
+                        Active
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-[9px] font-black uppercase tracking-wider mb-3">
+                        <span>Leaderboard Campaign</span>
+                      </div>
+                      <h3 className="text-lg font-black tracking-tight text-slate-900">Referral Champion Contest</h3>
+                      <p className="text-slate-500 text-xs mt-2 leading-relaxed font-medium">
+                        Invite your community to Tezra. Top 3 referrers with the highest active user submissions within the campaign window will share a reward pool of <strong className="text-blue-600">$20.00 USDm</strong>!
+                      </p>
+                      <div className="mt-4">
+                        <CountdownTimer
+                          targetTime={REFERRAL_CONTEST_END_MS}
+                          phaseTargets={{ start: REFERRAL_CONTEST_START_MS, end: REFERRAL_CONTEST_END_MS }}
+                          label="Contest ends in"
+                          showExpired="Referral Contest has ended"
+                        />
+                      </div>
+                      <div className="flex gap-2.5 mt-5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setContestDetailsTab("rules");
+                            setShowContestDetailsScreen(true);
+                          }}
+                          className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-extrabold rounded-xl shadow-lg shadow-blue-500/10 active:scale-95 transition-all text-center flex items-center justify-center gap-1.5 uppercase tracking-wide"
+                        >
+                          <Trophy className="w-4 h-4" />
+                          Contest Details
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Campaign 3: Badge Contest */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-4 bg-purple-50 text-purple-600 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-purple-100">
+                        ⏳ Coming Soon
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-purple-50 border border-purple-100 rounded-full text-purple-600 text-[9px] font-black uppercase tracking-wider mb-3">
+                        <span>Collector Contest</span>
+                      </div>
+                      <h3 className="text-lg font-black tracking-tight text-slate-900">Badge Collector Sprint</h3>
+                      <p className="text-slate-500 text-xs mt-2 leading-relaxed font-medium">
+                        Earn achievements, download your badge cards, and post them to X. The collector who gathers and shares the most achievements with proper tagging wins <strong className="text-purple-600">$15.00 USDm</strong>.
+                      </p>
+                      <button
+                        disabled
+                        className="w-full py-2.5 px-4 bg-slate-100 text-slate-400 text-xs font-extrabold rounded-xl mt-5 cursor-not-allowed text-center"
+                      >
+                        Contest Locked
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )
             )}
 
             {/* TAB: PROFILE & CREATOR DASHBOARD NESTED ROUTER */}
