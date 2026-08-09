@@ -7311,6 +7311,23 @@ try {
                             />
                           </div>
 
+                          <div className="flex gap-3">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const handle = "@0xJobbs_Fave01";
+                                const amt = parseFloat(questPayoutAmount || "10.00").toFixed(2);
+                                const tweetText = `Huge congratulations to ${handle} (${questPayoutWinner || '0xJFave'}) for winning the Tezra ${questPayoutTitle || 'Social Quest'}! 🏆\n\nYour reward payout of ${amt} USDm is being processed on-chain on @Celo!\n\nJoin the future of microwork on Tezra:`;
+                                const url = `https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+                                window.open(url, "_blank");
+                              }}
+                              className="flex-1 py-3 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl active:scale-95 transition-all text-center flex items-center justify-center gap-1.5 uppercase tracking-wider shadow-sm"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+                              Share Winner to X
+                            </button>
+                          </div>
+
                           <button
                             type="button"
                             disabled={questPayoutProcessing || !questPayoutWinner || !questPayoutAmount}
