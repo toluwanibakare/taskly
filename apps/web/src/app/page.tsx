@@ -11086,92 +11086,91 @@ try {
         }}
       />
 
-      {/* ===== PAYMENT CERTIFICATE CELEBRATION MODAL ===== */}
+      {/* ===== PAYMENT CERTIFICATE CELEBRATION MODAL (FLYER STYLE) ===== */}
       {showPaymentCertificate && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[80] flex items-center justify-center p-5 animate-fade-in font-sans">
-          {/* Shimmer Border Container */}
-          <div className="bg-slate-900 border-2 border-amber-500/40 text-white rounded-3xl p-6 shadow-2xl relative w-full max-w-md overflow-hidden text-center flex flex-col items-center">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[80] flex items-center justify-center p-5 animate-fade-in font-sans">
+          {/* Main Flyer Container Card */}
+          <div className="bg-[#FAFAFC] border border-slate-200 text-slate-800 rounded-3xl p-6 shadow-2xl relative w-full max-w-md overflow-hidden text-center flex flex-col items-center">
             
-            {/* Holographic shifting gold background detail */}
-            <div className="absolute -top-32 -left-32 w-64 h-64 bg-gradient-to-br from-amber-400/20 to-yellow-600/20 rounded-full blur-[60px] pointer-events-none animate-pulse" />
-            <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-gradient-to-tr from-emerald-400/20 to-teal-600/20 rounded-full blur-[60px] pointer-events-none animate-pulse" />
+            {/* Soft decorative background gradients matching the brand theme */}
+            <div className="absolute -top-32 -left-32 w-64 h-64 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-full blur-[60px] pointer-events-none" />
+            <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-gradient-to-tr from-blue-500/10 to-transparent rounded-full blur-[60px] pointer-events-none" />
 
-            {/* Sparkles Particle Micro-animations */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              <div className="absolute top-1/4 left-1/5 w-1.5 h-1.5 bg-yellow-400 rounded-full animate-bounce delay-75" />
-              <div className="absolute top-1/3 right-1/4 w-1 h-1 bg-white rounded-full animate-ping delay-200" />
-              <div className="absolute bottom-1/4 left-1/3 w-2 h-2 bg-emerald-400 rounded-full animate-bounce delay-300" />
-              <div className="absolute bottom-1/3 right-1/5 w-1.5 h-1.5 bg-yellow-300 rounded-full animate-ping delay-500" />
+            {/* Logo Header */}
+            <div className="flex items-center gap-2 mb-4 mt-2">
+              <Image src={logoImg} alt="Tezra Logo" className="w-8 h-8 object-contain" />
+              <span className="text-sm font-black text-slate-900 tracking-tight">Tezra</span>
             </div>
 
-            {/* Glowing Trophy Seal */}
-            <div className="relative mb-5 p-4 bg-amber-500/10 border-2 border-amber-500/30 rounded-3xl flex items-center justify-center shadow-lg shadow-amber-500/5">
-              <Trophy className="w-10 h-10 text-amber-400 animate-pulse" />
+            {/* Congratulatory Badge */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-500/10 to-yellow-600/10 border border-amber-500/20 rounded-full text-amber-700 text-[10px] font-black uppercase tracking-wider mb-5">
+              <Trophy className="w-3.5 h-3.5" />
+              Social Quest Winner
             </div>
 
-            <h3 className="text-xl font-black bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent uppercase tracking-wider">
-              Payment Certificate
+            {/* Main Congratulatory Title */}
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase leading-none">
+              Congratulations!
             </h3>
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mt-0.5">
-              Tezra Microwork Network
-            </span>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">
+              Official Payout Certificate
+            </p>
 
-            <div className="w-full border-t border-slate-800/80 my-4.5" />
+            <div className="w-full border-t border-slate-100 my-5" />
 
-            {/* Details Table */}
-            <div className="w-full space-y-3.5 text-left font-sans text-xs">
-              <div className="flex justify-between border-b border-slate-800/50 pb-2">
-                <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Quest / Campaign</span>
-                <span className="text-slate-200 font-black text-right truncate max-w-[200px]">{questPayoutTitle || "Social Quest Payout"}</span>
+            {/* Winner Details Card */}
+            <div className="w-full bg-white border border-slate-100 rounded-2xl p-4.5 space-y-4 shadow-sm text-left">
+              <div className="flex flex-col gap-1">
+                <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Champion</span>
+                <span className="text-slate-900 font-black text-lg">0xJFave</span>
               </div>
-              <div className="flex justify-between border-b border-slate-800/50 pb-2">
-                <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Winner Address</span>
-                <span className="text-amber-400 font-mono font-black text-right">
-                  {questPayoutWinner ? `${questPayoutWinner.substring(0, 8)}...${questPayoutWinner.substring(questPayoutWinner.length - 6)}` : ""}
-                </span>
+
+              <div className="flex justify-between items-center border-t border-slate-50/80 pt-3">
+                <div>
+                  <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider block">X (Twitter)</span>
+                  <span className="text-blue-600 font-bold text-xs">@0xJobbs_Fave01</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider block">Reward Pool</span>
+                  <span className="text-emerald-600 font-black text-base">
+                    {parseFloat(questPayoutAmount || "10.00").toFixed(2)} USDm
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between border-b border-slate-800/50 pb-2">
-                <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Amount Paid</span>
-                <span className="text-emerald-400 font-black text-sm">{parseFloat(questPayoutAmount || "0").toFixed(2)} USDm</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-800/50 pb-2">
-                <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Status</span>
-                <span className="text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider">
-                  Success
-                </span>
-              </div>
+
               {questPayoutTxHash && (
-                <div className="flex flex-col gap-1 pt-1">
-                  <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Transaction Hash</span>
+                <div className="border-t border-slate-50/80 pt-3 flex flex-col gap-1">
+                  <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">On-chain Verification</span>
                   <a
                     href={`https://celo.blockscout.com/tx/${questPayoutTxHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-400 font-mono text-[10px] break-all hover:underline flex items-center gap-1.5"
+                    className="text-blue-500 font-mono text-[9px] break-all hover:underline flex items-center gap-1.5"
                   >
-                    {questPayoutTxHash}
+                    {questPayoutTxHash.substring(0, 16)}...{questPayoutTxHash.substring(questPayoutTxHash.length - 16)}
                     <ExternalLink className="w-3 h-3 flex-shrink-0" />
                   </a>
                 </div>
               )}
             </div>
 
-            <div className="w-full border-t border-slate-800/80 my-4.5" />
+            <div className="w-full border-t border-slate-100 my-5" />
 
+            {/* Action Buttons */}
             <div className="w-full flex gap-3">
               <button
                 type="button"
                 onClick={() => {
-                  alert("💡 Tip: Take a screenshot of this certificate to save it or share directly on X/Twitter!");
+                  alert("📸 Tip: Take a screenshot of this flyer to share directly on X/Twitter!");
                 }}
-                className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white text-xs font-black rounded-xl active:scale-95 transition-all uppercase tracking-wider border border-slate-700"
+                className="flex-1 py-3 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-black rounded-xl active:scale-95 transition-all uppercase tracking-wider shadow-sm"
               >
-                Share Certificate
+                Screenshot / Share
               </button>
               <button
                 type="button"
                 onClick={() => setShowPaymentCertificate(false)}
-                className="flex-1 py-3 bg-gradient-to-r from-amber-500 to-yellow-600 hover:opacity-90 text-white text-xs font-black rounded-xl active:scale-95 transition-all uppercase tracking-wider"
+                className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-xl active:scale-95 transition-all uppercase tracking-wider"
               >
                 Done
               </button>
