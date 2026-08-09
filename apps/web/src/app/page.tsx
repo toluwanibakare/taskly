@@ -4933,41 +4933,33 @@ try {
                 <div className="space-y-4">
                   {/* Campaign 1: Sign-up Reward & Certificate Share */}
                   <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-900 border border-slate-800 rounded-3xl p-5 text-white shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-emerald-500/30">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                      </span>
-                      Active
+                    <div className="absolute top-0 right-0 p-4 flex items-center gap-1.5 bg-red-500/10 text-red-400 text-[10px] font-extrabold uppercase tracking-wider rounded-bl-2xl border-l border-b border-red-500/30">
+                      Ended
                     </div>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/15 border border-emerald-500/30 rounded-full text-emerald-400 text-[9px] font-black uppercase tracking-wider mb-3">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-red-500/15 border border-red-500/30 rounded-full text-red-400 text-[9px] font-black uppercase tracking-wider mb-3">
                       <span>Social Quest</span>
                     </div>
                     <h3 className="text-lg font-black tracking-tight text-white">Membership Certificate Share</h3>
                     <p className="text-slate-300 text-xs mt-2 leading-relaxed font-medium">
-                      Share your official <strong className="text-emerald-400">Tezra Member Certificate</strong> on X tagging <strong className="text-emerald-400">@earnwithtezra</strong> and <strong className="text-emerald-400">@0xTMB</strong>. The most engaged tweet wins a <strong className="text-amber-400">$10.00 USDm</strong> prize!
+                      Share your official <strong className="text-emerald-400">Tezra Member Certificate</strong> on X tagging <strong className="text-emerald-400">@earnwithtezra</strong> and <strong className="text-emerald-400">@0xTMB</strong>. This campaign has ended and winners will be announced soon!
                     </p>
                     <div className="mt-4">
-                      <CountdownTimer
-                        targetTime={SOCIAL_QUEST_END_MS}
-                        label="Social Quest ends in"
-                        tone="dark"
-                        showExpired="Social Quest has ended"
-                      />
+                      <div className="text-[10px] text-red-400 font-extrabold uppercase tracking-wider bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 text-center">
+                        Campaign Closed
+                      </div>
                     </div>
                     <div className="flex gap-2.5 mt-5">
                       <button
                         onClick={() => {
                           if (!dbUserProfile?.displayName) {
-                            // Prompt signup if missing
                             setShowEmailModal(true);
                           } else {
                             setShowCertificate(true);
                           }
                         }}
-                        className="flex-1 py-2.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-extrabold rounded-xl shadow-lg shadow-emerald-500/10 active:scale-95 transition-all text-center"
+                        className="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-white text-xs font-extrabold rounded-xl active:scale-95 transition-all text-center border border-slate-700/50"
                       >
-                        View & Share Certificate
+                        View Certificate
                       </button>
                     </div>
                   </div>
