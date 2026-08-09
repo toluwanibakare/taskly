@@ -53,6 +53,36 @@ Register for the contest from the Earn tab, copy your referral link from your Pr
     ctaText: "Open Tezra"
   },
   {
+    id: "social_quest_ended_referral_live",
+    name: "Social Quest Ended & Referral Contest Live",
+    description:
+      "Announces that the Social Quest has ended and the Referral Champion Contest is now active (Aug 9 - Aug 30).",
+    badgeText: "Contest Live",
+    emailSubject: "Social Quest Ended & Referral Contest is Live! 🚀",
+    emailBody: `The wait is over!
+
+First, a quick update: The Social Quest has officially ended. Thank you to everyone who shared their membership certificates. The entries are being evaluated, and the winners of the 10.00 USDm prize pool will be announced soon.
+
+But the excitement doesn't stop there. Our biggest Referral Champion Contest of the season is now LIVE!
+
+Here is how it works:
+- Invite your community to Tezra with your personal referral link (copy it from the Profile page).
+- Earn +0.02 USDm for every task your invitee completes.
+- Earn +0.10 USDm for every campaign your invitee creates.
+- The top 3 referrers at the end of the window (August 30) will split a 20.00 USDm bounty pool:
+  * 1st Place: 10.00 USDm
+  * 2nd & 3rd Place: 5.00 USDm each
+- Plus win free task creation credits, welcome bonuses, and public recognition!
+
+Important: Make sure you have entered your Email and Username in the Profile tab to qualify for rewards. Tapping the campaign card in the Earn page now shows the detailed rules and live leaderboard.
+
+Start inviting and secure your spot on the leaderboard today!`,
+    pushTitle: "Referral Contest is Live! 🚀",
+    pushBody:
+      "Social Quest has ended. The Referral Contest is now active (Aug 9-30) for the top 3 referrers. Open Tezra to join.",
+    ctaText: "Join Contest"
+  },
+  {
     id: "v211_update",
     name: "New Update Is Live",
     description:
