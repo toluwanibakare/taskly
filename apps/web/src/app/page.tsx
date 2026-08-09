@@ -7325,7 +7325,19 @@ try {
                               className="flex-1 py-3 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl active:scale-95 transition-all text-center flex items-center justify-center gap-1.5 uppercase tracking-wider shadow-sm"
                             >
                               <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
-                              Share Winner to X
+                              Share to X
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!questPayoutWinner || !questPayoutAmount}
+                              onClick={() => {
+                                setQuestPayoutTxHash("");
+                                setShowPaymentCertificate(true);
+                              }}
+                              className="flex-1 py-3 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl active:scale-95 transition-all text-center flex items-center justify-center gap-1.5 uppercase tracking-wider shadow-sm disabled:opacity-50"
+                            >
+                              <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                              View Flyer
                             </button>
                           </div>
 
