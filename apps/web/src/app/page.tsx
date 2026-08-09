@@ -11116,7 +11116,7 @@ try {
 
             {/* Logo Header */}
             <div className="flex items-center gap-2 mb-4 mt-2">
-              <Image src={logoImg} alt="Tezra Logo" className="w-8 h-8 object-contain" />
+              <img src={logoImg.src} alt="Tezra Logo" className="w-8 h-8 object-contain" />
               <span className="text-sm font-black text-slate-900 tracking-tight">Tezra</span>
             </div>
 
