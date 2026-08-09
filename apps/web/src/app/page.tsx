@@ -1260,8 +1260,19 @@ export default function Home() {
   const [referredUsers, setReferredUsers] = useState<any[]>([]);
   const [showReferralsModal, setShowReferralsModal] = useState(false);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
-  const [showContestDetailsScreen, setShowContestDetailsScreen] = useState(false);
-  const [contestDetailsTab, setContestDetailsTab] = useState<"rules" | "leaderboard">("rules");
+  const [showContestDetailsScreen, setShowContestDetailsScreen] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("tezra_show_contest_details") === "true";
+    }
+    return false;
+  });
+  const [contestDetailsTab, setContestDetailsTab] = useState<"rules" | "leaderboard">((() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("tezra_contest_details_tab");
+      if (saved === "rules" || saved === "leaderboard") return saved;
+    }
+    return "rules";
+  })());
   const [historySubScreen, setHistorySubScreen] = useState<"tasks" | "ledger">("tasks");
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmountInput, setWithdrawAmountInput] = useState<number>(1.00);
@@ -2238,6 +2249,14 @@ export default function Home() {
     });
     return () => unsubscribeLeaderboard();
   }, [contestConfig]);
+
+  // Persist contest details screen state across refreshes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("tezra_show_contest_details", showContestDetailsScreen ? "true" : "false");
+      sessionStorage.setItem("tezra_contest_details_tab", contestDetailsTab);
+    }
+  }, [showContestDetailsScreen, contestDetailsTab]);
 
   // Alert popup triggers for contest registration on app load
   useEffect(() => {
@@ -4958,24 +4977,26 @@ try {
                     <button
                       type="button"
                       onClick={() => setContestDetailsTab("rules")}
-                      className={`flex-1 py-3 text-center text-xs font-black rounded-xl transition-all ${
+                      className={`flex-1 py-3 text-center text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                         contestDetailsTab === "rules"
                           ? "bg-slate-900 text-white shadow-sm"
                           : "text-slate-500 hover:text-slate-900"
                       }`}
                     >
-                      🏆 Contest Rules
+                      <FileText className="w-3.5 h-3.5" />
+                      Contest Rules
                     </button>
                     <button
                       type="button"
                       onClick={() => setContestDetailsTab("leaderboard")}
-                      className={`flex-1 py-3 text-center text-xs font-black rounded-xl transition-all ${
+                      className={`flex-1 py-3 text-center text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                         contestDetailsTab === "leaderboard"
                           ? "bg-slate-900 text-white shadow-sm"
                           : "text-slate-500 hover:text-slate-900"
                       }`}
                     >
-                      📊 Leaderboard ({contestLeaderboard.length})
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      Leaderboard ({contestLeaderboard.length})
                     </button>
                   </div>
 
@@ -4985,7 +5006,10 @@ try {
                       
                       {/* Prizes & Benefits Card */}
                       <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3.5">
-                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-wide block">🏆 Rewards Pool:</span>
+                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                          <Trophy className="w-3.5 h-3.5 text-blue-600" />
+                          Rewards Pool:
+                        </span>
                         <ul className="text-slate-500 text-xs font-semibold list-disc list-inside space-y-1.5 leading-relaxed pl-1">
                           <li>1st Place: <strong className="text-slate-900">10.00 USDm</strong> on-chain.</li>
                           <li>2nd & 3rd Place: <strong className="text-slate-900">5.00 USDm</strong> each on-chain.</li>
@@ -4995,7 +5019,10 @@ try {
 
                       {/* Rules Details */}
                       <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3.5">
-                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-wide block">📋 Participation Rules:</span>
+                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                          Participation Rules:
+                        </span>
                         <ul className="text-slate-500 text-xs font-semibold list-disc list-inside space-y-1.5 leading-relaxed pl-1">
                           <li>Only referrals completed after the contest starts count toward your score.</li>
                           <li>Earn +0.02 USDm for task completions, and +0.10 USDm for campaign launches by your invitees.</li>
